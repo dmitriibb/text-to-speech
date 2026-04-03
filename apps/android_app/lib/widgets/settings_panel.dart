@@ -25,9 +25,9 @@ class SettingsPanel extends StatelessWidget {
                 const SizedBox(height: 14),
                 DropdownButtonFormField<String>(
                   initialValue: state.selectedModel?.voice.id,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Voice',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                   ),
                   items: ready.map((model) {
                     return DropdownMenuItem(
@@ -35,7 +35,7 @@ class SettingsPanel extends StatelessWidget {
                       child: Text(model.voice.displayName),
                     );
                   }).toList(),
-                  onChanged: ready.isEmpty
+                  onChanged: !state.canSelectModel
                       ? null
                       : (id) {
                           if (id == null) {
@@ -69,7 +69,8 @@ class SettingsPanel extends StatelessWidget {
                   max: 3.0,
                   divisions: 22,
                   label: '${state.speed.toStringAsFixed(2)}x',
-                  onChanged: (value) => state.setSpeed(value),
+                  onChanged:
+                      state.canAdjustSpeed ? (value) => state.setSpeed(value) : null,
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

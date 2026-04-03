@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'about_screen.dart';
 import '../state/app_state.dart';
+import '../widgets/active_task_list.dart';
 import '../widgets/error_banner.dart';
 import '../widgets/model_status_card.dart';
 import '../widgets/playback_panel.dart';
@@ -64,6 +65,10 @@ class HomeScreen extends StatelessWidget {
                   const TextInputPanel(),
                   const SizedBox(height: 16),
                   const SettingsPanel(),
+                  if (state.hasActiveTasks) ...[
+                    const SizedBox(height: 16),
+                    const ActiveTaskList(),
+                  ],
                   const SizedBox(height: 16),
                   _GenerateButton(state: state),
                   if (state.errorMessage != null) ...[
@@ -96,16 +101,12 @@ class _GenerateButton extends StatelessWidget {
       height: 56,
       child: FilledButton.icon(
         onPressed: state.canGenerate ? state.generate : null,
-        icon: state.synthesisStatus == SynthesisStatus.generating
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.record_voice_over),
+        icon: Icon(
+          state.hasActiveSynthesisTasks ? Icons.add_task : Icons.record_voice_over,
+        ),
         label: Text(
-          state.synthesisStatus == SynthesisStatus.generating
-              ? 'Generating locally...'
+          state.hasActiveSynthesisTasks
+              ? 'Queue speech task'
               : 'Generate speech',
         ),
       ),

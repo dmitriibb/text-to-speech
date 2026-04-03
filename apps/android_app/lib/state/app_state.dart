@@ -7,17 +7,21 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tts_core/tts_core.dart';
 
+import '../models/long_running_task.dart';
 import '../services/audio_service.dart';
+import '../services/long_running_task_service.dart';
 import '../services/model_service.dart';
 
 enum SynthesisStatus { idle, generating, done, error }
 
 class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
-  final TtsService _ttsService = TtsService();
   final AudioService _audioService = AudioService();
+  final LongRunningTaskService _taskService = LongRunningTaskService();
 
   StreamSubscription<PlaybackState>? _audioSubscription;
+  StreamSubscription<LongRunningTaskResult>? _taskResultSubscription;
+  Timer? _taskElapsedTicker;
 
   List<InstalledModel> _installedModels = [];
   InstalledModel? _selectedModel;
@@ -49,10 +53,18 @@ class AppState extends ChangeNotifier {
   String? get generatedWavPath => _generatedWavPath;
   PlaybackState get playbackState => _playbackState;
 
+  List<LongRunningTask> get activeTasks => _taskService.activeTasks;
+  int get activeSynthesisTaskCount =>
+      activeTasks.where((task) => task.type == LongRunningTaskType.synthesizeSpeech).length;
+  bool get hasActiveTasks => activeTasks.isNotEmpty;
+  bool get hasActiveSynthesisTasks => activeSynthesisTaskCount > 0;
+  bool get canManageModels => !_isLoadingModels && !_isDownloading;
+  bool get canSelectModel => canManageModels && readyModels.isNotEmpty;
+  bool get canAdjustSpeed => !_isLoadingModels && !_isDownloading;
+
   bool get hasAudio => _generatedWavPath != null;
   bool get canGenerate =>
       !_isDownloading &&
-      _synthesisStatus != SynthesisStatus.generating &&
       _selectedModel?.status == ModelStatus.ready &&
       TextInputValidator.validate(_inputText) == null;
 
@@ -63,7 +75,9 @@ class AppState extends ChangeNotifier {
       _installedModels.where((model) => model.status != ModelStatus.ready).toList();
 
   Future<void> initialize() async {
-    _ttsService.initBindings();
+    _taskService.addListener(_handleTaskServiceChanged);
+    _taskResultSubscription = _taskService.results.listen(_handleTaskResult);
+    await _taskService.initialize();
     _modelsDirectory = await _modelService.getModelsDirectory();
     _audioSubscription = _audioService.onStateChanged.listen((state) {
       _playbackState = state;
@@ -80,7 +94,6 @@ class AppState extends ChangeNotifier {
       _installedModels = await _modelService.getInstalledModels();
       final nextSelection = _resolveSelection();
       if (nextSelection != null) {
-        _ttsService.loadModel(nextSelection.modelDir!, nextSelection.voice);
         _speed = nextSelection.voice.defaultSpeed;
       }
       _selectedModel = nextSelection;
@@ -112,20 +125,20 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectModel(InstalledModel model) async {
-    if (model.status != ModelStatus.ready || model.modelDir == null) {
+    if (!canSelectModel || model.status != ModelStatus.ready || model.modelDir == null) {
       return;
     }
 
-    try {
-      _ttsService.loadModel(model.modelDir!, model.voice);
-      _selectedModel = model;
-      _speed = model.voice.defaultSpeed;
-      _errorMessage = null;
-    } catch (error) {
-      _errorMessage = 'Failed to load model: $error';
+    if (_selectedModel?.voice.id == model.voice.id) {
+      return;
     }
 
+    _selectedModel = model;
+    _speed = model.voice.defaultSpeed;
+    _errorMessage = null;
     notifyListeners();
+
+    unawaited(_queueModelPreload(model));
   }
 
   Future<void> downloadModel(VoiceModel voice) async {
@@ -182,31 +195,24 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    _synthesisStatus = SynthesisStatus.generating;
-    _errorMessage = null;
+    final selectedModel = _selectedModel!;
+    final inputText = _inputText.trim();
+    final speed = _speed;
+
     await _audioService.stop();
-    notifyListeners();
 
     try {
-      final result = await Future(() {
-        return _ttsService.synthesize(
-          _inputText.trim(),
-          speed: _speed,
-          speakerId: _selectedModel!.voice.defaultSpeakerId,
-        );
-      });
-
-      final wavPath = await _resolveOutputPath();
-      final saved = _ttsService.saveWav(result, wavPath);
-      if (!saved) {
-        throw Exception('Failed to write WAV file');
-      }
-
-      _generatedWavPath = wavPath;
-      _synthesisStatus = SynthesisStatus.done;
+      await _taskService.submitSpeechSynthesis(
+        modelDir: selectedModel.modelDir!,
+        voice: selectedModel.voice,
+        text: inputText,
+        speed: speed,
+        speakerId: selectedModel.voice.defaultSpeakerId,
+        outputPath: await _resolveOutputPath(),
+      );
+      _errorMessage = null;
     } catch (error) {
-      _synthesisStatus = SynthesisStatus.error;
-      _errorMessage = 'Synthesis failed: $error';
+      _errorMessage = 'Failed to start synthesis task: $error';
     }
 
     notifyListeners();
@@ -217,7 +223,36 @@ class AppState extends ChangeNotifier {
     final outputDir = Directory(p.join(supportDir.path, 'generated_audio'));
     await outputDir.create(recursive: true);
 
-    return p.join(outputDir.path, 'latest_output.wav');
+    return p.join(
+      outputDir.path,
+      'speech-${DateTime.now().microsecondsSinceEpoch}.wav',
+    );
+  }
+
+  Future<void> cancelTask(String taskId) async {
+    try {
+      await _taskService.cancelTask(taskId);
+      _errorMessage = null;
+    } catch (error) {
+      _errorMessage = 'Failed to cancel task: $error';
+      notifyListeners();
+    }
+  }
+
+  String formatTaskElapsed(LongRunningTask task) {
+    final elapsed = DateTime.now().difference(task.startedAt).inSeconds;
+    return '${elapsed < 0 ? 0 : elapsed}s';
+  }
+
+  String describeTaskStatus(LongRunningTask task) {
+    switch (task.status) {
+      case LongRunningTaskStatus.queued:
+        return 'Queued';
+      case LongRunningTaskStatus.running:
+        return 'Running';
+      case LongRunningTaskStatus.cancelling:
+        return 'Cancelling';
+    }
   }
 
   Future<void> play() async {
@@ -260,10 +295,84 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> _queueModelPreload(InstalledModel model) async {
+    try {
+      await _taskService.submitModelPreload(
+        modelDir: model.modelDir!,
+        voice: model.voice,
+      );
+      _errorMessage = null;
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = 'Failed to start background voice load: $error';
+      notifyListeners();
+    }
+  }
+
+  void _handleTaskServiceChanged() {
+    final hasActiveTasks = _taskService.activeTasks.isNotEmpty;
+    final hasActiveSynthesis = _taskService.activeTasks.any(
+      (task) => task.type == LongRunningTaskType.synthesizeSpeech,
+    );
+
+    if (hasActiveSynthesis) {
+      _synthesisStatus = SynthesisStatus.generating;
+    } else if (_synthesisStatus == SynthesisStatus.generating) {
+      _synthesisStatus = SynthesisStatus.idle;
+    }
+
+    if (hasActiveTasks) {
+      _taskElapsedTicker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+        notifyListeners();
+      });
+    } else {
+      _taskElapsedTicker?.cancel();
+      _taskElapsedTicker = null;
+    }
+
+    notifyListeners();
+  }
+
+  void _handleTaskResult(LongRunningTaskResult result) {
+    switch (result.type) {
+      case LongRunningTaskType.preloadModel:
+        if (result.status == LongRunningTaskResultStatus.failed &&
+            result.modelId == _selectedModel?.voice.id) {
+          _errorMessage =
+              'Failed to load ${_selectedModel?.voice.displayName ?? 'the selected voice'} in the background: ${result.errorMessage ?? 'Unknown error'}';
+        }
+        break;
+      case LongRunningTaskType.synthesizeSpeech:
+        switch (result.status) {
+          case LongRunningTaskResultStatus.completed:
+            _generatedWavPath = result.outputPath;
+            _synthesisStatus = SynthesisStatus.done;
+            _errorMessage = null;
+            break;
+          case LongRunningTaskResultStatus.failed:
+            _synthesisStatus = SynthesisStatus.error;
+            _errorMessage =
+                'Synthesis failed: ${result.errorMessage ?? 'Unknown error'}';
+            break;
+          case LongRunningTaskResultStatus.cancelled:
+            if (!hasActiveSynthesisTasks) {
+              _synthesisStatus = SynthesisStatus.idle;
+            }
+            break;
+        }
+        break;
+    }
+
+    notifyListeners();
+  }
+
   @override
   void dispose() {
+    _taskService.removeListener(_handleTaskServiceChanged);
+    _taskElapsedTicker?.cancel();
+    unawaited(_taskResultSubscription?.cancel());
     unawaited(_audioSubscription?.cancel());
-    _ttsService.dispose();
+    _taskService.dispose();
     _modelService.dispose();
     unawaited(_audioService.dispose());
     super.dispose();

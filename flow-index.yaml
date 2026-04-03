@@ -53,6 +53,10 @@ flows:
       - packages/tts_core/lib/src/services/text_input_validator.dart
       - apps/desktop_app/lib/state/app_state.dart
       - apps/android_app/lib/state/app_state.dart
+      - apps/android_app/lib/models/long_running_task.dart
+      - apps/android_app/lib/services/long_running_task_service.dart
+      - apps/android_app/lib/services/long_running_task_handler.dart
+      - apps/android_app/lib/widgets/active_task_list.dart
     entities:
       - VoiceModel
       - InstalledModel

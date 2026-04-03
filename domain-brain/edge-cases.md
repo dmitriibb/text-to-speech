@@ -18,6 +18,15 @@
 - Scenario: A new synthesis starts while audio is already playing.
   Expected handling: playback is stopped before generation continues.
 
+- Scenario: Model switching or speech generation takes long enough to outlive the current screen frame or app foreground state.
+  Expected handling: the work runs in the Android background task service, the UI stays interactive, and the task remains visible in the task list.
+
+- Scenario: The user cancels a queued long-running task.
+  Expected handling: the task is removed immediately, disappears from the task list, and produces no result.
+
+- Scenario: The user cancels a running synthesis or model-load task.
+  Expected handling: the task transitions to `cancelling`, the UI stays interactive, and any late result is discarded instead of replacing the current output.
+
 - Scenario: Android repair is offered for a broken model but the model is still unusable after repair.
   Expected handling: the app keeps the model non-ready and surfaces the real failure instead of pretending repair worked.
 

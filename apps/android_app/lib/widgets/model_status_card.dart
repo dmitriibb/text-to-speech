@@ -42,7 +42,7 @@ class ModelStatusCard extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: state.refreshModels,
+                      onPressed: state.canManageModels ? state.refreshModels : null,
                       icon: const Icon(Icons.refresh),
                       tooltip: 'Refresh model status',
                     ),
@@ -64,7 +64,9 @@ class ModelStatusCard extends StatelessWidget {
                           ? 'Repair ${model.voice.displayName}'
                           : 'Install ${model.voice.displayName}';
                       return FilledButton.tonal(
-                        onPressed: () => state.downloadModel(model.voice),
+                        onPressed: state.canManageModels
+                            ? () => state.downloadModel(model.voice)
+                            : null,
                         child: Text(label),
                       );
                     }).toList(),
