@@ -1,0 +1,17 @@
+.venv/
+.cache/
+artifacts/
+models/
+__pycache__/
+*.pyc
+task.checkpoint.md
+task.notes.md
+
+# Flutter
+**/build/
+**/.dart_tool/
+**/.packages
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/pubspec.lock
+

@@ -1,0 +1,26 @@
+name: desktop_app
+description: "Local text-to-speech desktop application"
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sherpa_onnx: ^1.12.35
+  provider: ^6.1.2
+  xdg_directories: ^1.1.0
+  path: ^1.9.1
+  http: ^1.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/approved_models.json

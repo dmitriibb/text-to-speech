@@ -1,0 +1,102 @@
+{
+  "catalog_version": 1,
+  "updated_on": "2026-04-03",
+  "default_model_id": "vits-piper-en_US-lessac-medium",
+  "models": [
+    {
+      "id": "vits-piper-en_US-lessac-medium",
+      "display_name": "Piper English Lessac Medium",
+      "family": "vits",
+      "runtime": "sherpa-onnx",
+      "phase0_default": true,
+      "status": {
+        "approved_for_local_validation": true,
+        "approved_for_distribution": false,
+        "distribution_decision": "Unknown",
+        "needed_to_decide_distribution": [
+          "Confirm the redistribution terms for the lessac_blizzard2013 training dataset",
+          "Capture an explicit release-level license statement for the exported model artifact"
+        ]
+      },
+      "source": {
+        "homepage": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
+        "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-lessac-medium.tar.bz2",
+        "archive_sha256": "Unknown",
+        "first_verified_local_sha256": "9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e",
+        "first_verified_local_sha256_date": "2026-04-03",
+        "needed_to_decide_archive_sha256": [
+          "Pin the checksum from the upstream release asset or",
+          "download once and store a verified local checksum in project metadata"
+        ]
+      },
+      "licensing": {
+        "runtime_license": "Apache-2.0",
+        "model_license": "Unknown",
+        "dataset_license": "Unknown",
+        "dataset_name": "lessac_blizzard2013"
+      },
+      "install": {
+        "install_dir_name": "vits-piper-en_US-lessac-medium",
+        "archive_format": "tar.bz2"
+      },
+      "files": {
+        "model": "en_US-lessac-medium.onnx",
+        "tokens": "tokens.txt",
+        "data_dir": "espeak-ng-data"
+      },
+      "defaults": {
+        "provider": "cpu",
+        "num_threads": 1,
+        "speed": 1.0,
+        "speaker_id": 0,
+        "max_num_sentences": 1
+      }
+    },
+    {
+      "id": "vits-ljs",
+      "display_name": "VITS LJSpeech",
+      "family": "vits",
+      "runtime": "sherpa-onnx",
+      "phase0_default": false,
+      "status": {
+        "approved_for_local_validation": true,
+        "approved_for_distribution": false,
+        "distribution_decision": "Unknown",
+        "needed_to_decide_distribution": [
+          "Capture an explicit release-level license statement for the exported model artifact"
+        ]
+      },
+      "source": {
+        "homepage": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
+        "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-ljs.tar.bz2",
+        "archive_sha256": "Unknown",
+        "needed_to_decide_archive_sha256": [
+          "Pin the checksum from the upstream release asset or",
+          "download once and store a verified local checksum in project metadata"
+        ]
+      },
+      "licensing": {
+        "runtime_license": "Apache-2.0",
+        "model_license": "Unknown",
+        "dataset_license": "Public Domain",
+        "dataset_name": "LJ Speech"
+      },
+      "install": {
+        "install_dir_name": "vits-ljs",
+        "archive_format": "tar.bz2"
+      },
+      "files": {
+        "model": "vits-ljs.onnx",
+        "tokens": "tokens.txt",
+        "data_dir": "espeak-ng-data"
+      },
+      "defaults": {
+        "provider": "cpu",
+        "num_threads": 1,
+        "speed": 1.0,
+        "speaker_id": 0,
+        "max_num_sentences": 1
+      }
+    }
+  ]
+}

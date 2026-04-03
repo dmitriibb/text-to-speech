@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "updated_on": "2026-04-03",
+  "benchmark_sets": {
+    "quick": [
+      "short_plain",
+      "short_numbers",
+      "medium_paragraph"
+    ],
+    "full": [
+      "short_plain",
+      "short_numbers",
+      "medium_paragraph",
+      "long_paragraph"
+    ]
+  },
+  "texts": [
+    {
+      "id": "short_plain",
+      "category": "short",
+      "text": "Hello. This is a local text to speech validation run."
+    },
+    {
+      "id": "short_numbers",
+      "category": "short",
+      "text": "Today is April 3, 2026. Please call 202 555 0147 after 7 p.m."
+    },
+    {
+      "id": "medium_paragraph",
+      "category": "medium",
+      "text": "This project aims to produce understandable English speech on ordinary computers without sending text to a remote service. The baseline system should work offline, save audio as a wave file, and stay simple enough to run on CPU first."
+    },
+    {
+      "id": "long_paragraph",
+      "category": "long",
+      "text": "Phase zero is not about a polished interface. It is about proving the core speech stack. We need predictable model download behavior, a repeatable benchmark corpus, and a clean way to measure output duration against wall clock time. If this phase is solid, the later desktop and Android work becomes much less risky because the app teams will build on a tested local synthesis path rather than on assumptions."
+    }
+  ]
+}
+
