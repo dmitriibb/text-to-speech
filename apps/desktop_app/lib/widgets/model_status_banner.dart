@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/voice_model.dart';
 import '../state/app_state.dart';
 
 /// Shows model install status and download action when no model is ready.

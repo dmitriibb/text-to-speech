@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/voice_model.dart';
 import '../state/app_state.dart';
 
 /// Voice selection dropdown and speed slider.
@@ -36,7 +35,7 @@ class SettingsPanel extends StatelessWidget {
     final ready = state.readyModels;
 
     return DropdownButtonFormField<String>(
-      value: state.selectedModel?.voice.id,
+      initialValue: state.selectedModel?.voice.id,
       decoration: const InputDecoration(
         labelText: 'Voice',
         border: OutlineInputBorder(),

@@ -1,14 +1,17 @@
 # tts_core
 
-Shared speech logic will live here in later phases.
+Shared Flutter package for the repo's local TTS apps.
 
-Planned responsibilities:
+## Responsibilities
 
-- model settings
-- text chunking
-- synthesis orchestration
-- waveform persistence
-- error mapping
+- parse the approved model catalog JSON
+- define shared model metadata types
+- validate installed model directories
+- extract supported model archive formats in pure Dart
+- wrap the shared `sherpa_onnx` offline TTS runtime
+- provide basic text-input validation helpers
 
-Phase 0 keeps the runnable validation harness in `tools/benchmark/` so the repo can validate the stack before app code exists.
+## Current consumers
 
+- `apps/desktop_app`
+- `apps/android_app`

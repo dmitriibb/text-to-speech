@@ -11,7 +11,6 @@ enum PlaybackState { stopped, playing, paused }
 class AudioService {
   Process? _process;
   PlaybackState _state = PlaybackState.stopped;
-  String? _currentFile;
 
   final _stateController = StreamController<PlaybackState>.broadcast();
 
@@ -29,7 +28,6 @@ class AudioService {
   /// Plays audio from a local WAV file path.
   Future<void> play(String filePath) async {
     await stop();
-    _currentFile = filePath;
 
     if (Platform.isLinux) {
       await _playLinux(filePath);

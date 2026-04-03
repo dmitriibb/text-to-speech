@@ -1,12 +1,10 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:tts_core/tts_core.dart';
 import 'package:xdg_directories/xdg_directories.dart' as xdg;
-
-import '../models/voice_model.dart';
 
 /// Manages the model catalog and local model storage.
 class ModelService {
@@ -21,12 +19,8 @@ class ModelService {
     if (_catalog.isNotEmpty) return _catalog;
 
     final raw = await rootBundle.loadString('assets/approved_models.json');
-    final json = jsonDecode(raw) as Map<String, dynamic>;
-    final models = json['models'] as List<dynamic>;
-
-    _catalog = models
-        .map((m) => VoiceModel.fromJson(m as Map<String, dynamic>))
-        .toList();
+    final catalog = ModelCatalog.fromRawJson(raw);
+    _catalog = catalog.models;
     return _catalog;
   }
 
@@ -93,7 +87,7 @@ class ModelService {
       for (final basePath in searchPaths) {
         final dir = p.join(basePath, voice.installDirName);
         if (await Directory(dir).exists()) {
-          final status = await _checkModelFiles(dir, voice);
+          final status = await ModelFileValidator.getStatus(dir, voice);
           if (status == ModelStatus.ready) {
             found = InstalledModel(
               voice: voice,
@@ -117,22 +111,6 @@ class ModelService {
     return results;
   }
 
-  /// Checks whether the required model files exist.
-  Future<ModelStatus> _checkModelFiles(String dir, VoiceModel voice) async {
-    final modelPath = p.join(dir, voice.modelFile);
-    final tokensPath = p.join(dir, voice.tokensFile);
-
-    if (!await File(modelPath).exists()) return ModelStatus.incomplete;
-    if (!await File(tokensPath).exists()) return ModelStatus.incomplete;
-
-    if (voice.dataDir.isNotEmpty) {
-      final dataPath = p.join(dir, voice.dataDir);
-      if (!await Directory(dataPath).exists()) return ModelStatus.incomplete;
-    }
-
-    return ModelStatus.ready;
-  }
-
   /// Downloads and extracts a model archive.
   ///
   /// [onProgress] is called with a value between 0.0 and 1.0.
@@ -146,48 +124,61 @@ class ModelService {
     final archiveName = '${model.installDirName}.${model.archiveFormat}';
     final archivePath = p.join(modelsDir, archiveName);
     final archiveFile = File(archivePath);
+    final modelDir = Directory(p.join(modelsDir, model.installDirName));
+    final client = http.Client();
 
-    // Download with progress.
-    final request = http.Request('GET', Uri.parse(model.archiveUrl));
-    final response = await http.Client().send(request);
+    try {
+      if (await modelDir.exists()) {
+        await modelDir.delete(recursive: true);
+      }
 
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Failed to download model: HTTP ${response.statusCode}',
+      final request = http.Request('GET', Uri.parse(model.archiveUrl));
+      final response = await client.send(request);
+
+      if (response.statusCode != 200) {
+        throw Exception(
+          'Failed to download model: HTTP ${response.statusCode}',
+        );
+      }
+
+      final totalBytes = response.contentLength ?? 0;
+      var receivedBytes = 0;
+      final sink = archiveFile.openWrite();
+
+      await for (final chunk in response.stream) {
+        sink.add(chunk);
+        receivedBytes += chunk.length;
+        if (totalBytes > 0 && onProgress != null) {
+          onProgress(0.8 * receivedBytes / totalBytes);
+        }
+      }
+      await sink.close();
+
+      onProgress?.call(0.85);
+      await ModelArchiveExtractor.extractArchive(
+        archivePath: archivePath,
+        archiveFormat: model.archiveFormat,
+        outputDir: modelsDir,
       );
-    }
 
-    final totalBytes = response.contentLength ?? 0;
-    var receivedBytes = 0;
-    final sink = archiveFile.openWrite();
+      final status = await ModelFileValidator.getStatus(
+        modelDir.path,
+        model,
+      );
+      if (status != ModelStatus.ready) {
+        final missing = await ModelFileValidator.missingEntries(
+          modelDir.path,
+          model,
+        );
+        throw Exception('Model extraction incomplete: ${missing.join(', ')}');
+      }
 
-    await for (final chunk in response.stream) {
-      sink.add(chunk);
-      receivedBytes += chunk.length;
-      if (totalBytes > 0 && onProgress != null) {
-        // Report download as 0-80% of total progress.
-        onProgress(0.8 * receivedBytes / totalBytes);
+      onProgress?.call(1.0);
+    } finally {
+      client.close();
+      if (await archiveFile.exists()) {
+        await archiveFile.delete();
       }
     }
-    await sink.close();
-
-    // Extract archive.
-    onProgress?.call(0.85);
-
-    if (model.archiveFormat == 'tar.bz2') {
-      final result = await Process.run(
-        'tar',
-        ['xjf', archivePath, '-C', modelsDir],
-      );
-      if (result.exitCode != 0) {
-        throw Exception('Failed to extract model: ${result.stderr}');
-      }
-    } else {
-      throw Exception('Unsupported archive format: ${model.archiveFormat}');
-    }
-
-    // Clean up archive.
-    await archiveFile.delete();
-    onProgress?.call(1.0);
   }
 }
