@@ -1,0 +1,76 @@
+version: 1
+
+# Routing hints between implementation paths and domain knowledge.
+# Keep this file in sync with domain-brain and application structure.
+
+conventions:
+  runtime: sherpa-onnx
+  ui_apps:
+    - apps/desktop_app
+    - apps/android_app
+  shared_core: packages/tts_core
+  model_catalog: packages/model_catalog/approved_models.json
+  licensing_status: docs/licensing.md
+  state_management: ChangeNotifier + Provider
+  generated_audio_format: wav
+  portable_model_install: pure Dart archive extraction
+
+flows:
+  model_catalog_and_approval:
+    docs:
+      - domain-brain/flows/model-catalog-and-approval.md
+    paths:
+      - packages/model_catalog/approved_models.json
+      - packages/tts_core/lib/src/models/voice_model.dart
+      - docs/licensing.md
+    entities:
+      - ModelCatalog
+      - VoiceModel
+  model_installation:
+    docs:
+      - domain-brain/flows/model-installation.md
+      - domain-brain/state-machines/model-readiness.md
+    paths:
+      - packages/tts_core/lib/src/services/model_archive_extractor.dart
+      - packages/tts_core/lib/src/services/model_file_validator.dart
+      - apps/desktop_app/lib/services/model_service.dart
+      - apps/android_app/lib/services/model_service.dart
+    entities:
+      - VoiceModel
+      - InstalledModel
+  local_synthesis:
+    docs:
+      - domain-brain/flows/local-synthesis.md
+      - domain-brain/state-machines/synthesis-lifecycle.md
+    paths:
+      - packages/tts_core/lib/src/services/tts_service.dart
+      - packages/tts_core/lib/src/services/text_input_validator.dart
+      - apps/desktop_app/lib/state/app_state.dart
+      - apps/android_app/lib/state/app_state.dart
+    entities:
+      - VoiceModel
+      - InstalledModel
+      - GeneratedAudio
+  audio_output:
+    docs:
+      - domain-brain/flows/audio-output.md
+      - domain-brain/state-machines/playback-lifecycle.md
+    paths:
+      - apps/desktop_app/lib/services/audio_service.dart
+      - apps/android_app/lib/services/audio_service.dart
+      - apps/desktop_app/lib/state/app_state.dart
+      - apps/android_app/lib/state/app_state.dart
+    entities:
+      - GeneratedAudio
+  benchmark_validation:
+    docs:
+      - domain-brain/flows/benchmark-validation.md
+    paths:
+      - tools/benchmark/run_phase0_validation.py
+      - tests/test_model_catalog.py
+      - tests/test_quality_suite.py
+      - artifacts/phase0
+    entities:
+      - ModelCatalog
+      - VoiceModel
+      - GeneratedAudio
