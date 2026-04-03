@@ -100,12 +100,15 @@ def build_tts(sherpa_onnx, model: dict, model_root: Path, num_threads: int):
 
     files = model["files"]
     defaults = model["defaults"]
+    lexicon_path = str(model_root / files["lexicon"]) if "lexicon" in files else ""
+    data_dir_path = str(model_root / files["data_dir"]) if "data_dir" in files else ""
     tts_config = sherpa_onnx.OfflineTtsConfig(
         model=sherpa_onnx.OfflineTtsModelConfig(
             vits=sherpa_onnx.OfflineTtsVitsModelConfig(
                 model=str(model_root / files["model"]),
+                lexicon=lexicon_path,
                 tokens=str(model_root / files["tokens"]),
-                data_dir=str(model_root / files["data_dir"]),
+                data_dir=data_dir_path,
             ),
             provider=defaults["provider"],
             num_threads=num_threads,

@@ -88,7 +88,7 @@
       "files": {
         "model": "vits-ljs.onnx",
         "tokens": "tokens.txt",
-        "data_dir": "espeak-ng-data"
+        "lexicon": "lexicon.txt"
       },
       "defaults": {
         "provider": "cpu",

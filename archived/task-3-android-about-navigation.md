@@ -17,5 +17,5 @@ Add a standard Android app-bar menu, create an About section, and move the curre
 
 ## Next Steps
 
-- Move this task file to `archived/`
-- Run Android app validation on the updated navigation flow
+- Archived
+- Android navigation change was already validated with `flutter analyze` and `flutter test`

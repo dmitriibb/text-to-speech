@@ -9,6 +9,7 @@ class ModelFileValidator {
     return [
       model.modelFile,
       model.tokensFile,
+      if (model.lexiconFile.isNotEmpty) model.lexiconFile,
       if (model.dataDir.isNotEmpty) model.dataDir,
     ];
   }
@@ -24,6 +25,13 @@ class ModelFileValidator {
     final tokensPath = p.join(dir, model.tokensFile);
     if (!await File(tokensPath).exists()) {
       missing.add(model.tokensFile);
+    }
+
+    if (model.lexiconFile.isNotEmpty) {
+      final lexiconPath = p.join(dir, model.lexiconFile);
+      if (!await File(lexiconPath).exists()) {
+        missing.add(model.lexiconFile);
+      }
     }
 
     if (model.dataDir.isNotEmpty) {

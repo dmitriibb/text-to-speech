@@ -19,6 +19,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - Desktop may additionally detect workspace models for development.
 - Extraction and validation must run before a model is treated as usable.
 - Repair must follow the same validation path as first install.
+- Validation must use the model-specific runtime assets from the catalog, such as `lexicon.txt` or `espeak-ng-data`.
 
 ## Failure Modes
 
@@ -26,4 +27,5 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - interrupted or partial extraction
 - wrong extracted directory name
 - required model files missing after extraction
+- catalog metadata expects the wrong runtime asset for the model
 - platform-specific storage path issue

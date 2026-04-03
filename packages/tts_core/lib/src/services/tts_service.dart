@@ -35,11 +35,14 @@ class TtsService {
 
     final modelPath = p.join(modelDir, model.modelFile);
     final tokensPath = p.join(modelDir, model.tokensFile);
+    final lexiconPath =
+        model.lexiconFile.isNotEmpty ? p.join(modelDir, model.lexiconFile) : '';
     final dataDirPath =
         model.dataDir.isNotEmpty ? p.join(modelDir, model.dataDir) : '';
 
     final vitsConfig = sherpa.OfflineTtsVitsModelConfig(
       model: modelPath,
+      lexicon: lexiconPath,
       tokens: tokensPath,
       dataDir: dataDirPath,
     );

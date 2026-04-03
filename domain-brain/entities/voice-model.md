@@ -15,6 +15,7 @@ A single approved model entry that describes how a voice should be downloaded, i
 - `installDirName: string`
 - `modelFile: string`
 - `tokensFile: string`
+- `lexiconFile: string`
 - `dataDir: string`
 - `provider: string`
 - `numThreads: int`
@@ -31,5 +32,5 @@ A single approved model entry that describes how a voice should be downloaded, i
 ## Notes
 
 - `installDirName` defines the expected extracted directory name.
-- `modelFile`, `tokensFile`, and optional `dataDir` define the readiness check.
+- `modelFile`, `tokensFile`, and optional `lexiconFile` or `dataDir` define the readiness check.
 - A `VoiceModel` may be usable for local development even when redistribution is still blocked.

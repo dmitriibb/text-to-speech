@@ -29,6 +29,7 @@ void main() {
       },
       "files": {
         "model": "demo.onnx",
+        "lexicon": "lexicon.txt",
         "tokens": "tokens.txt",
         "data_dir": "espeak-ng-data"
       },
@@ -50,6 +51,7 @@ void main() {
     expect(catalog.defaultModelId, 'demo-model');
     expect(catalog.models, hasLength(1));
     expect(catalog.models.single.installDirName, 'demo-model');
+    expect(catalog.models.single.lexiconFile, 'lexicon.txt');
   });
 
   test('detects incomplete and complete model directories', () async {
@@ -67,6 +69,7 @@ void main() {
       installDirName: 'demo-model',
       modelFile: 'demo.onnx',
       tokensFile: 'tokens.txt',
+      lexiconFile: '',
       dataDir: 'espeak-ng-data',
       provider: 'cpu',
       numThreads: 1,
@@ -83,6 +86,46 @@ void main() {
 
     await File('${tempDir.path}/tokens.txt').writeAsString('tokens');
     await Directory('${tempDir.path}/espeak-ng-data').create();
+
+    expect(
+      await ModelFileValidator.getStatus(tempDir.path, model),
+      ModelStatus.ready,
+    );
+  });
+
+  test('detects incomplete and complete lexicon-based model directories', () async {
+    final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    const model = VoiceModel(
+      id: 'vits-ljs',
+      displayName: 'VITS LJSpeech',
+      family: 'vits',
+      runtime: 'sherpa-onnx',
+      approvedForDistribution: false,
+      archiveUrl: 'https://example.com/vits-ljs.tar.bz2',
+      archiveFormat: 'tar.bz2',
+      installDirName: 'vits-ljs',
+      modelFile: 'vits-ljs.onnx',
+      tokensFile: 'tokens.txt',
+      lexiconFile: 'lexicon.txt',
+      dataDir: '',
+      provider: 'cpu',
+      numThreads: 1,
+      defaultSpeed: 1,
+      defaultSpeakerId: 0,
+      maxNumSentences: 1,
+    );
+
+    await File('${tempDir.path}/vits-ljs.onnx').writeAsString('onnx');
+    await File('${tempDir.path}/tokens.txt').writeAsString('tokens');
+
+    expect(
+      await ModelFileValidator.getStatus(tempDir.path, model),
+      ModelStatus.incomplete,
+    );
+
+    await File('${tempDir.path}/lexicon.txt').writeAsString('lexicon');
 
     expect(
       await ModelFileValidator.getStatus(tempDir.path, model),
