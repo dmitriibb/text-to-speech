@@ -16,6 +16,12 @@ conventions:
   portable_model_install: pure Dart archive extraction
 
 flows:
+  app_navigation:
+    docs:
+      - domain-brain/flows/app-navigation.md
+    paths:
+      - apps/android_app/lib/screens/home_screen.dart
+      - apps/android_app/lib/screens/about_screen.dart
   model_catalog_and_approval:
     docs:
       - domain-brain/flows/model-catalog-and-approval.md
