@@ -19,7 +19,7 @@ Phase 1 MVP - functional on Linux.
 
 ## Full Setup Guide
 
-For detailed instructions on installing Flutter, system dependencies, and downloading voice models, see **[docs/how-to-run.md](../../docs/how-to-run.md)**.
+For full desktop setup and run instructions, see [how-to-run.md](how-to-run.md).
 
 ## Prerequisites (summary)
 

@@ -5,11 +5,14 @@ Local-first text-to-speech monorepo for:
 - a desktop app on Ubuntu and Windows
 - an Android app (planned)
 
-The current repository state is **Phase 1: Desktop MVP**. The desktop app synthesizes English speech locally using `sherpa-onnx` with no cloud APIs.
+The current repository state is **Phase 2: Android MVP in progress**. The repo now contains both a desktop Flutter app and an Android Flutter app built around local `sherpa-onnx` synthesis.
 
 ## Getting started
 
-See **[docs/how-to-run.md](docs/how-to-run.md)** for full setup instructions covering Ubuntu, Windows, and macOS, including Flutter installation, system dependencies, and model downloads.
+See [docs/how-to-run.md](docs/how-to-run.md) for the run-guide index, then choose the app-specific guide:
+
+- [apps/desktop_app/how-to-run.md](apps/desktop_app/how-to-run.md)
+- [apps/android_app/how-to-run.md](apps/android_app/how-to-run.md)
 
 Quick version (Ubuntu, after installing Flutter and system deps):
 
@@ -23,11 +26,11 @@ flutter run -d linux
 
 ```text
 apps/
-  desktop_app/       Flutter desktop app (Phase 1 MVP)
-  android_app/       (planned)
+  desktop_app/       Flutter desktop app
+  android_app/       Flutter Android app
 
 docs/
-  how-to-run.md      Setup and run instructions
+  how-to-run.md      Index for app-specific run guides
   architecture.md    Architecture overview
   licensing.md       Model licensing status
 
@@ -35,7 +38,7 @@ packages/
   model_catalog/     Approved model catalog (JSON)
   quality_suite/     (planned)
   shared_ui/         (planned)
-  tts_core/          (planned)
+  tts_core/          Shared TTS core package
 
 tools/
   benchmark/         Phase 0 validation harness

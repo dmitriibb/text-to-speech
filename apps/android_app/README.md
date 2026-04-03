@@ -11,6 +11,10 @@ Flutter Android MVP for local offline text-to-speech.
 - plays generated audio in-app with `just_audio`
 - shares generated `.wav` files with the Android sharesheet
 
+## Full Setup Guide
+
+For full Android setup and run instructions, see [how-to-run.md](how-to-run.md).
+
 ## Run
 
 From `apps/android_app`:
@@ -20,6 +24,6 @@ flutter pub get
 flutter run
 ```
 
-## Current host limitation
+The Dart code, Flutter analysis, and Flutter tests pass in this repo.
 
-The Dart code, Flutter analysis, and Flutter tests pass in this repo, but a real Android APK build is still blocked on this Ubuntu machine until Android Studio and the Android SDK are installed and accepted.
+You still need a configured Android SDK plus either a phone or an emulator before `flutter run` can launch the app.
