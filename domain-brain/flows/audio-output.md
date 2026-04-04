@@ -9,7 +9,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 1. App keeps the last generated `.wav` path in state.
 2. User expands a completed synthesis task and uses shared playback controls.
 3. The app plays exactly one generated audio at a time and exposes progress plus seeking.
-4. Desktop can export a copy and Android can share the `.wav` through the system share sheet.
+4. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
 5. When the user dismisses a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
 
 ## Invariants
@@ -18,6 +18,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Only one generated audio may be active at a time across the app.
 - Playback must expose play/stop plus a seekable progress position for the active audio.
 - Playback and export/share are platform-specific service responsibilities behind a shared UI contract.
+- Desktop task-row save must open a real save target and copy the generated `.wav` there.
 - Output failures do not invalidate the already generated audio file.
 - Dismissing a generated-audio task deletes its temporary generated file.
 - App shutdown stops playback and cancels active background work.

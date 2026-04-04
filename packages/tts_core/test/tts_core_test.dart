@@ -1,9 +1,10 @@
 import 'dart:async';
-import 'package:flutter_test/flutter_test.dart';
-
-import 'package:tts_core/tts_core.dart';
-
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:archive/archive.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:tts_core/tts_core.dart';
 
 void main() {
   test('parses the approved model catalog shape', () {
@@ -313,6 +314,63 @@ void main() {
       expect(secondElapsed, firstElapsed);
     },
   );
+
+  test('extracts tar.bz2 archives with nested model files', () async {
+    final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final archive = Archive();
+    final directoryEntry = ArchiveFile('demo-model/espeak-ng-data/', 0, null)
+      ..isFile = false;
+    archive.addFile(directoryEntry);
+    archive.addFile(
+      ArchiveFile('demo-model/MODEL_CARD', 4, Uint8List.fromList([1, 2, 3, 4])),
+    );
+    archive.addFile(
+      ArchiveFile(
+        'demo-model/demo.onnx',
+        1024 * 1024,
+        Uint8List.fromList(List<int>.filled(1024 * 1024, 7)),
+      ),
+    );
+    archive.addFile(
+      ArchiveFile(
+        'demo-model/tokens.txt',
+        6,
+        Uint8List.fromList('tokens'.codeUnits),
+      ),
+    );
+    archive.addFile(
+      ArchiveFile(
+        'demo-model/espeak-ng-data/en_dict',
+        5,
+        Uint8List.fromList('dicts'.codeUnits),
+      ),
+    );
+
+    final tarBytes = TarEncoder().encode(archive);
+    final compressedBytes = BZip2Encoder().encode(tarBytes);
+    final archivePath = '${tempDir.path}/demo-model.tar.bz2';
+    await File(archivePath).writeAsBytes(compressedBytes);
+
+    final outputDir = '${tempDir.path}/out';
+    await ModelArchiveExtractor.extractArchive(
+      archivePath: archivePath,
+      archiveFormat: 'tar.bz2',
+      outputDir: outputDir,
+    );
+
+    expect(await File('$outputDir/demo-model/demo.onnx').exists(), isTrue);
+    expect(await File('$outputDir/demo-model/tokens.txt').exists(), isTrue);
+    expect(
+      await Directory('$outputDir/demo-model/espeak-ng-data').exists(),
+      isTrue,
+    );
+    expect(
+      await File('$outputDir/demo-model/espeak-ng-data/en_dict').exists(),
+      isTrue,
+    );
+  });
 }
 
 class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {

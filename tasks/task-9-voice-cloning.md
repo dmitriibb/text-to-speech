@@ -6,7 +6,7 @@ Let the desktop user clone a voice from a short audio sample and use the cloned 
 
 ## Current Status
 
-In progress. A desktop prototype exists for Voice Lab, imported reference audio, and Pocket TTS-based cloned synthesis. The main-screen model discovery issue is fixed, Pocket TTS installation hardening is in place, install-task UX now reports real download or extraction progress, desktop model discovery is aligned to a single app-managed storage path, and task cleanup semantics are being tightened so cancelled installs and dismissed generated-audio tasks remove their temporary files.
+In progress. A desktop prototype exists for Voice Lab, imported reference audio, and Pocket TTS-based cloned synthesis. The main-screen model discovery issue is fixed, Pocket TTS installation hardening is in place, install-task UX now reports real download or extraction progress, desktop model discovery is aligned to a single app-managed storage path, task cleanup semantics remove temporary files on cancel or dismiss, desktop task-row save now exports a real copy of generated audio, and the shared tar extraction path has been hardened so Piper installs preserve the full runtime payload before the broader research/architecture work continues.
 
 ## Context
 

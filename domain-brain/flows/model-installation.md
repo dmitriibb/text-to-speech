@@ -9,7 +9,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 1. App loads the catalog and selects a `VoiceModel`.
 2. App resolves the platform-specific model storage root.
 3. App downloads the model archive from the catalog URL.
-4. App extracts the archive through the shared pure-Dart extractor.
+4. App extracts the archive through the shared pure-Dart extractor using the file-based archive path for `tar.bz2` assets.
 5. App normalizes the extracted directory back to the expected install root if the archive introduces an extra wrapper directory.
 6. App validates the extracted directory against the required file set.
 7. App exposes the model as `ready` only if validation succeeds.
@@ -21,6 +21,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - Android installs to app-private storage.
 - Desktop installs to a single app-managed models directory and does not rely on repo-local model folders.
 - Extraction and validation must run before a model is treated as usable.
+- `tar.bz2` extraction must preserve large model files and nested runtime directories, not just top-level metadata files.
 - Validation must cover model-family-specific assets, including Pocket TTS files.
 - Repair must follow the same validation path as first install.
 - Validation must use the model-specific runtime assets from the catalog, such as `lexicon.txt` or `espeak-ng-data`.
@@ -34,6 +35,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - interrupted or partial extraction
 - wrong extracted directory name
 - extra nested wrapper directory after extraction
+- extractor writes only partial top-level metadata from a valid archive
 - required model files missing after extraction
 - catalog metadata expects the wrong runtime asset for the model
 - install UI shows stale elapsed time or the wrong task as completed while install is still active

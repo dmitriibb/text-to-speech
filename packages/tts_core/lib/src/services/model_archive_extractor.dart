@@ -8,14 +8,7 @@ class ModelArchiveExtractor {
   }) async {
     switch (archiveFormat) {
       case 'tar.bz2':
-        final input = InputFileStream(archivePath);
-        try {
-          final tarBytes = BZip2Decoder().decodeBuffer(input);
-          final archive = TarDecoder().decodeBytes(tarBytes);
-          extractArchiveToDisk(archive, outputDir);
-        } finally {
-          input.close();
-        }
+        await extractFileToDisk(archivePath, outputDir);
         return;
       default:
         throw UnsupportedError('Unsupported archive format: $archiveFormat');

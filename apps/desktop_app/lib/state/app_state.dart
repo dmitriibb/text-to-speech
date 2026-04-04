@@ -387,9 +387,45 @@ class AppState extends ChangeNotifier {
   }
 
   Future<bool> saveTaskAudio(String sourcePath) async {
-    // For desktop, we just export to the same path (it's already on disk).
-    // The user could be shown a file picker in the UI layer.
-    return true;
+    String? savePath;
+
+    if (Platform.isLinux) {
+      savePath = await _zenitySaveDialog(
+        initialFilename: p.basename(sourcePath),
+      );
+    } else if (Platform.isWindows) {
+      final home = Platform.environment['USERPROFILE'] ?? '.';
+      savePath = p.join(home, 'Documents', p.basename(sourcePath));
+    } else {
+      final home =
+          Platform.environment['HOME'] ??
+          Platform.environment['USERPROFILE'] ??
+          '.';
+      savePath = p.join(home, p.basename(sourcePath));
+    }
+
+    if (savePath == null || savePath.trim().isEmpty) {
+      return false;
+    }
+
+    if (!savePath.toLowerCase().endsWith('.wav')) {
+      savePath = '$savePath.wav';
+    }
+
+    try {
+      final destination = File(savePath);
+      if (await destination.exists()) {
+        await destination.delete();
+      }
+      await File(sourcePath).copy(savePath);
+      _errorMessage = null;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Save failed: $e';
+      notifyListeners();
+      return false;
+    }
   }
 
   Future<void> cancelManagedTask(LongRunningTask task) async {
@@ -491,6 +527,23 @@ class AppState extends ChangeNotifier {
       final file = File(p.join(home, _providerPrefFile));
       await file.writeAsString(provider);
     } catch (_) {}
+  }
+
+  Future<String?> _zenitySaveDialog({required String initialFilename}) async {
+    try {
+      final result = await Process.run('zenity', [
+        '--file-selection',
+        '--save',
+        '--confirm-overwrite',
+        '--title=Save WAV file',
+        '--filename=$initialFilename',
+        '--file-filter=WAV files (*.wav) | *.wav',
+      ]);
+      if (result.exitCode == 0) {
+        return (result.stdout as String).trim();
+      }
+    } catch (_) {}
+    return null;
   }
 
   // ---- Cleanup ----
