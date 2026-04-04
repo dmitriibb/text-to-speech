@@ -35,6 +35,7 @@ This repository keeps task state in the repo so a new agent can resume work quic
 - When starting work, check `tasks/` first for an existing active task file.
 - If the work already has an active task file, update that file instead of creating a duplicate.
 - If the work is complete, move its task file from `tasks/` to `archived/`.
+- **Always archive a completed task immediately** before starting the next one. Do not leave finished task files in `tasks/`.
 - Keep `task.notes.md` for stable repo-wide constraints and decisions.
 - Keep `task.checkpoint.md` for compact milestone history.
 

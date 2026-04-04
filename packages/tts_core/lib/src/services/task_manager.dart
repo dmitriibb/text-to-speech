@@ -96,6 +96,48 @@ class TaskManager extends ChangeNotifier {
     return task.id;
   }
 
+  /// Submits a voice-cloning synthesis task (Pocket TTS with reference audio).
+  Future<String> submitClonedSynthesis({
+    required String modelDir,
+    required VoiceModel voice,
+    required String text,
+    required double speed,
+    required String outputPath,
+    required Float32List referenceAudio,
+    required int referenceSampleRate,
+    String? providerOverride,
+  }) async {
+    _speechCounter++;
+    final task = LongRunningTask(
+      id: _nextTaskId(),
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'cloned-speech-$_speechCounter',
+      startedAt: DateTime.now(),
+      status: LongRunningTaskStatus.queued,
+    );
+
+    _tasks[task.id] = task;
+    _startTicker();
+    notifyListeners();
+
+    await _executor.submit(TaskRequest(
+      taskId: task.id,
+      type: task.type,
+      payload: {
+        ..._buildModelPayload(modelDir: modelDir, voice: voice, providerOverride: providerOverride),
+        'text': text,
+        'speed': speed,
+        'speakerId': 0,
+        'outputPath': outputPath,
+        'useReferenceAudio': true,
+        'referenceAudio': referenceAudio,
+        'referenceSampleRate': referenceSampleRate,
+      },
+    ));
+
+    return task.id;
+  }
+
   Future<String> submitModelPreload({
     required String modelDir,
     required VoiceModel voice,
@@ -242,6 +284,12 @@ class TaskManager extends ChangeNotifier {
       'numThreads': voice.numThreads,
       'speakerId': voice.defaultSpeakerId,
       'maxNumSentences': voice.maxNumSentences,
+      'pocketLmMain': voice.pocketLmMain,
+      'pocketEncoder': voice.pocketEncoder,
+      'pocketDecoder': voice.pocketDecoder,
+      'pocketTextConditioner': voice.pocketTextConditioner,
+      'pocketVocabJson': voice.pocketVocabJson,
+      'pocketTokenScoresJson': voice.pocketTokenScoresJson,
     };
   }
 

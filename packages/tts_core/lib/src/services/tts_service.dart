@@ -34,7 +34,8 @@ class TtsService {
     _tts = null;
 
     final modelPath = p.join(modelDir, model.modelFile);
-    final tokensPath = p.join(modelDir, model.tokensFile);
+    final tokensPath =
+        model.tokensFile.isNotEmpty ? p.join(modelDir, model.tokensFile) : '';
     final lexiconPath =
         model.lexiconFile.isNotEmpty ? p.join(modelDir, model.lexiconFile) : '';
     final dataDirPath =
@@ -55,6 +56,23 @@ class TtsService {
         );
         modelConfig = sherpa.OfflineTtsModelConfig(
           kokoro: kokoroConfig,
+          numThreads: model.numThreads,
+          debug: false,
+          provider: model.provider,
+        );
+        break;
+      case 'pocket':
+        final pocketConfig = sherpa.OfflineTtsPocketModelConfig(
+          lmFlow: modelPath,
+          lmMain: p.join(modelDir, model.pocketLmMain),
+          encoder: p.join(modelDir, model.pocketEncoder),
+          decoder: p.join(modelDir, model.pocketDecoder),
+          textConditioner: p.join(modelDir, model.pocketTextConditioner),
+          vocabJson: p.join(modelDir, model.pocketVocabJson),
+          tokenScoresJson: p.join(modelDir, model.pocketTokenScoresJson),
+        );
+        modelConfig = sherpa.OfflineTtsModelConfig(
+          pocket: pocketConfig,
           numThreads: model.numThreads,
           debug: false,
           provider: model.provider,
@@ -96,12 +114,41 @@ class TtsService {
     return SynthesisResult(samples: audio.samples, sampleRate: audio.sampleRate);
   }
 
+  /// Synthesize speech using a reference audio clip for zero-shot voice cloning.
+  SynthesisResult synthesizeWithReference(
+    String text, {
+    required Float32List referenceAudio,
+    required int referenceSampleRate,
+    double speed = 1.0,
+    int numSteps = 2,
+  }) {
+    if (_tts == null) {
+      throw StateError('TTS engine not initialized. Call loadModel first.');
+    }
+
+    final config = sherpa.OfflineTtsGenerationConfig(
+      speed: speed,
+      referenceAudio: referenceAudio,
+      referenceSampleRate: referenceSampleRate,
+      numSteps: numSteps,
+    );
+
+    final audio = _tts!.generateWithConfig(text: text, config: config);
+    return SynthesisResult(samples: audio.samples, sampleRate: audio.sampleRate);
+  }
+
   bool saveWav(SynthesisResult result, String outputPath) {
     return sherpa.writeWave(
       filename: outputPath,
       samples: result.samples,
       sampleRate: result.sampleRate,
     );
+  }
+
+  /// Reads a WAV file and returns its samples and sample rate.
+  static SynthesisResult readWavFile(String path) {
+    final wave = sherpa.readWave(path);
+    return SynthesisResult(samples: wave.samples, sampleRate: wave.sampleRate);
   }
 
   void dispose() {

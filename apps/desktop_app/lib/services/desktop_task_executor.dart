@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
 import 'package:tts_core/tts_core.dart';
@@ -96,11 +97,23 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
         }
 
         if (request.type == LongRunningTaskType.synthesizeSpeech) {
-          final result = tts.synthesize(
-            payload['text']! as String,
-            speed: (payload['speed']! as num).toDouble(),
-            speakerId: payload['speakerId']! as int,
-          );
+          final SynthesisResult result;
+          final useRef = payload['useReferenceAudio'] == true;
+
+          if (useRef) {
+            result = tts.synthesizeWithReference(
+              payload['text']! as String,
+              referenceAudio: payload['referenceAudio']! as Float32List,
+              referenceSampleRate: payload['referenceSampleRate']! as int,
+              speed: (payload['speed']! as num).toDouble(),
+            );
+          } else {
+            result = tts.synthesize(
+              payload['text']! as String,
+              speed: (payload['speed']! as num).toDouble(),
+              speakerId: payload['speakerId']! as int,
+            );
+          }
 
           // Check cancel after synthesis (can't interrupt FFI).
           if (cancelledIds.remove(taskId)) {
@@ -181,6 +194,12 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
         'lexicon': payload['lexiconFile'],
         'voices': payload['voicesFile'],
         'data_dir': payload['dataDir'],
+        'pocket_lm_main': payload['pocketLmMain'],
+        'pocket_encoder': payload['pocketEncoder'],
+        'pocket_decoder': payload['pocketDecoder'],
+        'pocket_text_conditioner': payload['pocketTextConditioner'],
+        'pocket_vocab_json': payload['pocketVocabJson'],
+        'pocket_token_scores_json': payload['pocketTokenScoresJson'],
       },
       'defaults': {
         'provider': payload['provider'],

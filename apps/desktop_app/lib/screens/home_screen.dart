@@ -8,6 +8,7 @@ import '../services/audio_service.dart';
 import '../widgets/model_status_banner.dart';
 import '../widgets/text_input_panel.dart';
 import '../widgets/settings_panel.dart';
+import 'voice_lab_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,25 @@ class HomeScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Text to Speech'),
         centerTitle: false,
+        actions: [
+          IconButton(
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ChangeNotifierProvider<AppState>.value(
+                    value: context.read<AppState>(),
+                    child: ChangeNotifierProvider<TaskManager>.value(
+                      value: context.read<AppState>().taskManager,
+                      child: const VoiceLabScreen(),
+                    ),
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(Icons.science),
+            tooltip: 'Voice Lab',
+          ),
+        ],
       ),
       body: Consumer<AppState>(
         builder: (context, state, _) {
