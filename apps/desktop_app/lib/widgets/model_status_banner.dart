@@ -117,6 +117,8 @@ class ModelStatusBanner extends StatelessWidget {
   }
 
   Widget _downloadingBanner(BuildContext context, AppState state) {
+    final progress = state.currentInstallProgress;
+    final statusText = progress?.stage.label ?? 'Downloading';
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Padding(
@@ -136,7 +138,7 @@ class ModelStatusBanner extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Downloading model...',
+                  '$statusText model...',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
@@ -145,14 +147,18 @@ class ModelStatusBanner extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             LinearProgressIndicator(
-              value: state.downloadProgress > 0 ? state.downloadProgress : null,
+              value: progress?.progress,
               backgroundColor: Theme.of(
                 context,
               ).colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 4),
             Text(
-              '${(state.downloadProgress * 100).toStringAsFixed(0)}%',
+              progress?.totalBytes != null
+                  ? '${_formatMegabytes(progress!.downloadedBytes)} / ${_formatMegabytes(progress.totalBytes!)}'
+                  : progress?.progress != null
+                  ? '${(progress!.progress! * 100).toStringAsFixed(0)}%'
+                  : statusText,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
@@ -161,5 +167,10 @@ class ModelStatusBanner extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatMegabytes(int bytes) {
+    final megabytes = bytes / (1024 * 1024);
+    return '${megabytes.toStringAsFixed(1)} MB';
   }
 }

@@ -53,10 +53,7 @@ class TaskListPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Tasks',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
+                Text('Tasks', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 12),
                 for (var i = 0; i < tasks.length; i++) ...[
                   _TaskRow(
@@ -118,7 +115,7 @@ class _TaskRowState extends State<_TaskRow> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InkWell(
-          onTap: task.hasPlayableAudio
+          onTap: task.hasExpandableDetails
               ? () => setState(() => _expanded = !_expanded)
               : null,
           borderRadius: BorderRadius.circular(8),
@@ -160,8 +157,8 @@ class _TaskRowState extends State<_TaskRow> {
             ),
           ),
         ),
-        if (_expanded && task.hasPlayableAudio)
-          _buildPlaybackControls(context, task, isPlayingThis, isActiveThis),
+        if (_expanded)
+          _buildExpandedContent(context, task, isPlayingThis, isActiveThis),
       ],
     );
   }
@@ -188,10 +185,7 @@ class _TaskRowState extends State<_TaskRow> {
       case LongRunningTaskStatus.failed:
         return Icon(Icons.error, color: Theme.of(context).colorScheme.error);
       case LongRunningTaskStatus.cancelled:
-        return Icon(
-          Icons.cancel,
-          color: Theme.of(context).colorScheme.outline,
-        );
+        return Icon(Icons.cancel, color: Theme.of(context).colorScheme.outline);
     }
   }
 
@@ -232,6 +226,90 @@ class _TaskRowState extends State<_TaskRow> {
         ],
       ),
     );
+  }
+
+  Widget _buildExpandedContent(
+    BuildContext context,
+    LongRunningTask task,
+    bool isPlayingThis,
+    bool isActiveThis,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 36, top: 8, bottom: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (task.type == LongRunningTaskType.installModel)
+            _buildInstallDetails(context, task),
+          if (task.errorMessage != null &&
+              task.type != LongRunningTaskType.installModel)
+            _buildErrorDetails(context, task.errorMessage!),
+          if (task.hasPlayableAudio) ...[
+            if (task.type == LongRunningTaskType.installModel)
+              const SizedBox(height: 12),
+            _buildPlaybackControls(context, task, isPlayingThis, isActiveThis),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstallDetails(BuildContext context, LongRunningTask task) {
+    final progressValue = task.progress;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          task.statusText ?? widget.manager.describeStatus(task),
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 8),
+        LinearProgressIndicator(value: progressValue),
+        const SizedBox(height: 8),
+        if (task.totalBytes != null)
+          Text(
+            '${_formatMegabytes(task.transferredBytes ?? 0)} / ${_formatMegabytes(task.totalBytes!)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          )
+        else if (task.transferredBytes != null)
+          Text(
+            _formatMegabytes(task.transferredBytes!),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        if (task.status == LongRunningTaskStatus.completed) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Model install completed.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+        if (task.errorMessage != null) ...[
+          const SizedBox(height: 8),
+          _buildErrorDetails(context, task.errorMessage!),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildErrorDetails(BuildContext context, String errorMessage) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.errorContainer,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        errorMessage,
+        style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+      ),
+    );
+  }
+
+  String _formatMegabytes(int bytes) {
+    final megabytes = bytes / (1024 * 1024);
+    return '${megabytes.toStringAsFixed(1)} MB';
   }
 
   Future<void> _handleCancel(

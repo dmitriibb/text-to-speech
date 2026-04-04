@@ -25,6 +25,7 @@ class AppState extends ChangeNotifier {
   bool _isLoadingModels = true;
   double _downloadProgress = 0;
   bool _isDownloading = false;
+  ModelInstallProgress? _currentInstallProgress;
 
   // ---- Synthesis state ----
   String _inputText = '';
@@ -53,6 +54,7 @@ class AppState extends ChangeNotifier {
   bool get isLoadingModels => _isLoadingModels;
   double get downloadProgress => _downloadProgress;
   bool get isDownloading => _isDownloading;
+  ModelInstallProgress? get currentInstallProgress => _currentInstallProgress;
 
   String get inputText => _inputText;
   double get speed => _speed;
@@ -176,8 +178,16 @@ class AppState extends ChangeNotifier {
   /// Downloads a model from the catalog.
   Future<void> downloadModel(VoiceModel voice) async {
     if (_isDownloading) return;
+    final installTaskId = taskManager.startModelInstall(
+      label: 'Install ${voice.displayName}',
+      statusText: ModelInstallStage.downloading.label,
+    );
     _isDownloading = true;
     _downloadProgress = 0;
+    _currentInstallProgress = const ModelInstallProgress(
+      stage: ModelInstallStage.downloading,
+      progress: 0,
+    );
     _errorMessage = null;
     notifyListeners();
 
@@ -185,15 +195,39 @@ class AppState extends ChangeNotifier {
       await _modelService.downloadModel(
         voice,
         onProgress: (progress) {
-          _downloadProgress = progress;
+          _currentInstallProgress = progress;
+          _downloadProgress = progress.progress ?? _downloadProgress;
+          taskManager.updateInstallTask(
+            installTaskId,
+            statusText: progress.stage.label,
+            progress: progress.progress,
+            transferredBytes: progress.downloadedBytes,
+            totalBytes: progress.totalBytes,
+          );
           notifyListeners();
         },
+      );
+      taskManager.completeInstallTask(
+        installTaskId,
+        statusText: 'Installed',
+        progress: 1.0,
+        transferredBytes: _currentInstallProgress?.downloadedBytes,
+        totalBytes: _currentInstallProgress?.totalBytes,
       );
       await refreshModels();
     } catch (e) {
       _errorMessage = 'Download failed: $e';
+      taskManager.failInstallTask(
+        installTaskId,
+        errorMessage: e.toString(),
+        statusText: _currentInstallProgress?.stage.label ?? 'Failed',
+        progress: _currentInstallProgress?.progress,
+        transferredBytes: _currentInstallProgress?.downloadedBytes,
+        totalBytes: _currentInstallProgress?.totalBytes,
+      );
     } finally {
       _isDownloading = false;
+      _currentInstallProgress = null;
       notifyListeners();
     }
   }

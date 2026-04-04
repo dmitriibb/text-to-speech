@@ -42,7 +42,9 @@ class ModelStatusCard extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: state.canManageModels ? state.refreshModels : null,
+                      onPressed: state.canManageModels
+                          ? state.refreshModels
+                          : null,
                       icon: const Icon(Icons.refresh),
                       tooltip: 'Refresh model status',
                     ),
@@ -88,6 +90,8 @@ class _DownloadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final progress = state.currentInstallProgress;
+    final statusText = progress?.stage.label ?? 'Downloading';
     return Card(
       color: Theme.of(context).colorScheme.primaryContainer,
       child: Padding(
@@ -104,20 +108,29 @@ class _DownloadingCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'Installing model...',
+                  '$statusText model...',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
               ],
             ),
             const SizedBox(height: 14),
-            LinearProgressIndicator(
-              value: state.downloadProgress > 0 ? state.downloadProgress : null,
-            ),
+            LinearProgressIndicator(value: progress?.progress),
             const SizedBox(height: 8),
-            Text('${(state.downloadProgress * 100).toStringAsFixed(0)}%'),
+            Text(
+              progress?.totalBytes != null
+                  ? '${_formatMegabytes(progress!.downloadedBytes)} / ${_formatMegabytes(progress.totalBytes!)}'
+                  : progress?.progress != null
+                  ? '${(progress!.progress! * 100).toStringAsFixed(0)}%'
+                  : statusText,
+            ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatMegabytes(int bytes) {
+    final megabytes = bytes / (1024 * 1024);
+    return '${megabytes.toStringAsFixed(1)} MB';
   }
 }

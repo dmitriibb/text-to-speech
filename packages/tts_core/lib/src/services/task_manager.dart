@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -8,12 +9,13 @@ import 'background_task_executor.dart';
 
 class TaskManager extends ChangeNotifier {
   TaskManager({required BackgroundTaskExecutor executor})
-      : _executor = executor;
+    : _executor = executor;
 
   final BackgroundTaskExecutor _executor;
   final Map<String, LongRunningTask> _tasks = {};
   int _speechCounter = 0;
   int _modelLoadCounter = 0;
+  int _modelInstallCounter = 0;
   Timer? _ticker;
   StreamSubscription<TaskResult>? _resultsSub;
   bool _initialized = false;
@@ -35,16 +37,23 @@ class TaskManager extends ChangeNotifier {
   bool get hasActiveTasks => _tasks.values.any((t) => t.isActive);
 
   bool get hasActiveSynthesisTasks => _tasks.values.any(
-        (t) =>
-            t.type == LongRunningTaskType.synthesizeSpeech && t.isActive,
-      );
+    (t) => t.type == LongRunningTaskType.synthesizeSpeech && t.isActive,
+  );
+
+  LongRunningTask? get activeInstallTask {
+    for (final task in tasks) {
+      if (task.type == LongRunningTaskType.installModel && task.isActive) {
+        return task;
+      }
+    }
+    return null;
+  }
 
   LongRunningTask? get latestCompletedSynthesis {
     LongRunningTask? latest;
     for (final task in _tasks.values) {
       if (task.hasPlayableAudio) {
-        if (latest == null ||
-            task.startedAt.isAfter(latest.startedAt)) {
+        if (latest == null || task.startedAt.isAfter(latest.startedAt)) {
           latest = task;
         }
       }
@@ -81,17 +90,23 @@ class TaskManager extends ChangeNotifier {
     _startTicker();
     notifyListeners();
 
-    await _executor.submit(TaskRequest(
-      taskId: task.id,
-      type: task.type,
-      payload: {
-        ..._buildModelPayload(modelDir: modelDir, voice: voice, providerOverride: providerOverride),
-        'text': text,
-        'speed': speed,
-        'speakerId': speakerId,
-        'outputPath': outputPath,
-      },
-    ));
+    await _executor.submit(
+      TaskRequest(
+        taskId: task.id,
+        type: task.type,
+        payload: {
+          ..._buildModelPayload(
+            modelDir: modelDir,
+            voice: voice,
+            providerOverride: providerOverride,
+          ),
+          'text': text,
+          'speed': speed,
+          'speakerId': speakerId,
+          'outputPath': outputPath,
+        },
+      ),
+    );
 
     return task.id;
   }
@@ -120,20 +135,26 @@ class TaskManager extends ChangeNotifier {
     _startTicker();
     notifyListeners();
 
-    await _executor.submit(TaskRequest(
-      taskId: task.id,
-      type: task.type,
-      payload: {
-        ..._buildModelPayload(modelDir: modelDir, voice: voice, providerOverride: providerOverride),
-        'text': text,
-        'speed': speed,
-        'speakerId': 0,
-        'outputPath': outputPath,
-        'useReferenceAudio': true,
-        'referenceAudio': referenceAudio,
-        'referenceSampleRate': referenceSampleRate,
-      },
-    ));
+    await _executor.submit(
+      TaskRequest(
+        taskId: task.id,
+        type: task.type,
+        payload: {
+          ..._buildModelPayload(
+            modelDir: modelDir,
+            voice: voice,
+            providerOverride: providerOverride,
+          ),
+          'text': text,
+          'speed': speed,
+          'speakerId': 0,
+          'outputPath': outputPath,
+          'useReferenceAudio': true,
+          'referenceAudio': referenceAudio,
+          'referenceSampleRate': referenceSampleRate,
+        },
+      ),
+    );
 
     return task.id;
   }
@@ -156,13 +177,108 @@ class TaskManager extends ChangeNotifier {
     _startTicker();
     notifyListeners();
 
-    await _executor.submit(TaskRequest(
-      taskId: task.id,
-      type: task.type,
-      payload: _buildModelPayload(modelDir: modelDir, voice: voice, providerOverride: providerOverride),
-    ));
+    await _executor.submit(
+      TaskRequest(
+        taskId: task.id,
+        type: task.type,
+        payload: _buildModelPayload(
+          modelDir: modelDir,
+          voice: voice,
+          providerOverride: providerOverride,
+        ),
+      ),
+    );
 
     return task.id;
+  }
+
+  String startModelInstall({required String label, String? statusText}) {
+    _modelInstallCounter++;
+    final task = LongRunningTask(
+      id: _nextTaskId(),
+      type: LongRunningTaskType.installModel,
+      label: label,
+      startedAt: DateTime.now(),
+      status: LongRunningTaskStatus.running,
+      statusText: statusText,
+    );
+
+    _tasks[task.id] = task;
+    _startTicker();
+    notifyListeners();
+    return task.id;
+  }
+
+  void updateInstallTask(
+    String taskId, {
+    String? statusText,
+    double? progress,
+    int? transferredBytes,
+    int? totalBytes,
+  }) {
+    final task = _tasks[taskId];
+    if (task == null || task.type != LongRunningTaskType.installModel) {
+      return;
+    }
+
+    _tasks[taskId] = task.copyWith(
+      status: LongRunningTaskStatus.running,
+      statusText: statusText,
+      progress: progress,
+      transferredBytes: transferredBytes,
+      totalBytes: totalBytes,
+    );
+    notifyListeners();
+  }
+
+  void completeInstallTask(
+    String taskId, {
+    String? statusText,
+    double? progress = 1.0,
+    int? transferredBytes,
+    int? totalBytes,
+  }) {
+    final task = _tasks[taskId];
+    if (task == null || task.type != LongRunningTaskType.installModel) {
+      return;
+    }
+
+    _tasks[taskId] = task.copyWith(
+      status: LongRunningTaskStatus.completed,
+      finishedAt: DateTime.now(),
+      statusText: statusText,
+      progress: progress,
+      transferredBytes: transferredBytes,
+      totalBytes: totalBytes,
+    );
+    _stopTickerIfIdle();
+    notifyListeners();
+  }
+
+  void failInstallTask(
+    String taskId, {
+    required String errorMessage,
+    String? statusText,
+    double? progress,
+    int? transferredBytes,
+    int? totalBytes,
+  }) {
+    final task = _tasks[taskId];
+    if (task == null || task.type != LongRunningTaskType.installModel) {
+      return;
+    }
+
+    _tasks[taskId] = task.copyWith(
+      status: LongRunningTaskStatus.failed,
+      finishedAt: DateTime.now(),
+      errorMessage: errorMessage,
+      statusText: statusText,
+      progress: progress,
+      transferredBytes: transferredBytes,
+      totalBytes: totalBytes,
+    );
+    _stopTickerIfIdle();
+    notifyListeners();
   }
 
   Future<void> cancelTask(String taskId) async {
@@ -202,7 +318,8 @@ class TaskManager extends ChangeNotifier {
   }
 
   String formatElapsed(LongRunningTask task) {
-    final totalSeconds = DateTime.now().difference(task.startedAt).inSeconds;
+    final endTime = task.finishedAt ?? DateTime.now();
+    final totalSeconds = endTime.difference(task.startedAt).inSeconds;
     final seconds = totalSeconds < 0 ? 0 : totalSeconds;
     if (seconds < 60) return '${seconds}s';
     final mins = seconds ~/ 60;
@@ -211,6 +328,10 @@ class TaskManager extends ChangeNotifier {
   }
 
   String describeStatus(LongRunningTask task) {
+    if (task.statusText != null && task.statusText!.trim().isNotEmpty) {
+      return task.statusText!;
+    }
+
     switch (task.status) {
       case LongRunningTaskStatus.queued:
         return 'Queued';
@@ -246,16 +367,19 @@ class TaskManager extends ChangeNotifier {
       case TaskResultStatus.completed:
         _tasks[result.taskId] = task.copyWith(
           status: LongRunningTaskStatus.completed,
+          finishedAt: DateTime.now(),
           outputPath: result.outputPath,
         );
       case TaskResultStatus.failed:
         _tasks[result.taskId] = task.copyWith(
           status: LongRunningTaskStatus.failed,
+          finishedAt: DateTime.now(),
           errorMessage: result.errorMessage,
         );
       case TaskResultStatus.cancelled:
         _tasks[result.taskId] = task.copyWith(
           status: LongRunningTaskStatus.cancelled,
+          finishedAt: DateTime.now(),
         );
     }
 

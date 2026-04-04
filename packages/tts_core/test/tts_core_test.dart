@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tts_core/tts_core.dart';
@@ -94,22 +95,126 @@ void main() {
     );
   });
 
-  test('detects incomplete and complete lexicon-based model directories', () async {
+  test(
+    'detects incomplete and complete lexicon-based model directories',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+      addTearDown(() => tempDir.delete(recursive: true));
+
+      const model = VoiceModel(
+        id: 'vits-ljs',
+        displayName: 'VITS LJSpeech',
+        family: 'vits',
+        runtime: 'sherpa-onnx',
+        approvedForDistribution: false,
+        archiveUrl: 'https://example.com/vits-ljs.tar.bz2',
+        archiveFormat: 'tar.bz2',
+        installDirName: 'vits-ljs',
+        modelFile: 'vits-ljs.onnx',
+        tokensFile: 'tokens.txt',
+        lexiconFile: 'lexicon.txt',
+        voicesFile: '',
+        dataDir: '',
+        provider: 'cpu',
+        numThreads: 1,
+        defaultSpeed: 1,
+        defaultSpeakerId: 0,
+        maxNumSentences: 1,
+      );
+
+      await File('${tempDir.path}/vits-ljs.onnx').writeAsString('onnx');
+      await File('${tempDir.path}/tokens.txt').writeAsString('tokens');
+
+      expect(
+        await ModelFileValidator.getStatus(tempDir.path, model),
+        ModelStatus.incomplete,
+      );
+
+      await File('${tempDir.path}/lexicon.txt').writeAsString('lexicon');
+
+      expect(
+        await ModelFileValidator.getStatus(tempDir.path, model),
+        ModelStatus.ready,
+      );
+    },
+  );
+
+  test(
+    'validates pocket tts model directories without requiring tokens.txt',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+      addTearDown(() => tempDir.delete(recursive: true));
+
+      const model = VoiceModel(
+        id: 'pocket-tts-en',
+        displayName: 'Pocket TTS English (Voice Cloning)',
+        family: 'pocket',
+        runtime: 'sherpa-onnx',
+        approvedForDistribution: false,
+        archiveUrl: 'https://example.com/pocket.tar.bz2',
+        archiveFormat: 'tar.bz2',
+        installDirName: 'sherpa-onnx-pocket-tts-int8-2026-01-26',
+        modelFile: 'lm_flow.int8.onnx',
+        tokensFile: '',
+        lexiconFile: '',
+        voicesFile: '',
+        dataDir: '',
+        provider: 'cpu',
+        numThreads: 1,
+        defaultSpeed: 1,
+        defaultSpeakerId: 0,
+        maxNumSentences: 1,
+        pocketLmMain: 'lm_main.int8.onnx',
+        pocketEncoder: 'encoder.onnx',
+        pocketDecoder: 'decoder.int8.onnx',
+        pocketTextConditioner: 'text_conditioner.onnx',
+        pocketVocabJson: 'vocab.json',
+        pocketTokenScoresJson: 'token_scores.json',
+      );
+
+      await File('${tempDir.path}/lm_flow.int8.onnx').writeAsString('flow');
+
+      expect(
+        await ModelFileValidator.missingEntries(tempDir.path, model),
+        isNot(contains('')),
+      );
+      expect(
+        await ModelFileValidator.getStatus(tempDir.path, model),
+        ModelStatus.incomplete,
+      );
+
+      await File('${tempDir.path}/lm_main.int8.onnx').writeAsString('main');
+      await File('${tempDir.path}/encoder.onnx').writeAsString('encoder');
+      await File('${tempDir.path}/decoder.int8.onnx').writeAsString('decoder');
+      await File(
+        '${tempDir.path}/text_conditioner.onnx',
+      ).writeAsString('conditioner');
+      await File('${tempDir.path}/vocab.json').writeAsString('{}');
+      await File('${tempDir.path}/token_scores.json').writeAsString('{}');
+
+      expect(
+        await ModelFileValidator.getStatus(tempDir.path, model),
+        ModelStatus.ready,
+      );
+    },
+  );
+
+  test('normalizes a nested extracted model directory', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
     addTearDown(() => tempDir.delete(recursive: true));
 
     const model = VoiceModel(
-      id: 'vits-ljs',
-      displayName: 'VITS LJSpeech',
-      family: 'vits',
+      id: 'pocket-tts-en',
+      displayName: 'Pocket TTS English (Voice Cloning)',
+      family: 'pocket',
       runtime: 'sherpa-onnx',
       approvedForDistribution: false,
-      archiveUrl: 'https://example.com/vits-ljs.tar.bz2',
+      archiveUrl: 'https://example.com/pocket.tar.bz2',
       archiveFormat: 'tar.bz2',
-      installDirName: 'vits-ljs',
-      modelFile: 'vits-ljs.onnx',
-      tokensFile: 'tokens.txt',
-      lexiconFile: 'lexicon.txt',
+      installDirName: 'sherpa-onnx-pocket-tts-int8-2026-01-26',
+      modelFile: 'lm_flow.int8.onnx',
+      tokensFile: '',
+      lexiconFile: '',
       voicesFile: '',
       dataDir: '',
       provider: 'cpu',
@@ -117,21 +222,117 @@ void main() {
       defaultSpeed: 1,
       defaultSpeakerId: 0,
       maxNumSentences: 1,
+      pocketLmMain: 'lm_main.int8.onnx',
+      pocketEncoder: 'encoder.onnx',
+      pocketDecoder: 'decoder.int8.onnx',
+      pocketTextConditioner: 'text_conditioner.onnx',
+      pocketVocabJson: 'vocab.json',
+      pocketTokenScoresJson: 'token_scores.json',
     );
 
-    await File('${tempDir.path}/vits-ljs.onnx').writeAsString('onnx');
-    await File('${tempDir.path}/tokens.txt').writeAsString('tokens');
+    final expectedDir = Directory('${tempDir.path}/${model.installDirName}');
+    final nestedDir = Directory('${expectedDir.path}/nested');
+    await nestedDir.create(recursive: true);
+
+    await File('${nestedDir.path}/lm_flow.int8.onnx').writeAsString('flow');
+    await File('${nestedDir.path}/lm_main.int8.onnx').writeAsString('main');
+    await File('${nestedDir.path}/encoder.onnx').writeAsString('encoder');
+    await File('${nestedDir.path}/decoder.int8.onnx').writeAsString('decoder');
+    await File(
+      '${nestedDir.path}/text_conditioner.onnx',
+    ).writeAsString('conditioner');
+    await File('${nestedDir.path}/vocab.json').writeAsString('{}');
+    await File('${nestedDir.path}/token_scores.json').writeAsString('{}');
 
     expect(
-      await ModelFileValidator.getStatus(tempDir.path, model),
+      await ModelFileValidator.getStatus(expectedDir.path, model),
       ModelStatus.incomplete,
     );
 
-    await File('${tempDir.path}/lexicon.txt').writeAsString('lexicon');
+    await ModelFileValidator.normalizeExtractedModelDir(
+      expectedDir.path,
+      model,
+    );
 
     expect(
-      await ModelFileValidator.getStatus(tempDir.path, model),
+      await ModelFileValidator.getStatus(expectedDir.path, model),
       ModelStatus.ready,
     );
+    expect(await Directory('${expectedDir.path}/nested').exists(), isFalse);
+    expect(
+      await File('${expectedDir.path}/lm_flow.int8.onnx').exists(),
+      isTrue,
+    );
   });
+
+  test(
+    'model install tasks keep progress details and freeze elapsed time once completed',
+    () async {
+      final manager = TaskManager(executor: _FakeBackgroundTaskExecutor());
+      addTearDown(manager.dispose);
+
+      final taskId = manager.startModelInstall(
+        label: 'Install Pocket TTS English (Voice Cloning)',
+        statusText: 'Downloading',
+      );
+
+      manager.updateInstallTask(
+        taskId,
+        statusText: 'Extracting',
+        progress: 0.8,
+        transferredBytes: 80,
+        totalBytes: 100,
+      );
+
+      final runningTask = manager.tasks.firstWhere((task) => task.id == taskId);
+      expect(runningTask.type, LongRunningTaskType.installModel);
+      expect(runningTask.statusText, 'Extracting');
+      expect(runningTask.progress, 0.8);
+      expect(runningTask.transferredBytes, 80);
+      expect(runningTask.totalBytes, 100);
+
+      await Future<void>.delayed(const Duration(seconds: 1));
+      manager.completeInstallTask(
+        taskId,
+        statusText: 'Installed',
+        transferredBytes: 100,
+        totalBytes: 100,
+      );
+
+      final completedTask = manager.tasks.firstWhere(
+        (task) => task.id == taskId,
+      );
+      expect(completedTask.finishedAt, isNotNull);
+      expect(completedTask.statusText, 'Installed');
+
+      final firstElapsed = manager.formatElapsed(completedTask);
+      await Future<void>.delayed(const Duration(seconds: 1));
+      final secondElapsed = manager.formatElapsed(
+        manager.tasks.firstWhere((task) => task.id == taskId),
+      );
+      expect(secondElapsed, firstElapsed);
+    },
+  );
+}
+
+class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {
+  final StreamController<TaskResult> _controller =
+      StreamController<TaskResult>.broadcast();
+
+  @override
+  Stream<TaskResult> get results => _controller.stream;
+
+  @override
+  Future<void> initialize() async {}
+
+  @override
+  Future<void> submit(TaskRequest request) async {}
+
+  @override
+  void requestCancel(String taskId) {}
+
+  @override
+  void dispose() {
+    _controller.close();
+  }
 }

@@ -16,9 +16,7 @@ enum SynthesisStatus { idle, generating, done, error }
 class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
-  final TaskManager taskManager = TaskManager(
-    executor: AndroidTaskExecutor(),
-  );
+  final TaskManager taskManager = TaskManager(executor: AndroidTaskExecutor());
 
   StreamSubscription<PlaybackState>? _audioSubscription;
   StreamSubscription<Duration>? _audioPositionSubscription;
@@ -31,6 +29,7 @@ class AppState extends ChangeNotifier {
   bool _isDownloading = false;
   double _downloadProgress = 0;
   String? _modelsDirectory;
+  ModelInstallProgress? _currentInstallProgress;
 
   String _inputText = '';
   double _speed = 1.0;
@@ -48,6 +47,7 @@ class AppState extends ChangeNotifier {
   bool get isDownloading => _isDownloading;
   double get downloadProgress => _downloadProgress;
   String? get modelsDirectory => _modelsDirectory;
+  ModelInstallProgress? get currentInstallProgress => _currentInstallProgress;
 
   String get inputText => _inputText;
   double get speed => _speed;
@@ -74,11 +74,13 @@ class AppState extends ChangeNotifier {
       _selectedModel?.status == ModelStatus.ready &&
       TextInputValidator.validate(_inputText) == null;
 
-  List<InstalledModel> get readyModels =>
-      _installedModels.where((model) => model.status == ModelStatus.ready).toList();
+  List<InstalledModel> get readyModels => _installedModels
+      .where((model) => model.status == ModelStatus.ready)
+      .toList();
 
-  List<InstalledModel> get installableModels =>
-      _installedModels.where((model) => model.status != ModelStatus.ready).toList();
+  List<InstalledModel> get installableModels => _installedModels
+      .where((model) => model.status != ModelStatus.ready)
+      .toList();
 
   Future<void> initialize() async {
     taskManager.addListener(_handleTaskManagerChanged);
@@ -88,11 +90,15 @@ class AppState extends ChangeNotifier {
       _playbackState = state;
       notifyListeners();
     });
-    _audioPositionSubscription = _audioService.onPositionChanged.listen((position) {
+    _audioPositionSubscription = _audioService.onPositionChanged.listen((
+      position,
+    ) {
       _playbackPosition = position;
       notifyListeners();
     });
-    _audioDurationSubscription = _audioService.onDurationChanged.listen((duration) {
+    _audioDurationSubscription = _audioService.onDurationChanged.listen((
+      duration,
+    ) {
       _playbackDuration = duration;
       notifyListeners();
     });
@@ -139,7 +145,9 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> selectModel(InstalledModel model) async {
-    if (!canSelectModel || model.status != ModelStatus.ready || model.modelDir == null) {
+    if (!canSelectModel ||
+        model.status != ModelStatus.ready ||
+        model.modelDir == null) {
       return;
     }
 
@@ -156,8 +164,16 @@ class AppState extends ChangeNotifier {
       return;
     }
 
+    final installTaskId = taskManager.startModelInstall(
+      label: 'Install ${voice.displayName}',
+      statusText: ModelInstallStage.downloading.label,
+    );
     _isDownloading = true;
     _downloadProgress = 0;
+    _currentInstallProgress = const ModelInstallProgress(
+      stage: ModelInstallStage.downloading,
+      progress: 0,
+    );
     _errorMessage = null;
     notifyListeners();
 
@@ -165,15 +181,39 @@ class AppState extends ChangeNotifier {
       await _modelService.downloadModel(
         voice,
         onProgress: (progress) {
-          _downloadProgress = progress;
+          _currentInstallProgress = progress;
+          _downloadProgress = progress.progress ?? _downloadProgress;
+          taskManager.updateInstallTask(
+            installTaskId,
+            statusText: progress.stage.label,
+            progress: progress.progress,
+            transferredBytes: progress.downloadedBytes,
+            totalBytes: progress.totalBytes,
+          );
           notifyListeners();
         },
+      );
+      taskManager.completeInstallTask(
+        installTaskId,
+        statusText: 'Installed',
+        progress: 1.0,
+        transferredBytes: _currentInstallProgress?.downloadedBytes,
+        totalBytes: _currentInstallProgress?.totalBytes,
       );
       await refreshModels();
     } catch (error) {
       _errorMessage = 'Download failed: $error';
+      taskManager.failInstallTask(
+        installTaskId,
+        errorMessage: error.toString(),
+        statusText: _currentInstallProgress?.stage.label ?? 'Failed',
+        progress: _currentInstallProgress?.progress,
+        transferredBytes: _currentInstallProgress?.downloadedBytes,
+        totalBytes: _currentInstallProgress?.totalBytes,
+      );
     } finally {
       _isDownloading = false;
+      _currentInstallProgress = null;
       notifyListeners();
     }
   }

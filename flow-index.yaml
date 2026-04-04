@@ -39,6 +39,7 @@ flows:
     paths:
       - packages/tts_core/lib/src/services/model_archive_extractor.dart
       - packages/tts_core/lib/src/services/model_file_validator.dart
+      - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/services/model_service.dart
       - apps/android_app/lib/services/model_service.dart
     entities:

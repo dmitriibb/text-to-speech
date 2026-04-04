@@ -6,7 +6,7 @@ Let the desktop user clone a voice from a short audio sample and use the cloned 
 
 ## Current Status
 
-In progress. A desktop prototype exists for Voice Lab, imported reference audio, and Pocket TTS-based cloned synthesis, but prerequisite model discovery on the main screen is still being fixed and the broader research/architecture remains incomplete.
+In progress. A desktop prototype exists for Voice Lab, imported reference audio, and Pocket TTS-based cloned synthesis. The main-screen model discovery issue is fixed, Pocket TTS installation hardening is in place, and install-task UX now reports real download or extraction progress so the prerequisite model is diagnosable before the broader research/architecture work continues.
 
 ## Context
 

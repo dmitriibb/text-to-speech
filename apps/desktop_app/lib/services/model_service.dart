@@ -104,8 +104,9 @@ class ModelService {
           }
         }
       }
-      results.add(found ??
-          InstalledModel(voice: voice, status: ModelStatus.notInstalled));
+      results.add(
+        found ?? InstalledModel(voice: voice, status: ModelStatus.notInstalled),
+      );
     }
 
     return results;
@@ -116,7 +117,7 @@ class ModelService {
   /// [onProgress] is called with a value between 0.0 and 1.0.
   Future<void> downloadModel(
     VoiceModel model, {
-    void Function(double progress)? onProgress,
+    void Function(ModelInstallProgress progress)? onProgress,
   }) async {
     final modelsDir = await getModelsDirectory();
     await Directory(modelsDir).create(recursive: true);
@@ -148,32 +149,70 @@ class ModelService {
       await for (final chunk in response.stream) {
         sink.add(chunk);
         receivedBytes += chunk.length;
-        if (totalBytes > 0 && onProgress != null) {
-          onProgress(0.8 * receivedBytes / totalBytes);
+        if (onProgress != null) {
+          onProgress(
+            ModelInstallProgress(
+              stage: ModelInstallStage.downloading,
+              progress: totalBytes > 0
+                  ? 0.8 * receivedBytes / totalBytes
+                  : null,
+              downloadedBytes: receivedBytes,
+              totalBytes: totalBytes > 0 ? totalBytes : null,
+            ),
+          );
         }
       }
       await sink.close();
 
-      onProgress?.call(0.85);
+      onProgress?.call(
+        ModelInstallProgress(
+          stage: ModelInstallStage.extracting,
+          progress: null,
+          downloadedBytes: receivedBytes,
+          totalBytes: totalBytes > 0 ? totalBytes : null,
+        ),
+      );
       await ModelArchiveExtractor.extractArchive(
         archivePath: archivePath,
         archiveFormat: model.archiveFormat,
         outputDir: modelsDir,
       );
+      await ModelFileValidator.normalizeExtractedModelDir(modelDir.path, model);
 
-      final status = await ModelFileValidator.getStatus(
-        modelDir.path,
-        model,
+      onProgress?.call(
+        ModelInstallProgress(
+          stage: ModelInstallStage.validating,
+          progress: null,
+          downloadedBytes: receivedBytes,
+          totalBytes: totalBytes > 0 ? totalBytes : null,
+        ),
       );
+
+      final status = await ModelFileValidator.getStatus(modelDir.path, model);
       if (status != ModelStatus.ready) {
         final missing = await ModelFileValidator.missingEntries(
           modelDir.path,
           model,
         );
-        throw Exception('Model extraction incomplete: ${missing.join(', ')}');
+        final found = await ModelFileValidator.listTopLevelEntries(
+          modelDir.path,
+        );
+        final foundSummary = found.isEmpty ? 'nothing' : found.join(', ');
+        throw Exception(
+          'Model extraction incomplete in ${modelDir.path}: '
+          'missing ${missing.join(', ')}. '
+          'Found: $foundSummary',
+        );
       }
 
-      onProgress?.call(1.0);
+      onProgress?.call(
+        ModelInstallProgress(
+          stage: ModelInstallStage.completed,
+          progress: 1.0,
+          downloadedBytes: receivedBytes,
+          totalBytes: totalBytes > 0 ? totalBytes : null,
+        ),
+      );
     } finally {
       client.close();
       if (await archiveFile.exists()) {

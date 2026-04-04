@@ -1,4 +1,5 @@
 export 'src/models/long_running_task.dart';
+export 'src/models/model_install_progress.dart';
 export 'src/models/voice_model.dart';
 export 'src/services/background_task_executor.dart';
 export 'src/services/model_archive_extractor.dart';
