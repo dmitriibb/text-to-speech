@@ -12,41 +12,108 @@ class SettingsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, state, _) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+        final hasSpeakers =
+            state.selectedModel != null &&
+            state.selectedModel!.voice.speakers.isNotEmpty;
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final useCompactLayout =
+                constraints.maxWidth < (hasSpeakers ? 720 : 560);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Voice selector.
-                Expanded(
-                  flex: 2,
-                  child: _buildVoiceSelector(context, state),
-                ),
-                if (state.selectedModel != null &&
-                    state.selectedModel!.voice.speakers.isNotEmpty) ...[
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 2,
-                    child: _buildSpeakerSelector(context, state),
+                if (useCompactLayout) ...[
+                  _buildVoiceSelector(context, state),
+                  if (hasSpeakers) ...[
+                    const SizedBox(height: 16),
+                    _buildSpeakerSelector(context, state),
+                  ],
+                  const SizedBox(height: 16),
+                  _buildSpeedControl(context, state),
+                ] else
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: _buildVoiceSelector(context, state),
+                      ),
+                      if (hasSpeakers) ...[
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: _buildSpeakerSelector(context, state),
+                        ),
+                      ],
+                      const SizedBox(width: 24),
+                      Expanded(
+                        flex: 3,
+                        child: _buildSpeedControl(context, state),
+                      ),
+                    ],
                   ),
+                if (state.availableProviders.length > 1) ...[
+                  const SizedBox(height: 16),
+                  _buildProviderSelector(context, state),
                 ],
-                const SizedBox(width: 24),
-                // Speed control.
-                Expanded(
-                  flex: 3,
-                  child: _buildSpeedControl(context, state),
-                ),
               ],
-            ),
-            if (state.availableProviders.length > 1) ...[
-              const SizedBox(height: 16),
-              _buildProviderSelector(context, state),
-            ],
-          ],
+            );
+          },
         );
       },
     );
+  }
+
+  List<DropdownMenuItem<String>> _buildVoiceItems(List ready) {
+    return ready.map<DropdownMenuItem<String>>((m) {
+      return DropdownMenuItem<String>(
+        value: m.voice.id,
+        child: Text(
+          m.voice.displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }).toList();
+  }
+
+  List<Widget> _buildSelectedVoiceItems(BuildContext context, List ready) {
+    return ready.map<Widget>((m) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          m.voice.displayName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      );
+    }).toList();
+  }
+
+  List<DropdownMenuItem<int>> _buildSpeakerItems(List speakers) {
+    return speakers.map<DropdownMenuItem<int>>((s) {
+      return DropdownMenuItem<int>(
+        value: s.id,
+        child: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      );
+    }).toList();
+  }
+
+  List<Widget> _buildSelectedSpeakerItems(BuildContext context, List speakers) {
+    return speakers.map<Widget>((s) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          s.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyLarge,
+        ),
+      );
+    }).toList();
   }
 
   Widget _buildVoiceSelector(BuildContext context, AppState state) {
@@ -54,17 +121,15 @@ class SettingsPanel extends StatelessWidget {
 
     return DropdownButtonFormField<String>(
       initialValue: state.selectedModel?.voice.id,
+      isExpanded: true,
       decoration: const InputDecoration(
         labelText: 'Voice',
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       ),
-      items: ready.map((m) {
-        return DropdownMenuItem(
-          value: m.voice.id,
-          child: Text(m.voice.displayName),
-        );
-      }).toList(),
+      items: _buildVoiceItems(ready),
+      selectedItemBuilder: (context) =>
+          _buildSelectedVoiceItems(context, ready),
       onChanged: ready.isEmpty
           ? null
           : (id) {
@@ -72,9 +137,7 @@ class SettingsPanel extends StatelessWidget {
               final model = ready.firstWhere((m) => m.voice.id == id);
               state.selectModel(model);
             },
-      hint: Text(
-        ready.isEmpty ? 'No voices available' : 'Select voice',
-      ),
+      hint: Text(ready.isEmpty ? 'No voices available' : 'Select voice'),
     );
   }
 
@@ -83,17 +146,15 @@ class SettingsPanel extends StatelessWidget {
 
     return DropdownButtonFormField<int>(
       initialValue: state.selectedSpeakerId,
+      isExpanded: true,
       decoration: const InputDecoration(
         labelText: 'Speaker',
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       ),
-      items: speakers.map((s) {
-        return DropdownMenuItem(
-          value: s.id,
-          child: Text(s.name),
-        );
-      }).toList(),
+      items: _buildSpeakerItems(speakers),
+      selectedItemBuilder: (context) =>
+          _buildSelectedSpeakerItems(context, speakers),
       onChanged: (id) {
         if (id == null) return;
         state.setSpeakerId(id);
@@ -107,16 +168,13 @@ class SettingsPanel extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text(
-              'Speed',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            Text('Speed', style: Theme.of(context).textTheme.bodyMedium),
             const Spacer(),
             Text(
               '${state.speed.toStringAsFixed(2)}x',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -131,12 +189,9 @@ class SettingsPanel extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('0.25x',
-                style: Theme.of(context).textTheme.bodySmall),
-            Text('1.0x',
-                style: Theme.of(context).textTheme.bodySmall),
-            Text('3.0x',
-                style: Theme.of(context).textTheme.bodySmall),
+            Text('0.25x', style: Theme.of(context).textTheme.bodySmall),
+            Text('1.0x', style: Theme.of(context).textTheme.bodySmall),
+            Text('3.0x', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ],
@@ -152,10 +207,7 @@ class SettingsPanel extends StatelessWidget {
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
         const SizedBox(width: 8),
-        Text(
-          'Inference:',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
+        Text('Inference:', style: Theme.of(context).textTheme.bodyMedium),
         const SizedBox(width: 12),
         ...state.availableProviders.map((provider) {
           final isSelected = provider == state.selectedProvider;

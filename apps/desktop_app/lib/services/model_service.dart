@@ -28,13 +28,6 @@ class ModelService {
   Future<String> getModelsDirectory() async {
     if (_modelsDir != null) return _modelsDir!;
 
-    // Allow override via environment variable.
-    final envPath = Platform.environment['TTS_MODELS_PATH'];
-    if (envPath != null && envPath.isNotEmpty) {
-      _modelsDir = envPath;
-      return _modelsDir!;
-    }
-
     // Platform-standard data directory.
     // Linux: ~/.local/share/text-to-speech/models
     // Windows: %APPDATA%/text-to-speech/models
@@ -51,62 +44,24 @@ class ModelService {
     return _modelsDir!;
   }
 
-  /// All directories to search for installed models.
-  Future<List<String>> _getSearchPaths() async {
-    final paths = <String>[await getModelsDirectory()];
-
-    // Development convenience: check workspace models/ directory.
-    // Walk up from executable to find the monorepo root.
-    final exeDir = p.dirname(Platform.resolvedExecutable);
-    // In a flutter build, the exe is at:
-    //   apps/desktop_app/build/linux/x64/release/bundle/desktop_app
-    // So monorepo root is 7 levels up.
-    var candidate = exeDir;
-    for (var i = 0; i < 8; i++) {
-      final modelsCandidate = p.join(candidate, 'models');
-      if (await Directory(modelsCandidate).exists()) {
-        if (!paths.contains(modelsCandidate)) {
-          paths.add(modelsCandidate);
-        }
-        break;
-      }
-      candidate = p.dirname(candidate);
-    }
-
-    return paths;
-  }
-
   /// Scans disk for installed models and returns their status.
   Future<List<InstalledModel>> getInstalledModels() async {
     final catalog = await loadCatalog();
-    final searchPaths = await _getSearchPaths();
+    final modelsDir = await getModelsDirectory();
     final results = <InstalledModel>[];
 
     for (final voice in catalog) {
-      InstalledModel? found;
-      for (final basePath in searchPaths) {
-        final dir = p.join(basePath, voice.installDirName);
-        if (await Directory(dir).exists()) {
-          final status = await ModelFileValidator.getStatus(dir, voice);
-          if (status == ModelStatus.ready) {
-            found = InstalledModel(
-              voice: voice,
-              status: ModelStatus.ready,
-              modelDir: dir,
-            );
-            break;
-          } else {
-            found = InstalledModel(
-              voice: voice,
-              status: ModelStatus.incomplete,
-              modelDir: dir,
-            );
-          }
-        }
+      final dir = p.join(modelsDir, voice.installDirName);
+      if (await Directory(dir).exists()) {
+        final status = await ModelFileValidator.getStatus(dir, voice);
+        results.add(
+          InstalledModel(voice: voice, status: status, modelDir: dir),
+        );
+      } else {
+        results.add(
+          InstalledModel(voice: voice, status: ModelStatus.notInstalled),
+        );
       }
-      results.add(
-        found ?? InstalledModel(voice: voice, status: ModelStatus.notInstalled),
-      );
     }
 
     return results;

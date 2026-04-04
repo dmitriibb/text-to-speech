@@ -69,14 +69,12 @@ flutter run -d macos
 The desktop app can:
 
 - download a model in-app, or
-- auto-detect the repo model in `../../models/`, or
-- use `TTS_MODELS_PATH`
+- reuse a model already downloaded into the app-managed models directory
 
-Custom model path example:
+Desktop downloads are stored in:
 
-```bash
-TTS_MODELS_PATH=/path/to/models flutter run -d linux
-```
+- Linux: `~/.local/share/text-to-speech/models/`
+- Windows: `%APPDATA%/text-to-speech/models/`
 
 ## 5. Build a release binary
 

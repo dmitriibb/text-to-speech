@@ -18,7 +18,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 ## Invariants
 
 - Android installs to app-private storage.
-- Desktop may additionally detect workspace models for development.
+- Desktop installs to a single app-managed models directory and does not rely on repo-local model folders.
 - Extraction and validation must run before a model is treated as usable.
 - Validation must cover model-family-specific assets, including Pocket TTS files.
 - Repair must follow the same validation path as first install.
@@ -35,4 +35,5 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - required model files missing after extraction
 - catalog metadata expects the wrong runtime asset for the model
 - install UI shows stale elapsed time or the wrong task as completed while install is still active
+- desktop scans repo-local models and diverges from the app-managed install state
 - platform-specific storage path issue

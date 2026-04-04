@@ -43,13 +43,10 @@ The built app is at `build/linux/x64/release/bundle/desktop_app`.
 
 ## Model Setup
 
-The app searches for models in:
+The app stores and scans models in one app-managed location:
 
-1. `~/.local/share/text-to-speech/models/` (primary)
-2. The workspace `models/` directory (development convenience)
-3. Custom path via `TTS_MODELS_PATH` environment variable
-
-For development, the model from Phase 0 at `../../models/vits-piper-en_US-lessac-medium/` is auto-detected.
+- Linux: `~/.local/share/text-to-speech/models/`
+- Windows: `%APPDATA%/text-to-speech/models/`
 
 Models can also be downloaded from within the app when no model is installed.
 
