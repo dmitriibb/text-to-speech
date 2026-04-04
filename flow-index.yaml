@@ -70,6 +70,8 @@ flows:
       - apps/android_app/lib/services/audio_service.dart
       - apps/desktop_app/lib/state/app_state.dart
       - apps/android_app/lib/state/app_state.dart
+      - packages/shared_ui/lib/src/widgets/audio_playback_controls.dart
+      - packages/shared_ui/lib/src/widgets/task_list_panel.dart
     entities:
       - GeneratedAudio
   benchmark_validation:

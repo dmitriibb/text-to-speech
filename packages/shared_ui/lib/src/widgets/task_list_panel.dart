@@ -2,15 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tts_core/tts_core.dart';
 
+import 'audio_playback_controls.dart';
 import 'cancel_task_dialog.dart';
 
 typedef TaskAudioCallback = void Function(String outputPath);
+typedef TaskSeekCallback = void Function(Duration position);
 
 class TaskPlaybackInfo {
-  const TaskPlaybackInfo({this.playingTaskId, this.isPlaying = false});
+  const TaskPlaybackInfo({
+    this.playingTaskId,
+    this.activeTaskId,
+    this.isPlaying = false,
+    this.position = Duration.zero,
+    this.duration,
+  });
 
   final String? playingTaskId;
+  final String? activeTaskId;
   final bool isPlaying;
+  final Duration position;
+  final Duration? duration;
 }
 
 class TaskListPanel extends StatelessWidget {
@@ -20,12 +31,14 @@ class TaskListPanel extends StatelessWidget {
     this.onPlay,
     this.onStop,
     this.onSave,
+    this.onSeek,
   });
 
   final TaskPlaybackInfo playbackInfo;
   final TaskAudioCallback? onPlay;
   final VoidCallback? onStop;
   final TaskAudioCallback? onSave;
+  final TaskSeekCallback? onSeek;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +66,7 @@ class TaskListPanel extends StatelessWidget {
                     onPlay: onPlay,
                     onStop: onStop,
                     onSave: onSave,
+                    onSeek: onSeek,
                   ),
                   if (i < tasks.length - 1) const Divider(height: 20),
                 ],
@@ -73,6 +87,7 @@ class _TaskRow extends StatefulWidget {
     this.onPlay,
     this.onStop,
     this.onSave,
+    this.onSeek,
   });
 
   final LongRunningTask task;
@@ -81,6 +96,7 @@ class _TaskRow extends StatefulWidget {
   final TaskAudioCallback? onPlay;
   final VoidCallback? onStop;
   final TaskAudioCallback? onSave;
+  final TaskSeekCallback? onSeek;
 
   @override
   State<_TaskRow> createState() => _TaskRowState();
@@ -96,6 +112,7 @@ class _TaskRowState extends State<_TaskRow> {
     final isPlayingThis =
         widget.playbackInfo.playingTaskId == task.id &&
         widget.playbackInfo.isPlaying;
+    final isActiveThis = widget.playbackInfo.activeTaskId == task.id;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,7 +161,7 @@ class _TaskRowState extends State<_TaskRow> {
           ),
         ),
         if (_expanded && task.hasPlayableAudio)
-          _buildPlaybackControls(context, task, isPlayingThis),
+          _buildPlaybackControls(context, task, isPlayingThis, isActiveThis),
       ],
     );
   }
@@ -182,23 +199,29 @@ class _TaskRowState extends State<_TaskRow> {
     BuildContext context,
     LongRunningTask task,
     bool isPlayingThis,
+    bool isActiveThis,
   ) {
     return Padding(
       padding: const EdgeInsets.only(left: 36, top: 8, bottom: 4),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          FilledButton.tonalIcon(
-            onPressed: () {
+          AudioPlaybackControls(
+            isPlaying: isPlayingThis,
+            position: isActiveThis
+                ? widget.playbackInfo.position
+                : Duration.zero,
+            duration: isActiveThis ? widget.playbackInfo.duration : null,
+            onTogglePlayback: () {
               if (isPlayingThis) {
                 widget.onStop?.call();
               } else if (task.outputPath != null) {
                 widget.onPlay?.call(task.outputPath!);
               }
             },
-            icon: Icon(isPlayingThis ? Icons.stop : Icons.play_arrow),
-            label: Text(isPlayingThis ? 'Stop' : 'Play'),
+            onSeek: isActiveThis ? widget.onSeek : null,
           ),
-          const SizedBox(width: 8),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: task.outputPath != null
                 ? () => widget.onSave?.call(task.outputPath!)

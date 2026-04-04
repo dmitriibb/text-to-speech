@@ -21,7 +21,9 @@ class AppState extends ChangeNotifier {
   );
 
   StreamSubscription<PlaybackState>? _audioSubscription;
-  String? _playingTaskId;
+  StreamSubscription<Duration>? _audioPositionSubscription;
+  StreamSubscription<Duration?>? _audioDurationSubscription;
+  String? _currentTaskId;
 
   List<InstalledModel> _installedModels = [];
   InstalledModel? _selectedModel;
@@ -37,6 +39,8 @@ class AppState extends ChangeNotifier {
 
   String? _generatedWavPath;
   PlaybackState _playbackState = PlaybackState.stopped;
+  Duration _playbackPosition = Duration.zero;
+  Duration? _playbackDuration;
 
   List<InstalledModel> get installedModels => _installedModels;
   InstalledModel? get selectedModel => _selectedModel;
@@ -52,7 +56,11 @@ class AppState extends ChangeNotifier {
 
   String? get generatedWavPath => _generatedWavPath;
   PlaybackState get playbackState => _playbackState;
-  String? get playingTaskId => _playingTaskId;
+  String? get playingTaskId =>
+      _playbackState == PlaybackState.playing ? _currentTaskId : null;
+  String? get activeTaskId => _currentTaskId;
+  Duration get playbackPosition => _playbackPosition;
+  Duration? get playbackDuration => _playbackDuration;
 
   bool get hasActiveTasks => taskManager.hasActiveTasks;
   bool get hasActiveSynthesisTasks => taskManager.hasActiveSynthesisTasks;
@@ -78,9 +86,14 @@ class AppState extends ChangeNotifier {
     _modelsDirectory = await _modelService.getModelsDirectory();
     _audioSubscription = _audioService.onStateChanged.listen((state) {
       _playbackState = state;
-      if (state == PlaybackState.stopped) {
-        _playingTaskId = null;
-      }
+      notifyListeners();
+    });
+    _audioPositionSubscription = _audioService.onPositionChanged.listen((position) {
+      _playbackPosition = position;
+      notifyListeners();
+    });
+    _audioDurationSubscription = _audioService.onDurationChanged.listen((duration) {
+      _playbackDuration = duration;
       notifyListeners();
     });
     await taskManager.initialize();
@@ -247,6 +260,7 @@ class AppState extends ChangeNotifier {
   Future<void> play() async {
     if (_generatedWavPath == null) return;
     try {
+      _currentTaskId = null;
       await _audioService.play(_generatedWavPath!);
       _errorMessage = null;
     } catch (error) {
@@ -256,26 +270,38 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> playTaskAudio(String outputPath) async {
+    _currentTaskId = null;
     for (final task in taskManager.tasks) {
       if (task.outputPath == outputPath) {
-        _playingTaskId = task.id;
+        _currentTaskId = task.id;
         break;
       }
     }
     _generatedWavPath = outputPath;
+    _playbackPosition = Duration.zero;
     notifyListeners();
     try {
       await _audioService.play(outputPath);
       _errorMessage = null;
     } catch (error) {
       _errorMessage = 'Playback failed: $error';
-      _playingTaskId = null;
+      _currentTaskId = null;
       notifyListeners();
     }
   }
 
   Future<void> stopPlayback() async {
     await _audioService.stop();
+  }
+
+  Future<void> seekPlayback(Duration position) async {
+    try {
+      await _audioService.seek(position);
+      _errorMessage = null;
+    } catch (error) {
+      _errorMessage = 'Seek failed: $error';
+      notifyListeners();
+    }
   }
 
   Future<bool> shareGeneratedAudio() async {
@@ -331,6 +357,8 @@ class AppState extends ChangeNotifier {
   void dispose() {
     taskManager.removeListener(_handleTaskManagerChanged);
     unawaited(_audioSubscription?.cancel());
+    unawaited(_audioPositionSubscription?.cancel());
+    unawaited(_audioDurationSubscription?.cancel());
     taskManager.dispose();
     _modelService.dispose();
     unawaited(_audioService.dispose());

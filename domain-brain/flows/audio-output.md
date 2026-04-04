@@ -7,19 +7,22 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 ## Steps
 
 1. App keeps the last generated `.wav` path in state.
-2. User chooses a platform output action.
-3. Desktop plays audio through system tools and can export a copy.
-4. Android plays audio in-app and can share the `.wav` through the system share sheet.
+2. User expands a completed synthesis task and uses shared playback controls.
+3. The app plays exactly one generated audio at a time and exposes progress plus seeking.
+4. Desktop can export a copy and Android can share the `.wav` through the system share sheet.
 
 ## Invariants
 
 - Output actions operate on an existing generated local `.wav`.
-- Playback and export/share are platform-specific service responsibilities.
+- Only one generated audio may be active at a time across the app.
+- Playback must expose play/stop plus a seekable progress position for the active audio.
+- Playback and export/share are platform-specific service responsibilities behind a shared UI contract.
 - Output failures do not invalidate the already generated audio file.
+- App shutdown stops playback and cancels active background work.
 
 ## Failure Modes
 
-- Linux playback dependency missing
+- desktop audio playback failure
 - Android audio playback failure
 - desktop export failure
 - Android share failure

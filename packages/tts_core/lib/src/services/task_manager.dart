@@ -175,6 +175,24 @@ class TaskManager extends ChangeNotifier {
     _executor.requestCancel(taskId);
   }
 
+  void cancelAllActiveTasks() {
+    var changed = false;
+
+    for (final task in _tasks.values.toList(growable: false)) {
+      if (!task.canCancel) {
+        continue;
+      }
+
+      _tasks[task.id] = task.copyWith(status: LongRunningTaskStatus.cancelling);
+      _executor.requestCancel(task.id);
+      changed = true;
+    }
+
+    if (changed) {
+      notifyListeners();
+    }
+  }
+
   void dismissTask(String taskId) {
     final task = _tasks[taskId];
     if (task == null || task.isActive) return;
@@ -211,6 +229,7 @@ class TaskManager extends ChangeNotifier {
 
   @override
   void dispose() {
+    cancelAllActiveTasks();
     _ticker?.cancel();
     unawaited(_resultsSub?.cancel());
     _executor.dispose();

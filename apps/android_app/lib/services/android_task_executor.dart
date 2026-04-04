@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:tts_core/tts_core.dart';
 
@@ -75,6 +74,7 @@ class AndroidTaskExecutor implements BackgroundTaskExecutor {
   @override
   void dispose() {
     FlutterForegroundTask.removeTaskDataCallback(_handleTaskData);
+    unawaited(FlutterForegroundTask.stopService());
     unawaited(_resultsController.close());
   }
 

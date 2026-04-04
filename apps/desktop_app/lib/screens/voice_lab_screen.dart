@@ -87,9 +87,13 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
                               playingTaskId: appState.playingTaskId,
                               isPlaying: appState.playbackState ==
                                   PlaybackState.playing,
+                              activeTaskId: appState.activeTaskId,
+                              position: appState.playbackPosition,
+                              duration: appState.playbackDuration,
                             ),
                             onPlay: (path) => appState.playTaskAudio(path),
                             onStop: () => appState.stopPlayback(),
+                            onSeek: (position) => appState.seekPlayback(position),
                             onSave: (path) => appState.saveTaskAudio(path),
                           );
                         },

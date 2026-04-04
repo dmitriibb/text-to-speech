@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:tts_core/tts_core.dart';
 
-import '../models/voice_model.dart';
 import '../services/audio_service.dart';
 import '../services/desktop_task_executor.dart';
 import '../services/gpu_detector.dart';
@@ -38,9 +37,13 @@ class AppState extends ChangeNotifier {
 
   // ---- Audio state ----
   String? _generatedWavPath;
-  String? _playingTaskId;
+  String? _currentTaskId;
   PlaybackState _playbackState = PlaybackState.stopped;
   StreamSubscription<PlaybackState>? _audioSubscription;
+  StreamSubscription<Duration>? _audioPositionSubscription;
+  StreamSubscription<Duration?>? _audioDurationSubscription;
+  Duration _playbackPosition = Duration.zero;
+  Duration? _playbackDuration;
 
   // ---- Provider state ----
   List<String> _availableProviders = const ['cpu'];
@@ -61,7 +64,11 @@ class AppState extends ChangeNotifier {
 
   String? get generatedWavPath => _generatedWavPath;
   PlaybackState get playbackState => _playbackState;
-  String? get playingTaskId => _playingTaskId;
+  String? get playingTaskId =>
+      _playbackState == PlaybackState.playing ? _currentTaskId : null;
+  String? get activeTaskId => _currentTaskId;
+  Duration get playbackPosition => _playbackPosition;
+  Duration? get playbackDuration => _playbackDuration;
 
   List<String> get availableProviders => _availableProviders;
   String get selectedProvider => _selectedProvider;
@@ -93,9 +100,14 @@ class AppState extends ChangeNotifier {
 
     _audioSubscription = _audioService.onStateChanged.listen((state) {
       _playbackState = state;
-      if (state == PlaybackState.stopped) {
-        _playingTaskId = null;
-      }
+      notifyListeners();
+    });
+    _audioPositionSubscription = _audioService.onPositionChanged.listen((position) {
+      _playbackPosition = position;
+      notifyListeners();
+    });
+    _audioDurationSubscription = _audioService.onDurationChanged.listen((duration) {
+      _playbackDuration = duration;
       notifyListeners();
     });
 
@@ -237,7 +249,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     final selectedModel = _selectedModel!;
-    final modelsDir = await _modelService.getModelsDirectory();
     final outputDir = Directory(p.join(Directory.systemTemp.path, 'tts_generated'));
     await outputDir.create(recursive: true);
     final outputPath = p.join(
@@ -266,6 +277,7 @@ class AppState extends ChangeNotifier {
   Future<void> play() async {
     if (_generatedWavPath == null) return;
     try {
+      _currentTaskId = null;
       await _audioService.play(_generatedWavPath!);
     } catch (e) {
       _errorMessage = 'Playback failed: $e';
@@ -274,26 +286,37 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> playTaskAudio(String outputPath) async {
+    _currentTaskId = null;
     // Find the task ID for this output path.
     for (final task in taskManager.tasks) {
       if (task.outputPath == outputPath) {
-        _playingTaskId = task.id;
+        _currentTaskId = task.id;
         break;
       }
     }
     _generatedWavPath = outputPath;
+    _playbackPosition = Duration.zero;
     notifyListeners();
     try {
       await _audioService.play(outputPath);
     } catch (e) {
       _errorMessage = 'Playback failed: $e';
-      _playingTaskId = null;
+      _currentTaskId = null;
       notifyListeners();
     }
   }
 
   Future<void> stopPlayback() async {
     await _audioService.stop();
+  }
+
+  Future<void> seekPlayback(Duration position) async {
+    try {
+      await _audioService.seek(position);
+    } catch (e) {
+      _errorMessage = 'Seek failed: $e';
+      notifyListeners();
+    }
   }
 
   // ---- Export ----
@@ -372,6 +395,8 @@ class AppState extends ChangeNotifier {
   void dispose() {
     taskManager.removeListener(_handleTaskManagerChanged);
     unawaited(_audioSubscription?.cancel());
+    unawaited(_audioPositionSubscription?.cancel());
+    unawaited(_audioDurationSubscription?.cancel());
     taskManager.dispose();
     _audioService.dispose();
     super.dispose();
