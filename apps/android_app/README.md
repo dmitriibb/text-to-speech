@@ -27,3 +27,17 @@ flutter run
 The Dart code, Flutter analysis, and Flutter tests pass in this repo.
 
 You still need a configured Android SDK plus either a phone or an emulator before `flutter run` can launch the app.
+
+## Build
+
+To build a release APK for `arm64-v8a` only:
+
+```bash
+flutter build apk --release --target-platform android-arm64
+```
+
+Output:
+
+```text
+build/app/outputs/flutter-apk/app-release.apk
+```

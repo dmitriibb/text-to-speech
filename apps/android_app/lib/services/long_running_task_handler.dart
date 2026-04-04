@@ -21,7 +21,8 @@ const String eventSnapshot = 'snapshot';
 const String eventTaskResult = 'task_result';
 
 const String taskServiceNotificationTitle = 'Text to Speech task running';
-const String taskServiceIdleNotificationText = 'Preparing background speech work';
+const String taskServiceIdleNotificationText =
+    'Preparing background speech work';
 
 @pragma('vm:entry-point')
 void startLongRunningTaskHandler() {
@@ -104,7 +105,9 @@ class LongRunningTaskHandler extends TaskHandler {
   }
 
   void _cancelTask(String taskId) {
-    final queueIndex = _queue.indexWhere((queuedTask) => queuedTask.task.id == taskId);
+    final queueIndex = _queue.indexWhere(
+      (queuedTask) => queuedTask.task.id == taskId,
+    );
     if (queueIndex >= 0) {
       final cancelledTask = _queue.removeAt(queueIndex).task;
       _activeTasks.remove(taskId);
@@ -219,6 +222,10 @@ class LongRunningTaskHandler extends TaskHandler {
 
   Future<TaskResult> _runTask(_QueuedTask queuedTask) async {
     switch (queuedTask.task.type) {
+      case LongRunningTaskType.installModel:
+        throw UnsupportedError(
+          'Install tasks are handled by the app state model service, not the Android foreground task handler.',
+        );
       case LongRunningTaskType.preloadModel:
         await _ensureModelLoaded(queuedTask.payload);
         return TaskResult(
@@ -261,12 +268,8 @@ class LongRunningTaskHandler extends TaskHandler {
       'display_name': payload['displayName'],
       'family': payload['family'],
       'runtime': payload['runtime'],
-      'status': const {
-        'approved_for_distribution': false,
-      },
-      'source': const {
-        'archive_url': '',
-      },
+      'status': const {'approved_for_distribution': false},
+      'source': const {'archive_url': ''},
       'install': {
         'archive_format': 'tar.bz2',
         'install_dir_name': payload['installDirName'],
@@ -348,10 +351,7 @@ class LongRunningTaskHandler extends TaskHandler {
 }
 
 class _QueuedTask {
-  const _QueuedTask({
-    required this.task,
-    required this.payload,
-  });
+  const _QueuedTask({required this.task, required this.payload});
 
   final LongRunningTask task;
   final Map<String, Object?> payload;
