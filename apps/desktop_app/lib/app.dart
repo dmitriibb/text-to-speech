@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tts_core/tts_core.dart';
 
 import 'state/app_state.dart';
 import 'screens/home_screen.dart';
@@ -11,7 +12,11 @@ class App extends StatelessWidget {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => AppState()..initialize(),
-      child: MaterialApp(
+      child: Consumer<AppState>(
+        builder: (context, appState, _) {
+          return ChangeNotifierProvider<TaskManager>.value(
+            value: appState.taskManager,
+            child: MaterialApp(
         title: 'Text to Speech',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -31,6 +36,9 @@ class App extends StatelessWidget {
         themeMode: ThemeMode.system,
         home: const HomeScreen(),
       ),
+            );
+          },
+        ),
     );
   }
 }

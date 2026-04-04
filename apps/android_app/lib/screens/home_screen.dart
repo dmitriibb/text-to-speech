@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_ui/shared_ui.dart';
 
 import 'about_screen.dart';
+import '../services/audio_service.dart';
 import '../state/app_state.dart';
-import '../widgets/active_task_list.dart';
 import '../widgets/error_banner.dart';
 import '../widgets/model_status_card.dart';
-import '../widgets/playback_panel.dart';
 import '../widgets/settings_panel.dart';
 import '../widgets/text_input_panel.dart';
 
@@ -65,20 +65,21 @@ class HomeScreen extends StatelessWidget {
                   const TextInputPanel(),
                   const SizedBox(height: 16),
                   const SettingsPanel(),
-                  if (state.hasActiveTasks) ...[
-                    const SizedBox(height: 16),
-                    const ActiveTaskList(),
-                  ],
+                  const SizedBox(height: 16),
+                  TaskListPanel(
+                    playbackInfo: TaskPlaybackInfo(
+                      playingTaskId: state.playingTaskId,
+                      isPlaying: state.playbackState == PlaybackState.playing,
+                    ),
+                    onPlay: (path) => state.playTaskAudio(path),
+                    onStop: () => state.stopPlayback(),
+                    onSave: (path) => state.shareGeneratedAudio(),
+                  ),
                   const SizedBox(height: 16),
                   _GenerateButton(state: state),
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 12),
                     ErrorBanner(message: state.errorMessage!),
-                  ],
-                  if (state.hasAudio &&
-                      state.synthesisStatus == SynthesisStatus.done) ...[
-                    const SizedBox(height: 20),
-                    const PlaybackPanel(),
                   ],
                 ],
               ),

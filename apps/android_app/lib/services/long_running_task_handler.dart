@@ -7,8 +7,6 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:path/path.dart' as p;
 import 'package:tts_core/tts_core.dart';
 
-import '../models/long_running_task.dart';
-
 const String commandTypeKey = 'command';
 const String taskKey = 'task';
 const String payloadKey = 'payload';
@@ -112,10 +110,10 @@ class LongRunningTaskHandler extends TaskHandler {
       _activeTasks.remove(taskId);
       _sendSnapshot();
       _sendResult(
-        LongRunningTaskResult(
+        TaskResult(
           taskId: cancelledTask.id,
           type: cancelledTask.type,
-          status: LongRunningTaskResultStatus.cancelled,
+          status: TaskResultStatus.cancelled,
         ),
       );
       return;
@@ -148,11 +146,10 @@ class LongRunningTaskHandler extends TaskHandler {
           _activeTasks.remove(taskId);
           _sendSnapshot();
           _sendResult(
-            LongRunningTaskResult(
+            TaskResult(
               taskId: taskId,
               type: queuedTask.task.type,
-              status: LongRunningTaskResultStatus.cancelled,
-              modelId: queuedTask.modelId,
+              status: TaskResultStatus.cancelled,
             ),
           );
           continue;
@@ -181,11 +178,10 @@ class LongRunningTaskHandler extends TaskHandler {
             }
 
             _sendResult(
-              LongRunningTaskResult(
+              TaskResult(
                 taskId: taskId,
                 type: queuedTask.task.type,
-                status: LongRunningTaskResultStatus.cancelled,
-                modelId: queuedTask.modelId,
+                status: TaskResultStatus.cancelled,
               ),
             );
           } else {
@@ -194,13 +190,12 @@ class LongRunningTaskHandler extends TaskHandler {
         } catch (error) {
           final wasCancelled = _cancelRequestedTaskIds.remove(taskId);
           _sendResult(
-            LongRunningTaskResult(
+            TaskResult(
               taskId: taskId,
               type: queuedTask.task.type,
               status: wasCancelled
-                  ? LongRunningTaskResultStatus.cancelled
-                  : LongRunningTaskResultStatus.failed,
-              modelId: queuedTask.modelId,
+                  ? TaskResultStatus.cancelled
+                  : TaskResultStatus.failed,
               errorMessage: wasCancelled ? null : error.toString(),
             ),
           );
@@ -222,15 +217,14 @@ class LongRunningTaskHandler extends TaskHandler {
     }
   }
 
-  Future<LongRunningTaskResult> _runTask(_QueuedTask queuedTask) async {
+  Future<TaskResult> _runTask(_QueuedTask queuedTask) async {
     switch (queuedTask.task.type) {
       case LongRunningTaskType.preloadModel:
         await _ensureModelLoaded(queuedTask.payload);
-        return LongRunningTaskResult(
+        return TaskResult(
           taskId: queuedTask.task.id,
           type: queuedTask.task.type,
-          status: LongRunningTaskResultStatus.completed,
-          modelId: queuedTask.modelId,
+          status: TaskResultStatus.completed,
         );
       case LongRunningTaskType.synthesizeSpeech:
         await _ensureModelLoaded(queuedTask.payload);
@@ -247,11 +241,10 @@ class LongRunningTaskHandler extends TaskHandler {
           throw Exception('Failed to write WAV file');
         }
 
-        return LongRunningTaskResult(
+        return TaskResult(
           taskId: queuedTask.task.id,
           type: queuedTask.task.type,
-          status: LongRunningTaskResultStatus.completed,
-          modelId: queuedTask.modelId,
+          status: TaskResultStatus.completed,
           outputPath: outputPath,
         );
     }
@@ -330,7 +323,7 @@ class LongRunningTaskHandler extends TaskHandler {
     });
   }
 
-  void _sendResult(LongRunningTaskResult result) {
+  void _sendResult(TaskResult result) {
     FlutterForegroundTask.sendDataToMain({
       eventKey: eventTaskResult,
       'result': result.toMap(),
@@ -345,6 +338,10 @@ class LongRunningTaskHandler extends TaskHandler {
         return 1;
       case LongRunningTaskStatus.queued:
         return 2;
+      case LongRunningTaskStatus.completed:
+      case LongRunningTaskStatus.failed:
+      case LongRunningTaskStatus.cancelled:
+        return 3;
     }
   }
 }

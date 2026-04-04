@@ -1,0 +1,259 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
+import '../models/long_running_task.dart';
+import '../models/voice_model.dart';
+import 'background_task_executor.dart';
+
+class TaskManager extends ChangeNotifier {
+  TaskManager({required BackgroundTaskExecutor executor})
+      : _executor = executor;
+
+  final BackgroundTaskExecutor _executor;
+  final Map<String, LongRunningTask> _tasks = {};
+  int _speechCounter = 0;
+  int _modelLoadCounter = 0;
+  Timer? _ticker;
+  StreamSubscription<TaskResult>? _resultsSub;
+  bool _initialized = false;
+
+  List<LongRunningTask> get tasks {
+    final list = _tasks.values.toList(growable: false);
+    list.sort((a, b) {
+      final ap = _statusPriority(a.status);
+      final bp = _statusPriority(b.status);
+      if (ap != bp) return ap.compareTo(bp);
+      return a.startedAt.compareTo(b.startedAt);
+    });
+    return list;
+  }
+
+  List<LongRunningTask> get activeTasks =>
+      tasks.where((t) => t.isActive).toList(growable: false);
+
+  bool get hasActiveTasks => _tasks.values.any((t) => t.isActive);
+
+  bool get hasActiveSynthesisTasks => _tasks.values.any(
+        (t) =>
+            t.type == LongRunningTaskType.synthesizeSpeech && t.isActive,
+      );
+
+  LongRunningTask? get latestCompletedSynthesis {
+    LongRunningTask? latest;
+    for (final task in _tasks.values) {
+      if (task.hasPlayableAudio) {
+        if (latest == null ||
+            task.startedAt.isAfter(latest.startedAt)) {
+          latest = task;
+        }
+      }
+    }
+    return latest;
+  }
+
+  Future<void> initialize() async {
+    if (_initialized) return;
+    _resultsSub = _executor.results.listen(_handleResult);
+    await _executor.initialize();
+    _initialized = true;
+  }
+
+  Future<String> submitSynthesis({
+    required String modelDir,
+    required VoiceModel voice,
+    required String text,
+    required double speed,
+    required int speakerId,
+    required String outputPath,
+  }) async {
+    _speechCounter++;
+    final task = LongRunningTask(
+      id: _nextTaskId(),
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'speech-$_speechCounter',
+      startedAt: DateTime.now(),
+      status: LongRunningTaskStatus.queued,
+    );
+
+    _tasks[task.id] = task;
+    _startTicker();
+    notifyListeners();
+
+    await _executor.submit(TaskRequest(
+      taskId: task.id,
+      type: task.type,
+      payload: {
+        ..._buildModelPayload(modelDir: modelDir, voice: voice),
+        'text': text,
+        'speed': speed,
+        'speakerId': speakerId,
+        'outputPath': outputPath,
+      },
+    ));
+
+    return task.id;
+  }
+
+  Future<String> submitModelPreload({
+    required String modelDir,
+    required VoiceModel voice,
+  }) async {
+    _modelLoadCounter++;
+    final task = LongRunningTask(
+      id: _nextTaskId(),
+      type: LongRunningTaskType.preloadModel,
+      label: 'model-loading-$_modelLoadCounter',
+      startedAt: DateTime.now(),
+      status: LongRunningTaskStatus.queued,
+    );
+
+    _tasks[task.id] = task;
+    _startTicker();
+    notifyListeners();
+
+    await _executor.submit(TaskRequest(
+      taskId: task.id,
+      type: task.type,
+      payload: _buildModelPayload(modelDir: modelDir, voice: voice),
+    ));
+
+    return task.id;
+  }
+
+  Future<void> cancelTask(String taskId) async {
+    final task = _tasks[taskId];
+    if (task == null || !task.canCancel) return;
+
+    _tasks[taskId] = task.copyWith(status: LongRunningTaskStatus.cancelling);
+    notifyListeners();
+
+    _executor.requestCancel(taskId);
+  }
+
+  void dismissTask(String taskId) {
+    final task = _tasks[taskId];
+    if (task == null || task.isActive) return;
+    _tasks.remove(taskId);
+    _stopTickerIfIdle();
+    notifyListeners();
+  }
+
+  String formatElapsed(LongRunningTask task) {
+    final totalSeconds = DateTime.now().difference(task.startedAt).inSeconds;
+    final seconds = totalSeconds < 0 ? 0 : totalSeconds;
+    if (seconds < 60) return '${seconds}s';
+    final mins = seconds ~/ 60;
+    final secs = seconds % 60;
+    return '$mins:${secs.toString().padLeft(2, '0')}';
+  }
+
+  String describeStatus(LongRunningTask task) {
+    switch (task.status) {
+      case LongRunningTaskStatus.queued:
+        return 'Queued';
+      case LongRunningTaskStatus.running:
+        return 'Running';
+      case LongRunningTaskStatus.cancelling:
+        return 'Cancelling';
+      case LongRunningTaskStatus.completed:
+        return 'Completed';
+      case LongRunningTaskStatus.failed:
+        return 'Failed';
+      case LongRunningTaskStatus.cancelled:
+        return 'Cancelled';
+    }
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    unawaited(_resultsSub?.cancel());
+    _executor.dispose();
+    super.dispose();
+  }
+
+  // ---- Private ----
+
+  void _handleResult(TaskResult result) {
+    final task = _tasks[result.taskId];
+    if (task == null) return;
+
+    switch (result.status) {
+      case TaskResultStatus.completed:
+        _tasks[result.taskId] = task.copyWith(
+          status: LongRunningTaskStatus.completed,
+          outputPath: result.outputPath,
+        );
+      case TaskResultStatus.failed:
+        _tasks[result.taskId] = task.copyWith(
+          status: LongRunningTaskStatus.failed,
+          errorMessage: result.errorMessage,
+        );
+      case TaskResultStatus.cancelled:
+        _tasks[result.taskId] = task.copyWith(
+          status: LongRunningTaskStatus.cancelled,
+        );
+    }
+
+    _stopTickerIfIdle();
+    notifyListeners();
+  }
+
+  void _startTicker() {
+    _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
+      notifyListeners();
+    });
+  }
+
+  void _stopTickerIfIdle() {
+    if (!hasActiveTasks) {
+      _ticker?.cancel();
+      _ticker = null;
+    }
+  }
+
+  String _nextTaskId() {
+    return 'task-${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  Map<String, Object?> _buildModelPayload({
+    required String modelDir,
+    required VoiceModel voice,
+  }) {
+    return {
+      'cacheKey': '${voice.id}::$modelDir',
+      'modelId': voice.id,
+      'displayName': voice.displayName,
+      'family': voice.family,
+      'runtime': voice.runtime,
+      'installDirName': voice.installDirName,
+      'modelDir': modelDir,
+      'modelFile': voice.modelFile,
+      'tokensFile': voice.tokensFile,
+      'lexiconFile': voice.lexiconFile,
+      'dataDir': voice.dataDir,
+      'provider': voice.provider,
+      'numThreads': voice.numThreads,
+      'speakerId': voice.defaultSpeakerId,
+      'maxNumSentences': voice.maxNumSentences,
+    };
+  }
+
+  int _statusPriority(LongRunningTaskStatus status) {
+    switch (status) {
+      case LongRunningTaskStatus.running:
+        return 0;
+      case LongRunningTaskStatus.cancelling:
+        return 1;
+      case LongRunningTaskStatus.queued:
+        return 2;
+      case LongRunningTaskStatus.completed:
+        return 3;
+      case LongRunningTaskStatus.failed:
+        return 4;
+      case LongRunningTaskStatus.cancelled:
+        return 5;
+    }
+  }
+}

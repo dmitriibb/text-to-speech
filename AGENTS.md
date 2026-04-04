@@ -44,8 +44,28 @@ This repository keeps task state in the repo so a new agent can resume work quic
 - Keep the numeric order aligned with the user’s stated priority.
 - Keep names stable unless the task scope materially changes.
 
+## Architecture Rules
+
+- Canonical document: `docs/architecture-rules.md`
+- Read it before implementing any feature that touches UI, services, or cross-platform behavior.
+- Key concepts: **Basic functionality** (shared across desktop and mobile) vs **Extended functionality** (desktop only).
+- All shared services go in `packages/tts_core/`. All shared UI goes in `packages/shared_ui/`.
+- Platform-specific behavior must be abstracted behind interfaces in the shared packages.
+
+## Basic Functionality Reporting
+
+When working on a **Basic functionality** feature (one that must exist in both desktop and mobile apps), the agent must include a summary at the end of the work that clearly states:
+
+1. **Identical on both platforms**: list what was implemented in shared packages and works the same way on desktop and mobile.
+2. **Platform-specific differences**: list what required different implementations per platform, explain why, and confirm the user-facing behavior is equivalent.
+3. **Not yet wired to one platform**: list anything implemented for one app but not yet integrated into the other, with a note on what remains.
+
+This summary helps the user verify cross-platform parity.
+
 ## Documentation Pointers
 
+- Architecture rules: `docs/architecture-rules.md`
+- Architecture overview: `docs/architecture.md`
 - Domain brain: `domain-brain/`
 - Flow index: `flow-index.yaml`
 - Desktop run instructions: `apps/desktop_app/how-to-run.md`

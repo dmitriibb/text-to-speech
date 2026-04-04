@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_ui/shared_ui.dart';
+import 'package:tts_core/tts_core.dart';
 
 import '../state/app_state.dart';
+import '../services/audio_service.dart';
 import '../widgets/model_status_banner.dart';
 import '../widgets/text_input_panel.dart';
 import '../widgets/settings_panel.dart';
-import '../widgets/playback_panel.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -55,12 +57,17 @@ class HomeScreen extends StatelessWidget {
                       _buildErrorBanner(context, state.errorMessage!),
                     ],
 
-                    // Playback panel.
-                    if (state.hasAudio &&
-                        state.synthesisStatus == SynthesisStatus.done) ...[
-                      const SizedBox(height: 24),
-                      const PlaybackPanel(),
-                    ],
+                    // Task list.
+                    const SizedBox(height: 16),
+                    TaskListPanel(
+                      playbackInfo: TaskPlaybackInfo(
+                        playingTaskId: state.playingTaskId,
+                        isPlaying: state.playbackState == PlaybackState.playing,
+                      ),
+                      onPlay: (path) => state.playTaskAudio(path),
+                      onStop: () => state.stopPlayback(),
+                      onSave: (path) => state.saveTaskAudio(path),
+                    ),
                   ],
                 ),
               ),
@@ -72,24 +79,16 @@ class HomeScreen extends StatelessWidget {
   }
 
   Widget _buildGenerateButton(BuildContext context, AppState state) {
+    final hasActiveSynthesis = state.taskManager.hasActiveSynthesisTasks;
     return SizedBox(
       height: 48,
       child: FilledButton.icon(
         onPressed: state.canGenerate ? () => state.generate() : null,
-        icon: state.synthesisStatus == SynthesisStatus.generating
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Icon(Icons.record_voice_over),
+        icon: Icon(
+          hasActiveSynthesis ? Icons.add_task : Icons.record_voice_over,
+        ),
         label: Text(
-          state.synthesisStatus == SynthesisStatus.generating
-              ? 'Generating...'
-              : 'Generate Speech',
+          hasActiveSynthesis ? 'Queue speech task' : 'Generate Speech',
         ),
       ),
     );

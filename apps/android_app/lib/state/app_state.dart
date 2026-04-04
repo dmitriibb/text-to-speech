@@ -7,9 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tts_core/tts_core.dart';
 
-import '../models/long_running_task.dart';
+import '../services/android_task_executor.dart';
 import '../services/audio_service.dart';
-import '../services/long_running_task_service.dart';
 import '../services/model_service.dart';
 
 enum SynthesisStatus { idle, generating, done, error }
@@ -17,11 +16,12 @@ enum SynthesisStatus { idle, generating, done, error }
 class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
-  final LongRunningTaskService _taskService = LongRunningTaskService();
+  final TaskManager taskManager = TaskManager(
+    executor: AndroidTaskExecutor(),
+  );
 
   StreamSubscription<PlaybackState>? _audioSubscription;
-  StreamSubscription<LongRunningTaskResult>? _taskResultSubscription;
-  Timer? _taskElapsedTicker;
+  String? _playingTaskId;
 
   List<InstalledModel> _installedModels = [];
   InstalledModel? _selectedModel;
@@ -52,12 +52,10 @@ class AppState extends ChangeNotifier {
 
   String? get generatedWavPath => _generatedWavPath;
   PlaybackState get playbackState => _playbackState;
+  String? get playingTaskId => _playingTaskId;
 
-  List<LongRunningTask> get activeTasks => _taskService.activeTasks;
-  int get activeSynthesisTaskCount =>
-      activeTasks.where((task) => task.type == LongRunningTaskType.synthesizeSpeech).length;
-  bool get hasActiveTasks => activeTasks.isNotEmpty;
-  bool get hasActiveSynthesisTasks => activeSynthesisTaskCount > 0;
+  bool get hasActiveTasks => taskManager.hasActiveTasks;
+  bool get hasActiveSynthesisTasks => taskManager.hasActiveSynthesisTasks;
   bool get canManageModels => !_isLoadingModels && !_isDownloading;
   bool get canSelectModel => canManageModels && readyModels.isNotEmpty;
   bool get canAdjustSpeed => !_isLoadingModels && !_isDownloading;
@@ -75,14 +73,17 @@ class AppState extends ChangeNotifier {
       _installedModels.where((model) => model.status != ModelStatus.ready).toList();
 
   Future<void> initialize() async {
-    _taskService.addListener(_handleTaskServiceChanged);
-    _taskResultSubscription = _taskService.results.listen(_handleTaskResult);
-    await _taskService.initialize();
+    taskManager.addListener(_handleTaskManagerChanged);
+
     _modelsDirectory = await _modelService.getModelsDirectory();
     _audioSubscription = _audioService.onStateChanged.listen((state) {
       _playbackState = state;
+      if (state == PlaybackState.stopped) {
+        _playingTaskId = null;
+      }
       notifyListeners();
     });
+    await taskManager.initialize();
     await refreshModels();
   }
 
@@ -126,10 +127,6 @@ class AppState extends ChangeNotifier {
 
   Future<void> selectModel(InstalledModel model) async {
     if (!canSelectModel || model.status != ModelStatus.ready || model.modelDir == null) {
-      return;
-    }
-
-    if (_selectedModel?.voice.id == model.voice.id) {
       return;
     }
 
@@ -202,7 +199,7 @@ class AppState extends ChangeNotifier {
     await _audioService.stop();
 
     try {
-      await _taskService.submitSpeechSynthesis(
+      await taskManager.submitSynthesis(
         modelDir: selectedModel.modelDir!,
         voice: selectedModel.voice,
         text: inputText,
@@ -231,7 +228,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> cancelTask(String taskId) async {
     try {
-      await _taskService.cancelTask(taskId);
+      await taskManager.cancelTask(taskId);
       _errorMessage = null;
     } catch (error) {
       _errorMessage = 'Failed to cancel task: $error';
@@ -240,26 +237,15 @@ class AppState extends ChangeNotifier {
   }
 
   String formatTaskElapsed(LongRunningTask task) {
-    final elapsed = DateTime.now().difference(task.startedAt).inSeconds;
-    return '${elapsed < 0 ? 0 : elapsed}s';
+    return taskManager.formatElapsed(task);
   }
 
   String describeTaskStatus(LongRunningTask task) {
-    switch (task.status) {
-      case LongRunningTaskStatus.queued:
-        return 'Queued';
-      case LongRunningTaskStatus.running:
-        return 'Running';
-      case LongRunningTaskStatus.cancelling:
-        return 'Cancelling';
-    }
+    return taskManager.describeStatus(task);
   }
 
   Future<void> play() async {
-    if (_generatedWavPath == null) {
-      return;
-    }
-
+    if (_generatedWavPath == null) return;
     try {
       await _audioService.play(_generatedWavPath!);
       _errorMessage = null;
@@ -269,15 +255,31 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> playTaskAudio(String outputPath) async {
+    for (final task in taskManager.tasks) {
+      if (task.outputPath == outputPath) {
+        _playingTaskId = task.id;
+        break;
+      }
+    }
+    _generatedWavPath = outputPath;
+    notifyListeners();
+    try {
+      await _audioService.play(outputPath);
+      _errorMessage = null;
+    } catch (error) {
+      _errorMessage = 'Playback failed: $error';
+      _playingTaskId = null;
+      notifyListeners();
+    }
+  }
+
   Future<void> stopPlayback() async {
     await _audioService.stop();
   }
 
   Future<bool> shareGeneratedAudio() async {
-    if (_generatedWavPath == null) {
-      return false;
-    }
-
+    if (_generatedWavPath == null) return false;
     try {
       await SharePlus.instance.share(
         ShareParams(
@@ -297,7 +299,7 @@ class AppState extends ChangeNotifier {
 
   Future<void> _queueModelPreload(InstalledModel model) async {
     try {
-      await _taskService.submitModelPreload(
+      await taskManager.submitModelPreload(
         modelDir: model.modelDir!,
         voice: model.voice,
       );
@@ -309,70 +311,27 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void _handleTaskServiceChanged() {
-    final hasActiveTasks = _taskService.activeTasks.isNotEmpty;
-    final hasActiveSynthesis = _taskService.activeTasks.any(
-      (task) => task.type == LongRunningTaskType.synthesizeSpeech,
-    );
-
-    if (hasActiveSynthesis) {
+  void _handleTaskManagerChanged() {
+    final hasSynthesis = taskManager.hasActiveSynthesisTasks;
+    if (hasSynthesis) {
       _synthesisStatus = SynthesisStatus.generating;
     } else if (_synthesisStatus == SynthesisStatus.generating) {
-      _synthesisStatus = SynthesisStatus.idle;
+      final latest = taskManager.latestCompletedSynthesis;
+      if (latest != null) {
+        _generatedWavPath = latest.outputPath;
+        _synthesisStatus = SynthesisStatus.done;
+      } else {
+        _synthesisStatus = SynthesisStatus.idle;
+      }
     }
-
-    if (hasActiveTasks) {
-      _taskElapsedTicker ??= Timer.periodic(const Duration(seconds: 1), (_) {
-        notifyListeners();
-      });
-    } else {
-      _taskElapsedTicker?.cancel();
-      _taskElapsedTicker = null;
-    }
-
-    notifyListeners();
-  }
-
-  void _handleTaskResult(LongRunningTaskResult result) {
-    switch (result.type) {
-      case LongRunningTaskType.preloadModel:
-        if (result.status == LongRunningTaskResultStatus.failed &&
-            result.modelId == _selectedModel?.voice.id) {
-          _errorMessage =
-              'Failed to load ${_selectedModel?.voice.displayName ?? 'the selected voice'} in the background: ${result.errorMessage ?? 'Unknown error'}';
-        }
-        break;
-      case LongRunningTaskType.synthesizeSpeech:
-        switch (result.status) {
-          case LongRunningTaskResultStatus.completed:
-            _generatedWavPath = result.outputPath;
-            _synthesisStatus = SynthesisStatus.done;
-            _errorMessage = null;
-            break;
-          case LongRunningTaskResultStatus.failed:
-            _synthesisStatus = SynthesisStatus.error;
-            _errorMessage =
-                'Synthesis failed: ${result.errorMessage ?? 'Unknown error'}';
-            break;
-          case LongRunningTaskResultStatus.cancelled:
-            if (!hasActiveSynthesisTasks) {
-              _synthesisStatus = SynthesisStatus.idle;
-            }
-            break;
-        }
-        break;
-    }
-
     notifyListeners();
   }
 
   @override
   void dispose() {
-    _taskService.removeListener(_handleTaskServiceChanged);
-    _taskElapsedTicker?.cancel();
-    unawaited(_taskResultSubscription?.cancel());
+    taskManager.removeListener(_handleTaskManagerChanged);
     unawaited(_audioSubscription?.cancel());
-    _taskService.dispose();
+    taskManager.dispose();
     _modelService.dispose();
     unawaited(_audioService.dispose());
     super.dispose();

@@ -7,6 +7,12 @@ Local-first text-to-speech monorepo for:
 
 The current repository state is **Phase 2: Android MVP in progress**. The repo now contains both a desktop Flutter app and an Android Flutter app built around local `sherpa-onnx` synthesis.
 
+## Architecture
+
+See [docs/architecture-rules.md](docs/architecture-rules.md) for the rules governing shared components, Basic vs Extended functionality, and cross-platform consistency.
+
+See [docs/architecture.md](docs/architecture.md) for the technical architecture overview.
+
 ## Getting started
 
 See [docs/how-to-run.md](docs/how-to-run.md) for the run-guide index, then choose the app-specific guide:

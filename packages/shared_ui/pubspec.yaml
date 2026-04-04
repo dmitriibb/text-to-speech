@@ -1,0 +1,22 @@
+name: shared_ui
+description: "Shared Flutter widgets for the text-to-speech apps."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.11.4
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: ^6.1.2
+  tts_core:
+    path: ../tts_core
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:

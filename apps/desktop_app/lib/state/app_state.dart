@@ -1,12 +1,14 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:tts_core/tts_core.dart';
 
 import '../models/voice_model.dart';
 import '../services/audio_service.dart';
+import '../services/desktop_task_executor.dart';
 import '../services/model_service.dart';
-import '../services/tts_service.dart';
 
 /// Synthesis workflow state.
 enum SynthesisStatus { idle, generating, done, error }
@@ -14,8 +16,10 @@ enum SynthesisStatus { idle, generating, done, error }
 /// Top-level application state.
 class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
-  final TtsService _ttsService = TtsService();
   final AudioService _audioService = AudioService();
+  final TaskManager taskManager = TaskManager(
+    executor: DesktopTaskExecutor(),
+  );
 
   // ---- Model state ----
   List<InstalledModel> _installedModels = [];
@@ -32,7 +36,9 @@ class AppState extends ChangeNotifier {
 
   // ---- Audio state ----
   String? _generatedWavPath;
+  String? _playingTaskId;
   PlaybackState _playbackState = PlaybackState.stopped;
+  StreamSubscription<PlaybackState>? _audioSubscription;
 
   // ---- Getters ----
   List<InstalledModel> get installedModels => _installedModels;
@@ -48,13 +54,13 @@ class AppState extends ChangeNotifier {
 
   String? get generatedWavPath => _generatedWavPath;
   PlaybackState get playbackState => _playbackState;
+  String? get playingTaskId => _playingTaskId;
 
   /// True when a ready model is selected and text is non-empty.
   bool get canGenerate =>
       _selectedModel != null &&
       _selectedModel!.status == ModelStatus.ready &&
-      _inputText.trim().isNotEmpty &&
-      _synthesisStatus != SynthesisStatus.generating;
+      _inputText.trim().isNotEmpty;
 
   /// True when generated audio exists.
   bool get hasAudio => _generatedWavPath != null;
@@ -73,14 +79,17 @@ class AppState extends ChangeNotifier {
 
   /// Call once at startup to init bindings and scan models.
   Future<void> initialize() async {
-    _ttsService.initBindings();
+    taskManager.addListener(_handleTaskManagerChanged);
 
-    // Listen to audio playback state.
-    _audioService.onStateChanged.listen((state) {
+    _audioSubscription = _audioService.onStateChanged.listen((state) {
       _playbackState = state;
+      if (state == PlaybackState.stopped) {
+        _playingTaskId = null;
+      }
       notifyListeners();
     });
 
+    await taskManager.initialize();
     await refreshModels();
   }
 
@@ -112,18 +121,23 @@ class AppState extends ChangeNotifier {
 
   // ---- Model actions ----
 
-  /// Selects a model and loads it into the TTS engine.
+  /// Selects a model and queues a background preload.
   Future<void> selectModel(InstalledModel model) async {
     if (model.status != ModelStatus.ready || model.modelDir == null) return;
 
-    try {
-      _ttsService.loadModel(model.modelDir!, model.voice);
-      _selectedModel = model;
-      _errorMessage = null;
-    } catch (e) {
-      _errorMessage = 'Failed to load model: $e';
-    }
+    _selectedModel = model;
+    _errorMessage = null;
     notifyListeners();
+
+    try {
+      await taskManager.submitModelPreload(
+        modelDir: model.modelDir!,
+        voice: model.voice,
+      );
+    } catch (e) {
+      _errorMessage = 'Failed to start background voice load: $e';
+      notifyListeners();
+    }
   }
 
   /// Downloads a model from the catalog.
@@ -165,41 +179,36 @@ class AppState extends ChangeNotifier {
 
   // ---- Synthesis ----
 
-  /// Generates speech from the current input text.
+  /// Generates speech from the current input text via background task.
   Future<void> generate() async {
     if (!canGenerate) return;
 
-    _synthesisStatus = SynthesisStatus.generating;
     _errorMessage = null;
-    // Stop any playing audio.
     await _audioService.stop();
     notifyListeners();
 
+    final selectedModel = _selectedModel!;
+    final modelsDir = await _modelService.getModelsDirectory();
+    final outputDir = Directory(p.join(Directory.systemTemp.path, 'tts_generated'));
+    await outputDir.create(recursive: true);
+    final outputPath = p.join(
+      outputDir.path,
+      'speech-${DateTime.now().microsecondsSinceEpoch}.wav',
+    );
+
     try {
-      // Run synthesis (CPU-bound, runs on main isolate for now).
-      final result = await Future(() {
-        return _ttsService.synthesize(
-          _inputText.trim(),
-          speed: _speed,
-          speakerId: _selectedModel!.voice.defaultSpeakerId,
-        );
-      });
-
-      // Write to temp file for playback.
-      final tempDir = Directory.systemTemp;
-      final wavPath = p.join(tempDir.path, 'tts_output.wav');
-      final ok = _ttsService.saveWav(result, wavPath);
-      if (!ok) {
-        throw Exception('Failed to write WAV file');
-      }
-
-      _generatedWavPath = wavPath;
-      _synthesisStatus = SynthesisStatus.done;
+      await taskManager.submitSynthesis(
+        modelDir: selectedModel.modelDir!,
+        voice: selectedModel.voice,
+        text: _inputText.trim(),
+        speed: _speed,
+        speakerId: selectedModel.voice.defaultSpeakerId,
+        outputPath: outputPath,
+      );
     } catch (e) {
-      _synthesisStatus = SynthesisStatus.error;
-      _errorMessage = 'Synthesis failed: $e';
+      _errorMessage = 'Failed to start synthesis task: $e';
+      notifyListeners();
     }
-    notifyListeners();
   }
 
   // ---- Playback ----
@@ -210,6 +219,25 @@ class AppState extends ChangeNotifier {
       await _audioService.play(_generatedWavPath!);
     } catch (e) {
       _errorMessage = 'Playback failed: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> playTaskAudio(String outputPath) async {
+    // Find the task ID for this output path.
+    for (final task in taskManager.tasks) {
+      if (task.outputPath == outputPath) {
+        _playingTaskId = task.id;
+        break;
+      }
+    }
+    _generatedWavPath = outputPath;
+    notifyListeners();
+    try {
+      await _audioService.play(outputPath);
+    } catch (e) {
+      _errorMessage = 'Playback failed: $e';
+      _playingTaskId = null;
       notifyListeners();
     }
   }
@@ -233,11 +261,38 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<bool> saveTaskAudio(String sourcePath) async {
+    // For desktop, we just export to the same path (it's already on disk).
+    // The user could be shown a file picker in the UI layer.
+    return true;
+  }
+
+  // ---- Task Manager Integration ----
+
+  void _handleTaskManagerChanged() {
+    final hasSynthesis = taskManager.hasActiveSynthesisTasks;
+    if (hasSynthesis) {
+      _synthesisStatus = SynthesisStatus.generating;
+    } else if (_synthesisStatus == SynthesisStatus.generating) {
+      // Check if any synthesis completed.
+      final latest = taskManager.latestCompletedSynthesis;
+      if (latest != null) {
+        _generatedWavPath = latest.outputPath;
+        _synthesisStatus = SynthesisStatus.done;
+      } else {
+        _synthesisStatus = SynthesisStatus.idle;
+      }
+    }
+    notifyListeners();
+  }
+
   // ---- Cleanup ----
 
   @override
   void dispose() {
-    _ttsService.dispose();
+    taskManager.removeListener(_handleTaskManagerChanged);
+    unawaited(_audioSubscription?.cancel());
+    taskManager.dispose();
     _audioService.dispose();
     super.dispose();
   }

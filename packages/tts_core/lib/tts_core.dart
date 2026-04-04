@@ -1,5 +1,8 @@
+export 'src/models/long_running_task.dart';
 export 'src/models/voice_model.dart';
+export 'src/services/background_task_executor.dart';
 export 'src/services/model_archive_extractor.dart';
 export 'src/services/model_file_validator.dart';
+export 'src/services/task_manager.dart';
 export 'src/services/text_input_validator.dart';
 export 'src/services/tts_service.dart';
