@@ -97,6 +97,65 @@
         "speaker_id": 0,
         "max_num_sentences": 1
       }
+    },
+    {
+      "id": "kokoro-en-v0_19",
+      "display_name": "Kokoro English (11 speakers)",
+      "family": "kokoro",
+      "runtime": "sherpa-onnx",
+      "phase0_default": false,
+      "status": {
+        "approved_for_local_validation": true,
+        "approved_for_distribution": false,
+        "distribution_decision": "Unknown",
+        "needed_to_decide_distribution": [
+          "Confirm redistribution terms for the Kokoro model weights"
+        ]
+      },
+      "source": {
+        "homepage": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html",
+        "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2",
+        "archive_sha256": "Unknown",
+        "needed_to_decide_archive_sha256": [
+          "Download once and store a verified local checksum in project metadata"
+        ]
+      },
+      "licensing": {
+        "runtime_license": "Apache-2.0",
+        "model_license": "Apache-2.0",
+        "dataset_license": "Unknown",
+        "dataset_name": "Unknown"
+      },
+      "install": {
+        "install_dir_name": "kokoro-en-v0_19",
+        "archive_format": "tar.bz2"
+      },
+      "files": {
+        "model": "model.onnx",
+        "tokens": "tokens.txt",
+        "voices": "voices.bin",
+        "data_dir": "espeak-ng-data"
+      },
+      "defaults": {
+        "provider": "cpu",
+        "num_threads": 2,
+        "speed": 1.0,
+        "speaker_id": 0,
+        "max_num_sentences": 1
+      },
+      "speakers": [
+        {"id": 0, "name": "AF (default)"},
+        {"id": 1, "name": "AF Bella"},
+        {"id": 2, "name": "AF Nicole"},
+        {"id": 3, "name": "AF Sarah"},
+        {"id": 4, "name": "AF Sky"},
+        {"id": 5, "name": "AM Adam"},
+        {"id": 6, "name": "AM Michael"},
+        {"id": 7, "name": "BF Emma"},
+        {"id": 8, "name": "BF Isabella"},
+        {"id": 9, "name": "BM George"},
+        {"id": 10, "name": "BM Lewis"}
+      ]
     }
   ]
 }

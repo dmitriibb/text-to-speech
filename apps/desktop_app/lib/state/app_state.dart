@@ -8,6 +8,7 @@ import 'package:tts_core/tts_core.dart';
 import '../models/voice_model.dart';
 import '../services/audio_service.dart';
 import '../services/desktop_task_executor.dart';
+import '../services/gpu_detector.dart';
 import '../services/model_service.dart';
 
 /// Synthesis workflow state.
@@ -31,6 +32,7 @@ class AppState extends ChangeNotifier {
   // ---- Synthesis state ----
   String _inputText = '';
   double _speed = 1.0;
+  int _selectedSpeakerId = 0;
   SynthesisStatus _synthesisStatus = SynthesisStatus.idle;
   String? _errorMessage;
 
@@ -39,6 +41,10 @@ class AppState extends ChangeNotifier {
   String? _playingTaskId;
   PlaybackState _playbackState = PlaybackState.stopped;
   StreamSubscription<PlaybackState>? _audioSubscription;
+
+  // ---- Provider state ----
+  List<String> _availableProviders = const ['cpu'];
+  String _selectedProvider = 'cpu';
 
   // ---- Getters ----
   List<InstalledModel> get installedModels => _installedModels;
@@ -49,12 +55,16 @@ class AppState extends ChangeNotifier {
 
   String get inputText => _inputText;
   double get speed => _speed;
+  int get selectedSpeakerId => _selectedSpeakerId;
   SynthesisStatus get synthesisStatus => _synthesisStatus;
   String? get errorMessage => _errorMessage;
 
   String? get generatedWavPath => _generatedWavPath;
   PlaybackState get playbackState => _playbackState;
   String? get playingTaskId => _playingTaskId;
+
+  List<String> get availableProviders => _availableProviders;
+  String get selectedProvider => _selectedProvider;
 
   /// True when a ready model is selected and text is non-empty.
   bool get canGenerate =>
@@ -88,6 +98,10 @@ class AppState extends ChangeNotifier {
       }
       notifyListeners();
     });
+
+    // Detect available GPU providers.
+    _availableProviders = GpuDetector.detectAvailableProviders();
+    _selectedProvider = await _loadProviderPreference();
 
     await taskManager.initialize();
     await refreshModels();
@@ -126,6 +140,7 @@ class AppState extends ChangeNotifier {
     if (model.status != ModelStatus.ready || model.modelDir == null) return;
 
     _selectedModel = model;
+    _selectedSpeakerId = model.voice.defaultSpeakerId;
     _errorMessage = null;
     notifyListeners();
 
@@ -133,6 +148,7 @@ class AppState extends ChangeNotifier {
       await taskManager.submitModelPreload(
         modelDir: model.modelDir!,
         voice: model.voice,
+        providerOverride: _selectedProvider,
       );
     } catch (e) {
       _errorMessage = 'Failed to start background voice load: $e';
@@ -177,6 +193,39 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSpeakerId(int speakerId) {
+    _selectedSpeakerId = speakerId;
+    notifyListeners();
+  }
+
+  /// Changes the inference provider (cpu, cuda, rocm).
+  /// Triggers a model reload so the new provider takes effect.
+  Future<void> setProvider(String provider) async {
+    if (provider == _selectedProvider) return;
+    if (!_availableProviders.contains(provider)) return;
+
+    _selectedProvider = provider;
+    notifyListeners();
+    await _saveProviderPreference(provider);
+
+    // Reload the model with the new provider if one is selected.
+    if (_selectedModel != null &&
+        _selectedModel!.status == ModelStatus.ready &&
+        _selectedModel!.modelDir != null) {
+      try {
+        await taskManager.submitModelPreload(
+          modelDir: _selectedModel!.modelDir!,
+          voice: _selectedModel!.voice,
+          providerOverride: _selectedProvider,
+        );
+      } catch (e) {
+        _errorMessage = 'Failed to reload model with $provider: $e';
+        _selectedProvider = 'cpu';
+        notifyListeners();
+      }
+    }
+  }
+
   // ---- Synthesis ----
 
   /// Generates speech from the current input text via background task.
@@ -202,8 +251,9 @@ class AppState extends ChangeNotifier {
         voice: selectedModel.voice,
         text: _inputText.trim(),
         speed: _speed,
-        speakerId: selectedModel.voice.defaultSpeakerId,
+        speakerId: _selectedSpeakerId,
         outputPath: outputPath,
+        providerOverride: _selectedProvider,
       );
     } catch (e) {
       _errorMessage = 'Failed to start synthesis task: $e';
@@ -284,6 +334,36 @@ class AppState extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  // ---- Provider Persistence ----
+
+  static const String _providerPrefFile = '.tts_provider_pref';
+
+  Future<String> _loadProviderPreference() async {
+    try {
+      final home = Platform.environment['HOME'] ??
+          Platform.environment['USERPROFILE'] ??
+          '';
+      if (home.isEmpty) return 'cpu';
+      final file = File(p.join(home, _providerPrefFile));
+      if (await file.exists()) {
+        final saved = (await file.readAsString()).trim();
+        if (_availableProviders.contains(saved)) return saved;
+      }
+    } catch (_) {}
+    return 'cpu';
+  }
+
+  Future<void> _saveProviderPreference(String provider) async {
+    try {
+      final home = Platform.environment['HOME'] ??
+          Platform.environment['USERPROFILE'] ??
+          '';
+      if (home.isEmpty) return;
+      final file = File(p.join(home, _providerPrefFile));
+      await file.writeAsString(provider);
+    } catch (_) {}
   }
 
   // ---- Cleanup ----

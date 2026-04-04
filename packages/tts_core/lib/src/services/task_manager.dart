@@ -66,6 +66,7 @@ class TaskManager extends ChangeNotifier {
     required double speed,
     required int speakerId,
     required String outputPath,
+    String? providerOverride,
   }) async {
     _speechCounter++;
     final task = LongRunningTask(
@@ -84,7 +85,7 @@ class TaskManager extends ChangeNotifier {
       taskId: task.id,
       type: task.type,
       payload: {
-        ..._buildModelPayload(modelDir: modelDir, voice: voice),
+        ..._buildModelPayload(modelDir: modelDir, voice: voice, providerOverride: providerOverride),
         'text': text,
         'speed': speed,
         'speakerId': speakerId,
@@ -98,6 +99,7 @@ class TaskManager extends ChangeNotifier {
   Future<String> submitModelPreload({
     required String modelDir,
     required VoiceModel voice,
+    String? providerOverride,
   }) async {
     _modelLoadCounter++;
     final task = LongRunningTask(
@@ -115,7 +117,7 @@ class TaskManager extends ChangeNotifier {
     await _executor.submit(TaskRequest(
       taskId: task.id,
       type: task.type,
-      payload: _buildModelPayload(modelDir: modelDir, voice: voice),
+      payload: _buildModelPayload(modelDir: modelDir, voice: voice, providerOverride: providerOverride),
     ));
 
     return task.id;
@@ -220,9 +222,11 @@ class TaskManager extends ChangeNotifier {
   Map<String, Object?> _buildModelPayload({
     required String modelDir,
     required VoiceModel voice,
+    String? providerOverride,
   }) {
+    final provider = providerOverride ?? voice.provider;
     return {
-      'cacheKey': '${voice.id}::$modelDir',
+      'cacheKey': '${voice.id}::$modelDir::$provider',
       'modelId': voice.id,
       'displayName': voice.displayName,
       'family': voice.family,
@@ -232,8 +236,9 @@ class TaskManager extends ChangeNotifier {
       'modelFile': voice.modelFile,
       'tokensFile': voice.tokensFile,
       'lexiconFile': voice.lexiconFile,
+      'voicesFile': voice.voicesFile,
       'dataDir': voice.dataDir,
-      'provider': voice.provider,
+      'provider': provider,
       'numThreads': voice.numThreads,
       'speakerId': voice.defaultSpeakerId,
       'maxNumSentences': voice.maxNumSentences,

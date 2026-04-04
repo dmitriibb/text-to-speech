@@ -275,6 +275,7 @@ class LongRunningTaskHandler extends TaskHandler {
         'model': payload['modelFile'],
         'tokens': payload['tokensFile'],
         'lexicon': payload['lexiconFile'],
+        'voices': payload['voicesFile'],
         'data_dir': payload['dataDir'],
       },
       'defaults': {

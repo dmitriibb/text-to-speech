@@ -40,19 +40,40 @@ class TtsService {
     final dataDirPath =
         model.dataDir.isNotEmpty ? p.join(modelDir, model.dataDir) : '';
 
-    final vitsConfig = sherpa.OfflineTtsVitsModelConfig(
-      model: modelPath,
-      lexicon: lexiconPath,
-      tokens: tokensPath,
-      dataDir: dataDirPath,
-    );
+    final sherpa.OfflineTtsModelConfig modelConfig;
 
-    final modelConfig = sherpa.OfflineTtsModelConfig(
-      vits: vitsConfig,
-      numThreads: model.numThreads,
-      debug: false,
-      provider: model.provider,
-    );
+    switch (model.family) {
+      case 'kokoro':
+        final voicesPath =
+            model.voicesFile.isNotEmpty ? p.join(modelDir, model.voicesFile) : '';
+        final kokoroConfig = sherpa.OfflineTtsKokoroModelConfig(
+          model: modelPath,
+          voices: voicesPath,
+          tokens: tokensPath,
+          dataDir: dataDirPath,
+          lexicon: lexiconPath,
+        );
+        modelConfig = sherpa.OfflineTtsModelConfig(
+          kokoro: kokoroConfig,
+          numThreads: model.numThreads,
+          debug: false,
+          provider: model.provider,
+        );
+        break;
+      default: // 'vits' and any other family
+        final vitsConfig = sherpa.OfflineTtsVitsModelConfig(
+          model: modelPath,
+          lexicon: lexiconPath,
+          tokens: tokensPath,
+          dataDir: dataDirPath,
+        );
+        modelConfig = sherpa.OfflineTtsModelConfig(
+          vits: vitsConfig,
+          numThreads: model.numThreads,
+          debug: false,
+          provider: model.provider,
+        );
+    }
 
     final ttsConfig = sherpa.OfflineTtsConfig(
       model: modelConfig,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../services/gpu_detector.dart';
 import '../state/app_state.dart';
 
 /// Voice selection dropdown and speed slider.
@@ -11,20 +12,37 @@ class SettingsPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppState>(
       builder: (context, state, _) {
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Voice selector.
-            Expanded(
-              flex: 2,
-              child: _buildVoiceSelector(context, state),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Voice selector.
+                Expanded(
+                  flex: 2,
+                  child: _buildVoiceSelector(context, state),
+                ),
+                if (state.selectedModel != null &&
+                    state.selectedModel!.voice.speakers.isNotEmpty) ...[
+                  const SizedBox(width: 16),
+                  Expanded(
+                    flex: 2,
+                    child: _buildSpeakerSelector(context, state),
+                  ),
+                ],
+                const SizedBox(width: 24),
+                // Speed control.
+                Expanded(
+                  flex: 3,
+                  child: _buildSpeedControl(context, state),
+                ),
+              ],
             ),
-            const SizedBox(width: 24),
-            // Speed control.
-            Expanded(
-              flex: 3,
-              child: _buildSpeedControl(context, state),
-            ),
+            if (state.availableProviders.length > 1) ...[
+              const SizedBox(height: 16),
+              _buildProviderSelector(context, state),
+            ],
           ],
         );
       },
@@ -57,6 +75,29 @@ class SettingsPanel extends StatelessWidget {
       hint: Text(
         ready.isEmpty ? 'No voices available' : 'Select voice',
       ),
+    );
+  }
+
+  Widget _buildSpeakerSelector(BuildContext context, AppState state) {
+    final speakers = state.selectedModel!.voice.speakers;
+
+    return DropdownButtonFormField<int>(
+      initialValue: state.selectedSpeakerId,
+      decoration: const InputDecoration(
+        labelText: 'Speaker',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      ),
+      items: speakers.map((s) {
+        return DropdownMenuItem(
+          value: s.id,
+          child: Text(s.name),
+        );
+      }).toList(),
+      onChanged: (id) {
+        if (id == null) return;
+        state.setSpeakerId(id);
+      },
     );
   }
 
@@ -98,6 +139,35 @@ class SettingsPanel extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
+      ],
+    );
+  }
+
+  Widget _buildProviderSelector(BuildContext context, AppState state) {
+    return Row(
+      children: [
+        Icon(
+          Icons.memory,
+          size: 20,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 8),
+        Text(
+          'Inference:',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(width: 12),
+        ...state.availableProviders.map((provider) {
+          final isSelected = provider == state.selectedProvider;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(GpuDetector.providerLabels[provider] ?? provider),
+              selected: isSelected,
+              onSelected: (_) => state.setProvider(provider),
+            ),
+          );
+        }),
       ],
     );
   }
