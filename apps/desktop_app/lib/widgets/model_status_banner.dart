@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:tts_core/tts_core.dart';
 
 import '../state/app_state.dart';
 
-/// Shows model install status and download action when no model is ready.
+/// Shows model install status and keeps the full desktop catalog discoverable.
 class ModelStatusBanner extends StatelessWidget {
   const ModelStatusBanner({super.key});
 
@@ -15,20 +16,19 @@ class ModelStatusBanner extends StatelessWidget {
           return _downloadingBanner(context, state);
         }
 
-        if (state.readyModels.isNotEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        return _noModelBanner(context, state);
+        return _modelCatalogBanner(context, state);
       },
     );
   }
 
-  Widget _noModelBanner(BuildContext context, AppState state) {
-    final downloadable = state.downloadableModels;
+  Widget _modelCatalogBanner(BuildContext context, AppState state) {
+    final readyModels = state.readyModels;
+    final installableModels = state.installableModels;
+    final hasReadyModels = readyModels.isNotEmpty;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return Card(
-      color: Theme.of(context).colorScheme.secondaryContainer,
+      color: hasReadyModels ? null : colorScheme.secondaryContainer,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -36,37 +36,78 @@ class ModelStatusBanner extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.info_outline,
-                    color: Theme.of(context).colorScheme.onSecondaryContainer),
+                Icon(
+                  hasReadyModels ? Icons.check_circle : Icons.info_outline,
+                  color: hasReadyModels
+                      ? Colors.green.shade700
+                      : colorScheme.onSecondaryContainer,
+                ),
                 const SizedBox(width: 8),
-                Text(
-                  'No voice model installed',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSecondaryContainer,
-                      ),
+                Expanded(
+                  child: Text(
+                    hasReadyModels
+                        ? '${readyModels.length} model${readyModels.length == 1 ? '' : 's'} ready'
+                        : 'No voice model installed',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: hasReadyModels
+                          ? null
+                          : colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: state.refreshModels,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh model status',
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              'Download a voice model to start generating speech.',
+              hasReadyModels
+                  ? 'Installed models appear in the Voice selector. Additional approved desktop models can still be installed below.'
+                  : 'Download a voice model to start generating speech.',
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                color: hasReadyModels ? null : colorScheme.onSecondaryContainer,
               ),
             ),
-            if (downloadable.isNotEmpty) ...[
+            if (readyModels.isNotEmpty) ...[
               const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: downloadable.map((m) {
+                children: readyModels
+                    .map((model) => Chip(label: Text(model.voice.displayName)))
+                    .toList(),
+              ),
+            ],
+            if (installableModels.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Available to install',
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: installableModels.map((m) {
+                  final label = m.status == ModelStatus.incomplete
+                      ? 'Repair ${m.voice.displayName}'
+                      : 'Install ${m.voice.displayName}';
                   return FilledButton.tonal(
                     onPressed: () => state.downloadModel(m.voice),
-                    child: Text('Download ${m.voice.displayName}'),
+                    child: Text(label),
                   );
                 }).toList(),
+              ),
+            ] else if (hasReadyModels) ...[
+              const SizedBox(height: 12),
+              Text(
+                'All approved desktop models from the catalog are already installed.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ],
@@ -90,27 +131,24 @@ class ModelStatusBanner extends StatelessWidget {
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color:
-                        Theme.of(context).colorScheme.onPrimaryContainer,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'Downloading model...',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color:
-                            Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
             LinearProgressIndicator(
               value: state.downloadProgress > 0 ? state.downloadProgress : null,
-              backgroundColor: Theme.of(context)
-                  .colorScheme
-                  .onPrimaryContainer
-                  .withValues(alpha: 0.2),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.onPrimaryContainer.withValues(alpha: 0.2),
             ),
             const SizedBox(height: 4),
             Text(

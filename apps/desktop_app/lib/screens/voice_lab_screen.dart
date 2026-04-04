@@ -41,10 +41,7 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
     return ChangeNotifierProvider.value(
       value: _state,
       child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Voice Lab'),
-          centerTitle: false,
-        ),
+        appBar: AppBar(title: const Text('Voice Lab'), centerTitle: false),
         body: Consumer<VoiceLabState>(
           builder: (context, state, _) {
             if (state.isLoading) {
@@ -85,7 +82,8 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
                           return TaskListPanel(
                             playbackInfo: TaskPlaybackInfo(
                               playingTaskId: appState.playingTaskId,
-                              isPlaying: appState.playbackState ==
+                              isPlaying:
+                                  appState.playbackState ==
                                   PlaybackState.playing,
                               activeTaskId: appState.activeTaskId,
                               position: appState.playbackPosition,
@@ -93,7 +91,8 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
                             ),
                             onPlay: (path) => appState.playTaskAudio(path),
                             onStop: () => appState.stopPlayback(),
-                            onSeek: (position) => appState.seekPlayback(position),
+                            onSeek: (position) =>
+                                appState.seekPlayback(position),
                             onSave: (path) => appState.saveTaskAudio(path),
                           );
                         },
@@ -160,7 +159,7 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Download the Pocket TTS model from the main screen to enable voice cloning.',
+                    'Install the Pocket TTS model from the model catalog on the main screen to enable voice cloning.',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
@@ -211,8 +210,8 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
             child: Text(
               'No cloned voices yet. Import a voice sample to get started.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           ),
         ),
@@ -222,14 +221,9 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Voice Library',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('Voice Library', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
-        ...state.voices.map(
-          (voice) => _buildVoiceCard(context, state, voice),
-        ),
+        ...state.voices.map((voice) => _buildVoiceCard(context, state, voice)),
       ],
     );
   }
@@ -262,8 +256,8 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
                       Text(
                         'Created ${_formatDate(voice.createdAt)}',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
                     ],
                   ),
@@ -307,10 +301,10 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
                 FilledButton.icon(
                   onPressed: state.hasPocketModel
                       ? () => state.generateWithClonedVoice(
-                            voice: voice,
-                            text: _textController.text,
-                            speed: _speed,
-                          )
+                          voice: voice,
+                          text: _textController.text,
+                          speed: _speed,
+                        )
                       : null,
                   icon: const Icon(Icons.record_voice_over, size: 18),
                   label: const Text('Clone'),
@@ -332,8 +326,7 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
       ),
       child: Text(
         message,
-        style: TextStyle(
-            color: Theme.of(context).colorScheme.onErrorContainer),
+        style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
       ),
     );
   }

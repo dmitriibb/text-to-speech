@@ -17,9 +17,7 @@ enum SynthesisStatus { idle, generating, done, error }
 class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
-  final TaskManager taskManager = TaskManager(
-    executor: DesktopTaskExecutor(),
-  );
+  final TaskManager taskManager = TaskManager(executor: DesktopTaskExecutor());
 
   // ---- Model state ----
   List<InstalledModel> _installedModels = [];
@@ -83,14 +81,17 @@ class AppState extends ChangeNotifier {
   bool get hasAudio => _generatedWavPath != null;
 
   /// List of models that have not been installed yet.
-  List<InstalledModel> get downloadableModels =>
-      _installedModels
-          .where((m) => m.status == ModelStatus.notInstalled)
-          .toList();
+  List<InstalledModel> get downloadableModels => _installedModels
+      .where((m) => m.status == ModelStatus.notInstalled)
+      .toList();
 
   /// List of models that are ready.
   List<InstalledModel> get readyModels =>
       _installedModels.where((m) => m.status == ModelStatus.ready).toList();
+
+  /// List of models that still need install or repair work.
+  List<InstalledModel> get installableModels =>
+      _installedModels.where((m) => m.status != ModelStatus.ready).toList();
 
   // ---- Initialization ----
 
@@ -102,11 +103,15 @@ class AppState extends ChangeNotifier {
       _playbackState = state;
       notifyListeners();
     });
-    _audioPositionSubscription = _audioService.onPositionChanged.listen((position) {
+    _audioPositionSubscription = _audioService.onPositionChanged.listen((
+      position,
+    ) {
       _playbackPosition = position;
       notifyListeners();
     });
-    _audioDurationSubscription = _audioService.onDurationChanged.listen((duration) {
+    _audioDurationSubscription = _audioService.onDurationChanged.listen((
+      duration,
+    ) {
       _playbackDuration = duration;
       notifyListeners();
     });
@@ -249,7 +254,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     final selectedModel = _selectedModel!;
-    final outputDir = Directory(p.join(Directory.systemTemp.path, 'tts_generated'));
+    final outputDir = Directory(
+      p.join(Directory.systemTemp.path, 'tts_generated'),
+    );
     await outputDir.create(recursive: true);
     final outputPath = p.join(
       outputDir.path,
@@ -365,7 +372,8 @@ class AppState extends ChangeNotifier {
 
   Future<String> _loadProviderPreference() async {
     try {
-      final home = Platform.environment['HOME'] ??
+      final home =
+          Platform.environment['HOME'] ??
           Platform.environment['USERPROFILE'] ??
           '';
       if (home.isEmpty) return 'cpu';
@@ -380,7 +388,8 @@ class AppState extends ChangeNotifier {
 
   Future<void> _saveProviderPreference(String provider) async {
     try {
-      final home = Platform.environment['HOME'] ??
+      final home =
+          Platform.environment['HOME'] ??
           Platform.environment['USERPROFILE'] ??
           '';
       if (home.isEmpty) return;
