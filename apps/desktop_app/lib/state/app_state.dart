@@ -26,6 +26,7 @@ class AppState extends ChangeNotifier {
   double _downloadProgress = 0;
   bool _isDownloading = false;
   ModelInstallProgress? _currentInstallProgress;
+  String? _activeInstallTaskId;
 
   // ---- Synthesis state ----
   String _inputText = '';
@@ -182,6 +183,7 @@ class AppState extends ChangeNotifier {
       label: 'Install ${voice.displayName}',
       statusText: ModelInstallStage.downloading.label,
     );
+    _activeInstallTaskId = installTaskId;
     _isDownloading = true;
     _downloadProgress = 0;
     _currentInstallProgress = const ModelInstallProgress(
@@ -215,6 +217,14 @@ class AppState extends ChangeNotifier {
         totalBytes: _currentInstallProgress?.totalBytes,
       );
       await refreshModels();
+    } on ModelDownloadCancelledException {
+      taskManager.cancelInstallTask(
+        installTaskId,
+        statusText: 'Cancelled',
+        transferredBytes: _currentInstallProgress?.downloadedBytes,
+        totalBytes: _currentInstallProgress?.totalBytes,
+      );
+      await refreshModels();
     } catch (e) {
       _errorMessage = 'Download failed: $e';
       taskManager.failInstallTask(
@@ -228,6 +238,7 @@ class AppState extends ChangeNotifier {
     } finally {
       _isDownloading = false;
       _currentInstallProgress = null;
+      _activeInstallTaskId = null;
       notifyListeners();
     }
   }
@@ -381,6 +392,56 @@ class AppState extends ChangeNotifier {
     return true;
   }
 
+  Future<void> cancelManagedTask(LongRunningTask task) async {
+    try {
+      if (task.type == LongRunningTaskType.installModel) {
+        if (_activeInstallTaskId != task.id) {
+          return;
+        }
+        taskManager.markInstallTaskCancelling(
+          task.id,
+          statusText: 'Cancelling',
+        );
+        await _modelService.cancelActiveDownload();
+      } else {
+        await taskManager.cancelTask(task.id);
+      }
+      _errorMessage = null;
+    } catch (e) {
+      _errorMessage = 'Failed to cancel task: $e';
+      notifyListeners();
+    }
+  }
+
+  Future<void> dismissManagedTask(LongRunningTask task) async {
+    final outputPath = task.outputPath;
+
+    try {
+      if (outputPath != null) {
+        if (_generatedWavPath == outputPath) {
+          await _audioService.stop();
+          _currentTaskId = null;
+          _generatedWavPath = null;
+          _playbackPosition = Duration.zero;
+          _playbackDuration = null;
+        }
+
+        final file = File(outputPath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+
+      taskManager.dismissTask(task.id);
+      _generatedWavPath = taskManager.latestCompletedSynthesis?.outputPath;
+      _errorMessage = null;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to dismiss task: $e';
+      notifyListeners();
+    }
+  }
+
   // ---- Task Manager Integration ----
 
   void _handleTaskManagerChanged() {
@@ -441,6 +502,7 @@ class AppState extends ChangeNotifier {
     unawaited(_audioPositionSubscription?.cancel());
     unawaited(_audioDurationSubscription?.cancel());
     taskManager.dispose();
+    _modelService.dispose();
     _audioService.dispose();
     super.dispose();
   }

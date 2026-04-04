@@ -3,6 +3,7 @@ export 'src/models/model_install_progress.dart';
 export 'src/models/voice_model.dart';
 export 'src/services/background_task_executor.dart';
 export 'src/services/model_archive_extractor.dart';
+export 'src/services/model_download_cancelled_exception.dart';
 export 'src/services/model_file_validator.dart';
 export 'src/services/task_manager.dart';
 export 'src/services/text_input_validator.dart';

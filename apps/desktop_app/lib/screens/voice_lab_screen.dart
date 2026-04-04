@@ -94,6 +94,8 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
                             onSeek: (position) =>
                                 appState.seekPlayback(position),
                             onSave: (path) => appState.saveTaskAudio(path),
+                            onCancelTask: appState.cancelManagedTask,
+                            onDismissTask: appState.dismissManagedTask,
                           );
                         },
                       ),

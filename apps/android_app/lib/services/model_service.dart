@@ -7,10 +7,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:tts_core/tts_core.dart';
 
 class ModelService {
-  final http.Client _client = http.Client();
-
   ModelCatalog? _catalog;
   String? _modelsDir;
+  http.Client? _activeClient;
+  IOSink? _activeSink;
+  bool _cancelRequested = false;
+  bool _isDownloading = false;
 
   Future<ModelCatalog> loadCatalog() async {
     if (_catalog != null) {
@@ -68,6 +70,11 @@ class ModelService {
     final archivePath = p.join(tempDir.path, archiveName);
     final archiveFile = File(archivePath);
     final modelDir = Directory(p.join(modelsDir, model.installDirName));
+    final client = http.Client();
+    IOSink? sink;
+    _activeClient = client;
+    _cancelRequested = false;
+    _isDownloading = true;
 
     await Directory(modelsDir).create(recursive: true);
 
@@ -77,7 +84,7 @@ class ModelService {
       }
 
       final request = http.Request('GET', Uri.parse(model.archiveUrl));
-      final response = await _client.send(request);
+      final response = await client.send(request);
       if (response.statusCode != 200) {
         throw Exception(
           'Failed to download model: HTTP ${response.statusCode}',
@@ -86,9 +93,11 @@ class ModelService {
 
       final totalBytes = response.contentLength ?? 0;
       var receivedBytes = 0;
-      final sink = archiveFile.openWrite();
+      sink = archiveFile.openWrite();
+      _activeSink = sink;
 
       await for (final chunk in response.stream) {
+        _throwIfCancelled();
         sink.add(chunk);
         receivedBytes += chunk.length;
         if (onProgress != null) {
@@ -105,6 +114,8 @@ class ModelService {
         }
       }
       await sink.close();
+      _activeSink = null;
+      _throwIfCancelled();
 
       onProgress?.call(
         ModelInstallProgress(
@@ -119,6 +130,7 @@ class ModelService {
         archiveFormat: model.archiveFormat,
         outputDir: modelsDir,
       );
+      _throwIfCancelled();
       await ModelFileValidator.normalizeExtractedModelDir(modelDir.path, model);
 
       onProgress?.call(
@@ -131,6 +143,7 @@ class ModelService {
       );
 
       final status = await ModelFileValidator.getStatus(modelDir.path, model);
+      _throwIfCancelled();
       if (status != ModelStatus.ready) {
         final missing = await ModelFileValidator.missingEntries(
           modelDir.path,
@@ -155,14 +168,45 @@ class ModelService {
           totalBytes: totalBytes > 0 ? totalBytes : null,
         ),
       );
+    } catch (error) {
+      if (_cancelRequested) {
+        throw const ModelDownloadCancelledException();
+      }
+      rethrow;
     } finally {
+      try {
+        await _activeSink?.close();
+      } catch (_) {}
+      _activeSink = null;
+      client.close();
       if (await archiveFile.exists()) {
         await archiveFile.delete();
       }
+      if (_cancelRequested && await modelDir.exists()) {
+        await modelDir.delete(recursive: true);
+      }
+      _activeClient = null;
+      _isDownloading = false;
+      _cancelRequested = false;
+    }
+  }
+
+  Future<void> cancelActiveDownload() async {
+    if (!_isDownloading) {
+      return;
+    }
+
+    _cancelRequested = true;
+    _activeClient?.close();
+  }
+
+  void _throwIfCancelled() {
+    if (_cancelRequested) {
+      throw const ModelDownloadCancelledException();
     }
   }
 
   void dispose() {
-    _client.close();
+    _activeClient?.close();
   }
 }

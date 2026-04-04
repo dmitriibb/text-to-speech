@@ -7,6 +7,7 @@ import 'cancel_task_dialog.dart';
 
 typedef TaskAudioCallback = void Function(String outputPath);
 typedef TaskSeekCallback = void Function(Duration position);
+typedef TaskActionCallback = Future<void> Function(LongRunningTask task);
 
 class TaskPlaybackInfo {
   const TaskPlaybackInfo({
@@ -32,6 +33,8 @@ class TaskListPanel extends StatelessWidget {
     this.onStop,
     this.onSave,
     this.onSeek,
+    this.onCancelTask,
+    this.onDismissTask,
   });
 
   final TaskPlaybackInfo playbackInfo;
@@ -39,6 +42,8 @@ class TaskListPanel extends StatelessWidget {
   final VoidCallback? onStop;
   final TaskAudioCallback? onSave;
   final TaskSeekCallback? onSeek;
+  final TaskActionCallback? onCancelTask;
+  final TaskActionCallback? onDismissTask;
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +69,8 @@ class TaskListPanel extends StatelessWidget {
                     onStop: onStop,
                     onSave: onSave,
                     onSeek: onSeek,
+                    onCancelTask: onCancelTask,
+                    onDismissTask: onDismissTask,
                   ),
                   if (i < tasks.length - 1) const Divider(height: 20),
                 ],
@@ -85,6 +92,8 @@ class _TaskRow extends StatefulWidget {
     this.onStop,
     this.onSave,
     this.onSeek,
+    this.onCancelTask,
+    this.onDismissTask,
   });
 
   final LongRunningTask task;
@@ -94,6 +103,8 @@ class _TaskRow extends StatefulWidget {
   final VoidCallback? onStop;
   final TaskAudioCallback? onSave;
   final TaskSeekCallback? onSeek;
+  final TaskActionCallback? onCancelTask;
+  final TaskActionCallback? onDismissTask;
 
   @override
   State<_TaskRow> createState() => _TaskRowState();
@@ -149,7 +160,7 @@ class _TaskRowState extends State<_TaskRow> {
                   )
                 else if (!task.isActive)
                   IconButton(
-                    onPressed: () => manager.dismissTask(task.id),
+                    onPressed: () => _handleDismiss(task, manager),
                     tooltip: 'Dismiss',
                     icon: const Icon(Icons.close, size: 20),
                   ),
@@ -319,7 +330,19 @@ class _TaskRowState extends State<_TaskRow> {
   ) async {
     final confirmed = await showCancelTaskDialog(context, task);
     if (confirmed) {
-      await manager.cancelTask(task.id);
+      if (widget.onCancelTask != null) {
+        await widget.onCancelTask!(task);
+      } else {
+        await manager.cancelTask(task.id);
+      }
+    }
+  }
+
+  Future<void> _handleDismiss(LongRunningTask task, TaskManager manager) async {
+    if (widget.onDismissTask != null) {
+      await widget.onDismissTask!(task);
+    } else {
+      manager.dismissTask(task.id);
     }
   }
 }

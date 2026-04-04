@@ -231,6 +231,19 @@ class TaskManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  void markInstallTaskCancelling(String taskId, {String? statusText}) {
+    final task = _tasks[taskId];
+    if (task == null || task.type != LongRunningTaskType.installModel) {
+      return;
+    }
+
+    _tasks[taskId] = task.copyWith(
+      status: LongRunningTaskStatus.cancelling,
+      statusText: statusText,
+    );
+    notifyListeners();
+  }
+
   void completeInstallTask(
     String taskId, {
     String? statusText,
@@ -274,6 +287,28 @@ class TaskManager extends ChangeNotifier {
       errorMessage: errorMessage,
       statusText: statusText,
       progress: progress,
+      transferredBytes: transferredBytes,
+      totalBytes: totalBytes,
+    );
+    _stopTickerIfIdle();
+    notifyListeners();
+  }
+
+  void cancelInstallTask(
+    String taskId, {
+    String? statusText,
+    int? transferredBytes,
+    int? totalBytes,
+  }) {
+    final task = _tasks[taskId];
+    if (task == null || task.type != LongRunningTaskType.installModel) {
+      return;
+    }
+
+    _tasks[taskId] = task.copyWith(
+      status: LongRunningTaskStatus.cancelled,
+      finishedAt: DateTime.now(),
+      statusText: statusText,
       transferredBytes: transferredBytes,
       totalBytes: totalBytes,
     );

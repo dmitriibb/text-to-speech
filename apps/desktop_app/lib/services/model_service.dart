@@ -10,6 +10,10 @@ import 'package:xdg_directories/xdg_directories.dart' as xdg;
 class ModelService {
   List<VoiceModel> _catalog = [];
   String? _modelsDir;
+  http.Client? _activeClient;
+  IOSink? _activeSink;
+  bool _cancelRequested = false;
+  bool _isDownloading = false;
 
   /// The resolved models directory path.
   String? get modelsDir => _modelsDir;
@@ -82,6 +86,10 @@ class ModelService {
     final archiveFile = File(archivePath);
     final modelDir = Directory(p.join(modelsDir, model.installDirName));
     final client = http.Client();
+    IOSink? sink;
+    _activeClient = client;
+    _cancelRequested = false;
+    _isDownloading = true;
 
     try {
       if (await modelDir.exists()) {
@@ -99,9 +107,11 @@ class ModelService {
 
       final totalBytes = response.contentLength ?? 0;
       var receivedBytes = 0;
-      final sink = archiveFile.openWrite();
+      sink = archiveFile.openWrite();
+      _activeSink = sink;
 
       await for (final chunk in response.stream) {
+        _throwIfCancelled();
         sink.add(chunk);
         receivedBytes += chunk.length;
         if (onProgress != null) {
@@ -118,6 +128,8 @@ class ModelService {
         }
       }
       await sink.close();
+      _activeSink = null;
+      _throwIfCancelled();
 
       onProgress?.call(
         ModelInstallProgress(
@@ -132,6 +144,7 @@ class ModelService {
         archiveFormat: model.archiveFormat,
         outputDir: modelsDir,
       );
+      _throwIfCancelled();
       await ModelFileValidator.normalizeExtractedModelDir(modelDir.path, model);
 
       onProgress?.call(
@@ -144,6 +157,7 @@ class ModelService {
       );
 
       final status = await ModelFileValidator.getStatus(modelDir.path, model);
+      _throwIfCancelled();
       if (status != ModelStatus.ready) {
         final missing = await ModelFileValidator.missingEntries(
           modelDir.path,
@@ -168,11 +182,45 @@ class ModelService {
           totalBytes: totalBytes > 0 ? totalBytes : null,
         ),
       );
+    } catch (error) {
+      if (_cancelRequested) {
+        throw const ModelDownloadCancelledException();
+      }
+      rethrow;
     } finally {
+      try {
+        await _activeSink?.close();
+      } catch (_) {}
+      _activeSink = null;
       client.close();
       if (await archiveFile.exists()) {
         await archiveFile.delete();
       }
+      if (_cancelRequested && await modelDir.exists()) {
+        await modelDir.delete(recursive: true);
+      }
+      _activeClient = null;
+      _isDownloading = false;
+      _cancelRequested = false;
     }
+  }
+
+  Future<void> cancelActiveDownload() async {
+    if (!_isDownloading) {
+      return;
+    }
+
+    _cancelRequested = true;
+    _activeClient?.close();
+  }
+
+  void _throwIfCancelled() {
+    if (_cancelRequested) {
+      throw const ModelDownloadCancelledException();
+    }
+  }
+
+  void dispose() {
+    _activeClient?.close();
   }
 }

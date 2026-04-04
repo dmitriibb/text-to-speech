@@ -91,6 +91,8 @@ class HomeScreen extends StatelessWidget {
                       onStop: () => state.stopPlayback(),
                       onSeek: (position) => state.seekPlayback(position),
                       onSave: (path) => state.saveTaskAudio(path),
+                      onCancelTask: state.cancelManagedTask,
+                      onDismissTask: state.dismissManagedTask,
                     ),
                   ],
                 ),
@@ -127,8 +129,7 @@ class HomeScreen extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline,
-              color: Theme.of(context).colorScheme.error),
+          Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

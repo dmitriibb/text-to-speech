@@ -78,6 +78,8 @@ class HomeScreen extends StatelessWidget {
                     onStop: () => state.stopPlayback(),
                     onSeek: (position) => state.seekPlayback(position),
                     onSave: (path) => state.shareGeneratedAudio(),
+                    onCancelTask: state.cancelManagedTask,
+                    onDismissTask: state.dismissManagedTask,
                   ),
                   const SizedBox(height: 16),
                   _GenerateButton(state: state),
@@ -107,7 +109,9 @@ class _GenerateButton extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: state.canGenerate ? state.generate : null,
         icon: Icon(
-          state.hasActiveSynthesisTasks ? Icons.add_task : Icons.record_voice_over,
+          state.hasActiveSynthesisTasks
+              ? Icons.add_task
+              : Icons.record_voice_over,
         ),
         label: Text(
           state.hasActiveSynthesisTasks
