@@ -13,20 +13,15 @@ class SynthesisResult {
 }
 
 class TtsService {
+  static bool _bindingsInitialized = false;
   sherpa.OfflineTts? _tts;
-  bool _bindingsInitialized = false;
 
   bool get isReady => _tts != null;
   int get sampleRate => _tts?.sampleRate ?? 0;
   int get numSpeakers => _tts?.numSpeakers ?? 0;
 
   void initBindings() {
-    if (_bindingsInitialized) {
-      return;
-    }
-
-    sherpa.initBindings();
-    _bindingsInitialized = true;
+    _ensureBindingsInitialized();
   }
 
   void loadModel(String modelDir, VoiceModel model) {
@@ -34,19 +29,23 @@ class TtsService {
     _tts = null;
 
     final modelPath = p.join(modelDir, model.modelFile);
-    final tokensPath =
-        model.tokensFile.isNotEmpty ? p.join(modelDir, model.tokensFile) : '';
-    final lexiconPath =
-        model.lexiconFile.isNotEmpty ? p.join(modelDir, model.lexiconFile) : '';
-    final dataDirPath =
-        model.dataDir.isNotEmpty ? p.join(modelDir, model.dataDir) : '';
+    final tokensPath = model.tokensFile.isNotEmpty
+        ? p.join(modelDir, model.tokensFile)
+        : '';
+    final lexiconPath = model.lexiconFile.isNotEmpty
+        ? p.join(modelDir, model.lexiconFile)
+        : '';
+    final dataDirPath = model.dataDir.isNotEmpty
+        ? p.join(modelDir, model.dataDir)
+        : '';
 
     final sherpa.OfflineTtsModelConfig modelConfig;
 
     switch (model.family) {
       case 'kokoro':
-        final voicesPath =
-            model.voicesFile.isNotEmpty ? p.join(modelDir, model.voicesFile) : '';
+        final voicesPath = model.voicesFile.isNotEmpty
+            ? p.join(modelDir, model.voicesFile)
+            : '';
         final kokoroConfig = sherpa.OfflineTtsKokoroModelConfig(
           model: modelPath,
           voices: voicesPath,
@@ -111,7 +110,10 @@ class TtsService {
     }
 
     final audio = _tts!.generate(text: text, sid: speakerId, speed: speed);
-    return SynthesisResult(samples: audio.samples, sampleRate: audio.sampleRate);
+    return SynthesisResult(
+      samples: audio.samples,
+      sampleRate: audio.sampleRate,
+    );
   }
 
   /// Synthesize speech using a reference audio clip for zero-shot voice cloning.
@@ -134,7 +136,10 @@ class TtsService {
     );
 
     final audio = _tts!.generateWithConfig(text: text, config: config);
-    return SynthesisResult(samples: audio.samples, sampleRate: audio.sampleRate);
+    return SynthesisResult(
+      samples: audio.samples,
+      sampleRate: audio.sampleRate,
+    );
   }
 
   bool saveWav(SynthesisResult result, String outputPath) {
@@ -147,6 +152,7 @@ class TtsService {
 
   /// Reads a WAV file and returns its samples and sample rate.
   static SynthesisResult readWavFile(String path) {
+    _ensureBindingsInitialized();
     final wave = sherpa.readWave(path);
     return SynthesisResult(samples: wave.samples, sampleRate: wave.sampleRate);
   }
@@ -154,5 +160,14 @@ class TtsService {
   void dispose() {
     _tts?.free();
     _tts = null;
+  }
+
+  static void _ensureBindingsInitialized() {
+    if (_bindingsInitialized) {
+      return;
+    }
+
+    sherpa.initBindings();
+    _bindingsInitialized = true;
   }
 }

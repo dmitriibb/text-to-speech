@@ -33,11 +33,6 @@ class VoiceLabState extends ChangeNotifier {
   bool get isPreviewPlaying => _isPreviewPlaying;
   bool get isVoiceCloningEnabled => _appState.isVoiceCloningEnabled;
   bool get hasSharedInputText => _appState.inputText.trim().isNotEmpty;
-  String get sharedInputText => _appState.inputText.trim();
-  double get sharedSpeed => _appState.speed;
-  String? get selectedModelName => _appState.selectedModel?.voice.displayName;
-  bool get isPocketModelSelected =>
-      _appState.selectedModel?.voice.family == 'pocket';
 
   void setError(String message) {
     _errorMessage = message;

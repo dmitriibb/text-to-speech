@@ -2,6 +2,7 @@
 
 - Voice cloning is an Extended desktop-only flow exposed inline in the desktop home screen when the Advanced Functionality toggle is enabled.
 - The Basic panel stays on the left and the Advanced Voice Lab panel stays on the right with shared text state.
+- The Advanced panel always shows the `Voice Cloning` toggle, but cloning-specific controls stay hidden until that toggle is enabled.
 - Voice Lab does not own a separate synthesis text field; cloned synthesis always uses the text entered in the Basic panel.
 - Voice cloning mode depends on a ready Pocket TTS model and is disabled until that model is installed.
 - Enabling voice cloning automatically switches the main desktop model selector to Pocket TTS so cloned synthesis uses the correct runtime.

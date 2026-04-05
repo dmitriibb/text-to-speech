@@ -54,9 +54,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Shared Text Input'), findsOneWidget);
-    expect(find.text('Shared text from the Basic panel'), findsOneWidget);
+    expect(find.text('Voice Library'), findsOneWidget);
     expect(find.text('Generate With Cloned Voice'), findsOneWidget);
+    expect(find.text('Shared Text Input'), findsNothing);
     expect(find.text('Enter text to speak with this voice...'), findsNothing);
   });
 
@@ -74,6 +74,22 @@ void main() {
 
     final tile = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
     expect(tile.onChanged, isNull);
+  });
+
+  testWidgets('voice cloning section is hidden while toggle is off', (
+    tester,
+  ) async {
+    final state = _FakeVoiceLabState()..isVoiceCloningEnabledValue = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: VoiceLabPanel(stateOverride: state)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Import Voice Sample'), findsNothing);
+    expect(find.text('Voice Library'), findsNothing);
   });
 
   test('enabling voice cloning auto-selects Pocket TTS', () async {
@@ -132,15 +148,6 @@ class _FakeVoiceLabState extends VoiceLabState {
 
   @override
   bool get hasSharedInputText => sharedInputTextValue.trim().isNotEmpty;
-
-  @override
-  String get sharedInputText => sharedInputTextValue.trim();
-
-  @override
-  String? get selectedModelName => 'Kokoro English (11 speakers)';
-
-  @override
-  bool get isPocketModelSelected => false;
 
   @override
   Future<void> setVoiceCloningEnabled(bool enabled) async {

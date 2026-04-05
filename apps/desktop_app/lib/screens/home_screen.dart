@@ -22,19 +22,27 @@ class HomeScreen extends StatelessWidget {
           Consumer<AppState>(
             builder: (context, state, _) {
               return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.science_outlined, size: 18),
-                    Transform.scale(
-                      scale: 0.72,
-                      child: Switch(
-                        value: state.isAdvancedLabEnabled,
-                        onChanged: state.setAdvancedLabEnabled,
+                padding: const EdgeInsets.only(right: 8),
+                child: Tooltip(
+                  message: 'Advanced Functionality',
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.science_outlined, size: 16),
+                      SizedBox(
+                        width: 34,
+                        height: 18,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: Switch(
+                            value: state.isAdvancedLabEnabled,
+                            onChanged: state.setAdvancedLabEnabled,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             },

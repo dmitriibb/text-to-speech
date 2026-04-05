@@ -198,17 +198,13 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
                 _buildHeader(context),
                 const SizedBox(height: 16),
                 _buildVoiceCloningToggle(context, state),
-                const SizedBox(height: 16),
-                _buildSharedTextStatus(context, state),
-                const SizedBox(height: 16),
-                _buildModelStatus(context, state),
-                const SizedBox(height: 24),
-                _buildImportSection(context, state),
-                const SizedBox(height: 24),
-                _buildVoiceLibrary(context, state),
-                if (state.errorMessage != null) ...[
-                  const SizedBox(height: 12),
-                  _buildErrorBanner(context, state.errorMessage!),
+                if (state.isVoiceCloningEnabled) ...[
+                  const SizedBox(height: 16),
+                  _buildVoiceCloningSection(context, state),
+                  if (state.errorMessage != null) ...[
+                    const SizedBox(height: 12),
+                    _buildErrorBanner(context, state.errorMessage!),
+                  ],
                 ],
               ],
             ),
@@ -235,7 +231,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               Text(
-                'Voice Lab stays beside the Basic panel and uses its text input.',
+                'Extended tools stay beside the Basic panel.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -265,44 +261,16 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
     );
   }
 
-  Widget _buildSharedTextStatus(BuildContext context, VoiceLabState state) {
-    final body = state.hasSharedInputText
-        ? state.sharedInputText
-        : 'No shared text yet. Type or paste text into the Basic panel on the left.';
-    final tone = state.hasSharedInputText
-        ? Theme.of(context).colorScheme.surfaceContainerHighest
-        : Theme.of(context).colorScheme.surfaceContainerLow;
-
-    return Card(
-      color: tone,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Shared Text Input',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              body,
-              maxLines: 6,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              state.selectedModelName == null
-                  ? 'No main model selected yet.'
-                  : state.isPocketModelSelected
-                  ? 'Main model: ${state.selectedModelName}'
-                  : 'Main model: ${state.selectedModelName} (voice cloning switches this to Pocket TTS)',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
+  Widget _buildVoiceCloningSection(BuildContext context, VoiceLabState state) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildModelStatus(context, state),
+        const SizedBox(height: 24),
+        _buildImportSection(context, state),
+        const SizedBox(height: 24),
+        _buildVoiceLibrary(context, state),
+      ],
     );
   }
 
@@ -479,8 +447,8 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
             const SizedBox(height: 8),
             Text(
               state.hasSharedInputText
-                  ? 'Uses the shared text from the Basic panel.'
-                  : 'Add text on the left before generating cloned speech.',
+                  ? 'Uses the text currently entered in the Basic panel.'
+                  : 'Add text in the Basic panel before generating cloned speech.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
