@@ -33,6 +33,12 @@
 - Scenario: Linux desktop has no `ffplay` or `aplay` available.
   Expected handling: playback fails with an actionable dependency message.
 
+- Scenario: The desktop user opens the Voice Lab sample picker and cancels file selection.
+  Expected handling: the import dialog stays open, no error is shown, and no voice is created.
+
+- Scenario: The desktop user selects a WAV sample for Voice Lab, but the file is removed before import completes.
+  Expected handling: import is blocked and the UI shows a concrete file-not-found error.
+
 - Scenario: Share or export fails after a successful synthesis.
   Expected handling: the generated `.wav` stays available and only the output action fails.
 

@@ -6,7 +6,6 @@ import 'package:path/path.dart' as p;
 import 'package:tts_core/tts_core.dart';
 
 import '../services/audio_service.dart';
-import '../services/desktop_task_executor.dart';
 import '../services/gpu_detector.dart';
 import '../services/model_service.dart';
 
@@ -17,7 +16,7 @@ enum SynthesisStatus { idle, generating, done, error }
 class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
-  final TaskManager taskManager = TaskManager(executor: DesktopTaskExecutor());
+  final TaskManager taskManager = TaskManager(executor: IsolateTaskExecutor());
 
   // ---- Model state ----
   List<InstalledModel> _installedModels = [];

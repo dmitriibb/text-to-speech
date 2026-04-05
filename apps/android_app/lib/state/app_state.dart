@@ -7,7 +7,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tts_core/tts_core.dart';
 
-import '../services/android_task_executor.dart';
 import '../services/audio_service.dart';
 import '../services/model_service.dart';
 
@@ -16,7 +15,7 @@ enum SynthesisStatus { idle, generating, done, error }
 class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
-  final TaskManager taskManager = TaskManager(executor: AndroidTaskExecutor());
+  final TaskManager taskManager = TaskManager(executor: IsolateTaskExecutor());
 
   StreamSubscription<PlaybackState>? _audioSubscription;
   StreamSubscription<Duration>? _audioPositionSubscription;
@@ -408,10 +407,14 @@ class AppState extends ChangeNotifier {
 
   Future<bool> shareGeneratedAudio() async {
     if (_generatedWavPath == null) return false;
+    return shareTaskAudio(_generatedWavPath!);
+  }
+
+  Future<bool> shareTaskAudio(String outputPath) async {
     try {
       await SharePlus.instance.share(
         ShareParams(
-          files: [XFile(_generatedWavPath!)],
+          files: [XFile(outputPath)],
           text: 'Generated speech from Text to Speech',
           subject: 'Generated speech',
         ),

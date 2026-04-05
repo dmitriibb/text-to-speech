@@ -206,36 +206,22 @@ class _TaskRowState extends State<_TaskRow> {
     bool isPlayingThis,
     bool isActiveThis,
   ) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 36, top: 8, bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AudioPlaybackControls(
-            isPlaying: isPlayingThis,
-            position: isActiveThis
-                ? widget.playbackInfo.position
-                : Duration.zero,
-            duration: isActiveThis ? widget.playbackInfo.duration : null,
-            onTogglePlayback: () {
-              if (isPlayingThis) {
-                widget.onStop?.call();
-              } else if (task.outputPath != null) {
-                widget.onPlay?.call(task.outputPath!);
-              }
-            },
-            onSeek: isActiveThis ? widget.onSeek : null,
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: task.outputPath != null
-                ? () => widget.onSave?.call(task.outputPath!)
-                : null,
-            icon: const Icon(Icons.save_alt),
-            label: const Text('Save'),
-          ),
-        ],
-      ),
+    return AudioPlaybackControls(
+      isPlaying: isPlayingThis,
+      position: isActiveThis ? widget.playbackInfo.position : Duration.zero,
+      duration: isActiveThis ? widget.playbackInfo.duration : null,
+      onTogglePlayback: () {
+        if (isPlayingThis) {
+          widget.onStop?.call();
+        } else if (task.outputPath != null) {
+          widget.onPlay?.call(task.outputPath!);
+        }
+      },
+      secondaryActionLabel: 'Export',
+      onSecondaryAction: task.outputPath != null
+          ? () => widget.onSave?.call(task.outputPath!)
+          : null,
+      onSeek: isActiveThis ? widget.onSeek : null,
     );
   }
 

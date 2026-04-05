@@ -7,6 +7,8 @@ class AudioPlaybackControls extends StatefulWidget {
     required this.position,
     required this.duration,
     required this.onTogglePlayback,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
     this.onSeek,
   });
 
@@ -14,6 +16,8 @@ class AudioPlaybackControls extends StatefulWidget {
   final Duration position;
   final Duration? duration;
   final VoidCallback onTogglePlayback;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
   final ValueChanged<Duration>? onSeek;
 
   @override
@@ -29,17 +33,32 @@ class _AudioPlaybackControlsState extends State<AudioPlaybackControls> {
     final maxMillis = total.inMilliseconds > 0 ? total.inMilliseconds : 1;
     final sliderValue = _dragValue ??
         widget.position.inMilliseconds.clamp(0, maxMillis).toDouble();
+    final currentMillis = sliderValue.round().clamp(0, maxMillis);
     final canSeek = widget.onSeek != null && total.inMilliseconds > 0;
 
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        FilledButton.tonalIcon(
-          onPressed: widget.onTogglePlayback,
-          icon: Icon(widget.isPlaying ? Icons.stop : Icons.play_arrow),
-          label: Text(widget.isPlaying ? 'Stop' : 'Play'),
+        Row(
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: widget.onTogglePlayback,
+              icon: Icon(widget.isPlaying ? Icons.stop : Icons.play_arrow),
+              label: Text(widget.isPlaying ? 'Stop' : 'Play'),
+            ),
+            if (widget.secondaryActionLabel != null) ...[
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: widget.onSecondaryAction,
+                icon: const Icon(Icons.ios_share),
+                label: Text(widget.secondaryActionLabel!),
+              ),
+            ],
+          ],
         ),
-        const SizedBox(width: 12),
-        Expanded(
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -68,10 +87,7 @@ class _AudioPlaybackControlsState extends State<AudioPlaybackControls> {
                 children: [
                   Text(
                     _format(
-                      Duration(
-                        milliseconds:
-                            sliderValue.round().clamp(0, maxMillis) as int,
-                      ),
+                      Duration(milliseconds: currentMillis),
                     ),
                   ),
                   const Spacer(),

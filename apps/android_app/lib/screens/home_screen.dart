@@ -77,7 +77,7 @@ class HomeScreen extends StatelessWidget {
                     onPlay: (path) => state.playTaskAudio(path),
                     onStop: () => state.stopPlayback(),
                     onSeek: (position) => state.seekPlayback(position),
-                    onSave: (path) => state.shareGeneratedAudio(),
+                    onSave: (path) => state.shareTaskAudio(path),
                     onCancelTask: state.cancelManagedTask,
                     onDismissTask: state.dismissManagedTask,
                   ),

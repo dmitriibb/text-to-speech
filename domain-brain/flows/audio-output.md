@@ -15,6 +15,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 ## Invariants
 
 - Output actions operate on an existing generated local `.wav`.
+- Task-row playback and output actions target the selected task's `.wav`, not just the most recent global output path.
 - Only one generated audio may be active at a time across the app.
 - Playback must expose play/stop plus a seekable progress position for the active audio.
 - Playback and export/share are platform-specific service responsibilities behind a shared UI contract.
@@ -29,4 +30,5 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Android audio playback failure
 - desktop export failure
 - Android share failure
+- task-row output action targets the wrong generated file
 - generated audio file remains on disk after its task is dismissed

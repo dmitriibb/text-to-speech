@@ -51,13 +51,11 @@ flows:
       - domain-brain/state-machines/synthesis-lifecycle.md
     paths:
       - packages/tts_core/lib/src/services/tts_service.dart
+      - packages/tts_core/lib/src/services/isolate_task_executor.dart
       - packages/tts_core/lib/src/services/text_input_validator.dart
+      - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/state/app_state.dart
       - apps/android_app/lib/state/app_state.dart
-      - apps/android_app/lib/models/long_running_task.dart
-      - apps/android_app/lib/services/long_running_task_service.dart
-      - apps/android_app/lib/services/long_running_task_handler.dart
-      - apps/android_app/lib/widgets/active_task_list.dart
     entities:
       - VoiceModel
       - InstalledModel
@@ -75,6 +73,13 @@ flows:
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
     entities:
       - GeneratedAudio
+  voice_cloning:
+    docs:
+      - domain-brain/flows/voice-cloning.md
+    paths:
+      - apps/desktop_app/lib/screens/voice_lab_screen.dart
+      - apps/desktop_app/lib/state/voice_lab_state.dart
+      - apps/desktop_app/lib/services/voice_library_service.dart
   benchmark_validation:
     docs:
       - domain-brain/flows/benchmark-validation.md

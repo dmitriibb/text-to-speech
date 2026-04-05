@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  file_selector: ^1.0.3
   provider: ^6.1.2
   xdg_directories: ^1.1.0
   path: ^1.9.1

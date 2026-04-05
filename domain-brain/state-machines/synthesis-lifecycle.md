@@ -32,4 +32,4 @@
 
 - `done` implies a local generated `.wav` exists.
 - Android may keep multiple synthesis tasks queued, but generated-audio UI currently promotes the most recently completed output.
-- Task execution happens outside the main UI isolate so the app can stay responsive while work is in progress.
+- Task execution happens outside the main UI isolate via the shared isolate executor so the app can stay responsive while work is in progress.

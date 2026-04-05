@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 import 'package:shared_ui/shared_ui.dart';
 
@@ -9,8 +11,128 @@ import '../services/audio_service.dart';
 import '../state/app_state.dart';
 import '../state/voice_lab_state.dart';
 
+typedef OpenVoiceSampleFile = Future<String?> Function();
+
+class VoiceSampleImportResult {
+  const VoiceSampleImportResult({required this.name, required this.path});
+
+  final String name;
+  final String path;
+}
+
+class VoiceSampleImportDialog extends StatefulWidget {
+  const VoiceSampleImportDialog({super.key, required this.openVoiceSampleFile});
+
+  final OpenVoiceSampleFile openVoiceSampleFile;
+
+  @override
+  State<VoiceSampleImportDialog> createState() =>
+      _VoiceSampleImportDialogState();
+}
+
+class _VoiceSampleImportDialogState extends State<VoiceSampleImportDialog> {
+  final _nameController = TextEditingController();
+  final _pathController = TextEditingController();
+  String _selectedPath = '';
+
+  bool get _canImport =>
+      _nameController.text.trim().isNotEmpty && _selectedPath.isNotEmpty;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _pathController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Import Voice Sample'),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: _nameController,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Voice Name',
+                hintText: 'e.g., "My Voice", "Narrator"',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _pathController,
+              readOnly: true,
+              decoration: const InputDecoration(
+                labelText: 'Selected WAV File',
+                hintText: 'Choose a reference WAV file',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _chooseFile,
+              icon: const Icon(Icons.folder_open),
+              label: const Text('Choose WAV File'),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Use a 10–30 second mono WAV clip of the voice you want to clone.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _canImport
+              ? () => Navigator.of(context).pop(
+                  VoiceSampleImportResult(
+                    name: _nameController.text.trim(),
+                    path: _selectedPath,
+                  ),
+                )
+              : null,
+          child: const Text('Import'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _chooseFile() async {
+    final path = await widget.openVoiceSampleFile();
+    if (!mounted || path == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedPath = path;
+      _pathController.text = path;
+      if (_nameController.text.trim().isEmpty) {
+        _nameController.text = p.basenameWithoutExtension(path);
+      }
+    });
+  }
+}
+
 class VoiceLabScreen extends StatefulWidget {
-  const VoiceLabScreen({super.key});
+  const VoiceLabScreen({
+    super.key,
+    this.openVoiceSampleFile,
+    this.stateOverride,
+  });
+
+  final OpenVoiceSampleFile? openVoiceSampleFile;
+  final VoiceLabState? stateOverride;
 
   @override
   State<VoiceLabScreen> createState() => _VoiceLabScreenState();
@@ -18,21 +140,26 @@ class VoiceLabScreen extends StatefulWidget {
 
 class _VoiceLabScreenState extends State<VoiceLabScreen> {
   late final VoiceLabState _state;
+  late final bool _ownsState;
   final _textController = TextEditingController();
   final double _speed = 1.0;
 
   @override
   void initState() {
     super.initState();
-    final appState = context.read<AppState>();
-    _state = VoiceLabState(appState: appState);
+    _ownsState = widget.stateOverride == null;
+    _state =
+        widget.stateOverride ??
+        VoiceLabState(appState: context.read<AppState>());
     _state.initialize();
   }
 
   @override
   void dispose() {
     _textController.dispose();
-    _state.dispose();
+    if (_ownsState) {
+      _state.dispose();
+    }
     super.dispose();
   }
 
@@ -337,74 +464,39 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
     BuildContext context,
     VoiceLabState state,
   ) async {
-    final nameController = TextEditingController();
-    final pathController = TextEditingController();
-
-    final result = await showDialog<bool>(
+    final result = await showDialog<VoiceSampleImportResult>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Import Voice Sample'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Voice Name',
-                  hintText: 'e.g., "My Voice", "Narrator"',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: pathController,
-                decoration: const InputDecoration(
-                  labelText: 'WAV File Path',
-                  hintText: '/path/to/reference.wav',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Use a 10–30 second mono WAV clip of the voice you want to clone.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Import'),
-          ),
-        ],
-      ),
+      builder: (context) =>
+          VoiceSampleImportDialog(openVoiceSampleFile: _pickVoiceSampleFile),
     );
 
-    if (result == true) {
-      final name = nameController.text.trim();
-      final path = pathController.text.trim();
-
-      if (name.isEmpty || path.isEmpty) {
-        return;
-      }
-
-      if (!File(path).existsSync()) {
-        state.setError('File not found: $path');
-        return;
-      }
-
-      await state.addVoice(name: name, audioPath: path);
+    if (result == null) {
+      return;
     }
 
-    nameController.dispose();
-    pathController.dispose();
+    if (!File(result.path).existsSync()) {
+      state.setError('File not found: ${result.path}');
+      return;
+    }
+
+    await state.addVoice(name: result.name, audioPath: result.path);
+  }
+
+  Future<String?> _pickVoiceSampleFile() async {
+    if (widget.openVoiceSampleFile case final openVoiceSampleFile?) {
+      return openVoiceSampleFile();
+    }
+
+    const wavTypeGroup = XTypeGroup(
+      label: 'WAV audio',
+      extensions: ['wav'],
+      mimeTypes: ['audio/wav', 'audio/x-wav'],
+    );
+    final selectedFile = await openFile(
+      acceptedTypeGroups: const [wavTypeGroup],
+      confirmButtonText: 'Select voice sample',
+    );
+    return selectedFile?.path;
   }
 
   Future<void> _confirmDelete(

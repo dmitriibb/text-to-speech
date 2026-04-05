@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 
@@ -15,7 +14,6 @@ class TaskManager extends ChangeNotifier {
   final Map<String, LongRunningTask> _tasks = {};
   int _speechCounter = 0;
   int _modelLoadCounter = 0;
-  int _modelInstallCounter = 0;
   Timer? _ticker;
   StreamSubscription<TaskResult>? _resultsSub;
   bool _initialized = false;
@@ -193,7 +191,6 @@ class TaskManager extends ChangeNotifier {
   }
 
   String startModelInstall({required String label, String? statusText}) {
-    _modelInstallCounter++;
     final task = LongRunningTask(
       id: _nextTaskId(),
       type: LongRunningTaskType.installModel,
