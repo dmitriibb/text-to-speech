@@ -18,6 +18,7 @@ Keep one clear source of truth for which models the apps may offer, how those mo
 - The catalog is the only source of truth for app-visible models.
 - Apps must not invent install metadata outside the catalog.
 - Apps must not hide installable catalog entries just because another model is already ready.
+- Family-specific runtime assets such as Pocket TTS's bundled default reference clip must be declared in the catalog and validated after install.
 - Unknown redistribution status blocks shipping decisions, even when local validation is allowed.
 
 ## Failure Modes

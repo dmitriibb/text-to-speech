@@ -9,3 +9,4 @@ export 'src/services/model_file_validator.dart';
 export 'src/services/task_manager.dart';
 export 'src/services/text_input_validator.dart';
 export 'src/services/tts_service.dart';
+export 'src/services/voice_model_task_payload.dart';

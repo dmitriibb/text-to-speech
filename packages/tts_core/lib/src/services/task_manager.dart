@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/long_running_task.dart';
 import '../models/voice_model.dart';
 import 'background_task_executor.dart';
+import 'voice_model_task_payload.dart';
 
 class TaskManager extends ChangeNotifier {
   TaskManager({required BackgroundTaskExecutor executor})
@@ -441,31 +442,11 @@ class TaskManager extends ChangeNotifier {
     required VoiceModel voice,
     String? providerOverride,
   }) {
-    final provider = providerOverride ?? voice.provider;
-    return {
-      'cacheKey': '${voice.id}::$modelDir::$provider',
-      'modelId': voice.id,
-      'displayName': voice.displayName,
-      'family': voice.family,
-      'runtime': voice.runtime,
-      'installDirName': voice.installDirName,
-      'modelDir': modelDir,
-      'modelFile': voice.modelFile,
-      'tokensFile': voice.tokensFile,
-      'lexiconFile': voice.lexiconFile,
-      'voicesFile': voice.voicesFile,
-      'dataDir': voice.dataDir,
-      'provider': provider,
-      'numThreads': voice.numThreads,
-      'speakerId': voice.defaultSpeakerId,
-      'maxNumSentences': voice.maxNumSentences,
-      'pocketLmMain': voice.pocketLmMain,
-      'pocketEncoder': voice.pocketEncoder,
-      'pocketDecoder': voice.pocketDecoder,
-      'pocketTextConditioner': voice.pocketTextConditioner,
-      'pocketVocabJson': voice.pocketVocabJson,
-      'pocketTokenScoresJson': voice.pocketTokenScoresJson,
-    };
+    return VoiceModelTaskPayload.build(
+      modelDir: modelDir,
+      voice: voice,
+      providerOverride: providerOverride,
+    );
   }
 
   int _statusPriority(LongRunningTaskStatus status) {

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:path/path.dart' as p;
@@ -14,7 +15,13 @@ class SynthesisResult {
 
 class TtsService {
   static bool _bindingsInitialized = false;
+  static const Map<String, Object> _pocketDefaultExtra = {
+    'max_reference_audio_len': 12,
+  };
+
   sherpa.OfflineTts? _tts;
+  VoiceModel? _loadedModel;
+  String? _loadedModelDir;
 
   bool get isReady => _tts != null;
   int get sampleRate => _tts?.sampleRate ?? 0;
@@ -27,6 +34,8 @@ class TtsService {
   void loadModel(String modelDir, VoiceModel model) {
     _tts?.free();
     _tts = null;
+    _loadedModel = model;
+    _loadedModelDir = modelDir;
 
     final modelPath = p.join(modelDir, model.modelFile);
     final tokensPath = model.tokensFile.isNotEmpty
@@ -109,11 +118,13 @@ class TtsService {
       throw StateError('TTS engine not initialized. Call loadModel first.');
     }
 
+    final model = _loadedModel;
+    if (model != null && model.family == 'pocket') {
+      return _synthesizePocketWithDefaultReference(text, speed: speed);
+    }
+
     final audio = _tts!.generate(text: text, sid: speakerId, speed: speed);
-    return SynthesisResult(
-      samples: audio.samples,
-      sampleRate: audio.sampleRate,
-    );
+    return _toSynthesisResult(audio, context: 'speech synthesis');
   }
 
   /// Synthesize speech using a reference audio clip for zero-shot voice cloning.
@@ -133,13 +144,11 @@ class TtsService {
       referenceAudio: referenceAudio,
       referenceSampleRate: referenceSampleRate,
       numSteps: numSteps,
+      extra: _loadedModel?.family == 'pocket' ? _pocketDefaultExtra : const {},
     );
 
     final audio = _tts!.generateWithConfig(text: text, config: config);
-    return SynthesisResult(
-      samples: audio.samples,
-      sampleRate: audio.sampleRate,
-    );
+    return _toSynthesisResult(audio, context: 'reference speech synthesis');
   }
 
   bool saveWav(SynthesisResult result, String outputPath) {
@@ -160,6 +169,69 @@ class TtsService {
   void dispose() {
     _tts?.free();
     _tts = null;
+    _loadedModel = null;
+    _loadedModelDir = null;
+  }
+
+  SynthesisResult _synthesizePocketWithDefaultReference(
+    String text, {
+    required double speed,
+  }) {
+    final referencePath = _resolvePocketDefaultReferencePath();
+    final wave = readWavFile(referencePath);
+    if (wave.samples.isEmpty || wave.sampleRate == 0) {
+      throw StateError(
+        'Pocket TTS default reference audio is empty: $referencePath',
+      );
+    }
+
+    final config = sherpa.OfflineTtsGenerationConfig(
+      speed: speed,
+      referenceAudio: wave.samples,
+      referenceSampleRate: wave.sampleRate,
+      extra: _pocketDefaultExtra,
+    );
+
+    final audio = _tts!.generateWithConfig(text: text, config: config);
+    return _toSynthesisResult(audio, context: 'Pocket TTS synthesis');
+  }
+
+  String _resolvePocketDefaultReferencePath() {
+    final model = _loadedModel;
+    final modelDir = _loadedModelDir;
+
+    if (model == null || model.family != 'pocket' || modelDir == null) {
+      throw StateError('Pocket TTS model is not loaded.');
+    }
+
+    if (model.pocketDefaultReferenceAudio.isEmpty) {
+      throw StateError(
+        'Pocket TTS model does not define a bundled default reference audio.',
+      );
+    }
+
+    final referencePath = p.join(modelDir, model.pocketDefaultReferenceAudio);
+    if (!File(referencePath).existsSync()) {
+      throw StateError(
+        'Pocket TTS default reference audio is missing: $referencePath',
+      );
+    }
+
+    return referencePath;
+  }
+
+  SynthesisResult _toSynthesisResult(
+    sherpa.GeneratedAudio audio, {
+    required String context,
+  }) {
+    if (audio.samples.isEmpty || audio.sampleRate <= 0) {
+      throw StateError('No audio was generated during $context.');
+    }
+
+    return SynthesisResult(
+      samples: audio.samples,
+      sampleRate: audio.sampleRate,
+    );
   }
 
   static void _ensureBindingsInitialized() {

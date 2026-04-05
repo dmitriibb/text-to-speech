@@ -17,6 +17,7 @@ class ModelFileValidator {
       model.pocketTextConditioner,
       model.pocketVocabJson,
       model.pocketTokenScoresJson,
+      model.pocketDefaultReferenceAudio,
     ].where((entry) => entry.isNotEmpty).toList(growable: false);
   }
 

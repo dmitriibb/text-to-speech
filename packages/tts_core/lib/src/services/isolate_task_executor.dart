@@ -6,9 +6,9 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 
 import '../models/long_running_task.dart';
-import '../models/voice_model.dart';
 import 'background_task_executor.dart';
 import 'tts_service.dart';
+import 'voice_model_task_payload.dart';
 
 class IsolateTaskExecutor implements BackgroundTaskExecutor {
   Isolate? _isolate;
@@ -114,7 +114,7 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
         if (loadedCacheKey != cacheKey) {
           tts.loadModel(
             payload['modelDir']! as String,
-            _voiceModelFromPayload(payload),
+            VoiceModelTaskPayload.decode(payload),
           );
           loadedCacheKey = cacheKey;
         }
@@ -202,41 +202,6 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
 
       queue.add(data);
       processNext();
-    });
-  }
-
-  static VoiceModel _voiceModelFromPayload(Map<String, Object?> payload) {
-    return VoiceModel.fromJson({
-      'id': payload['modelId'],
-      'display_name': payload['displayName'],
-      'family': payload['family'],
-      'runtime': payload['runtime'],
-      'status': const {'approved_for_distribution': false},
-      'source': const {'archive_url': ''},
-      'install': {
-        'archive_format': 'tar.bz2',
-        'install_dir_name': payload['installDirName'],
-      },
-      'files': {
-        'model': payload['modelFile'],
-        'tokens': payload['tokensFile'],
-        'lexicon': payload['lexiconFile'],
-        'voices': payload['voicesFile'],
-        'data_dir': payload['dataDir'],
-        'pocket_lm_main': payload['pocketLmMain'],
-        'pocket_encoder': payload['pocketEncoder'],
-        'pocket_decoder': payload['pocketDecoder'],
-        'pocket_text_conditioner': payload['pocketTextConditioner'],
-        'pocket_vocab_json': payload['pocketVocabJson'],
-        'pocket_token_scores_json': payload['pocketTokenScoresJson'],
-      },
-      'defaults': {
-        'provider': payload['provider'],
-        'num_threads': payload['numThreads'],
-        'speed': 1.0,
-        'speaker_id': payload['speakerId'],
-        'max_num_sentences': payload['maxNumSentences'],
-      },
     });
   }
 }

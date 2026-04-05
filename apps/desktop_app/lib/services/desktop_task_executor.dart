@@ -18,10 +18,7 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
   Future<void> initialize() async {
     final receivePort = ReceivePort();
 
-    _isolate = await Isolate.spawn(
-      _isolateMain,
-      receivePort.sendPort,
-    );
+    _isolate = await Isolate.spawn(_isolateMain, receivePort.sendPort);
 
     final completer = Completer<SendPort>();
     receivePort.listen((message) {
@@ -77,11 +74,13 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
       final payload = request.payload;
 
       if (cancelledIds.remove(taskId)) {
-        mainPort.send(TaskResult(
-          taskId: taskId,
-          type: request.type,
-          status: TaskResultStatus.cancelled,
-        ).toMap());
+        mainPort.send(
+          TaskResult(
+            taskId: taskId,
+            type: request.type,
+            status: TaskResultStatus.cancelled,
+          ).toMap(),
+        );
         processing = false;
         Timer.run(processNext);
         return;
@@ -91,7 +90,7 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
         // Load model if needed.
         final cacheKey = payload['cacheKey']! as String;
         if (loadedCacheKey != cacheKey) {
-          final model = _voiceModelFromPayload(payload);
+          final model = VoiceModelTaskPayload.decode(payload);
           tts.loadModel(payload['modelDir']! as String, model);
           loadedCacheKey = cacheKey;
         }
@@ -117,11 +116,13 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
 
           // Check cancel after synthesis (can't interrupt FFI).
           if (cancelledIds.remove(taskId)) {
-            mainPort.send(TaskResult(
-              taskId: taskId,
-              type: request.type,
-              status: TaskResultStatus.cancelled,
-            ).toMap());
+            mainPort.send(
+              TaskResult(
+                taskId: taskId,
+                type: request.type,
+                status: TaskResultStatus.cancelled,
+              ).toMap(),
+            );
           } else {
             final outputPath = payload['outputPath']! as String;
             final dir = Directory(p.dirname(outputPath));
@@ -129,31 +130,37 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
             final saved = tts.saveWav(result, outputPath);
             if (!saved) throw Exception('Failed to write WAV file');
 
-            mainPort.send(TaskResult(
-              taskId: taskId,
-              type: request.type,
-              status: TaskResultStatus.completed,
-              outputPath: outputPath,
-            ).toMap());
+            mainPort.send(
+              TaskResult(
+                taskId: taskId,
+                type: request.type,
+                status: TaskResultStatus.completed,
+                outputPath: outputPath,
+              ).toMap(),
+            );
           }
         } else {
           // preloadModel — just loading is enough.
-          mainPort.send(TaskResult(
-            taskId: taskId,
-            type: request.type,
-            status: TaskResultStatus.completed,
-          ).toMap());
+          mainPort.send(
+            TaskResult(
+              taskId: taskId,
+              type: request.type,
+              status: TaskResultStatus.completed,
+            ).toMap(),
+          );
         }
       } catch (e) {
         final wasCancelled = cancelledIds.remove(taskId);
-        mainPort.send(TaskResult(
-          taskId: taskId,
-          type: request.type,
-          status: wasCancelled
-              ? TaskResultStatus.cancelled
-              : TaskResultStatus.failed,
-          errorMessage: wasCancelled ? null : e.toString(),
-        ).toMap());
+        mainPort.send(
+          TaskResult(
+            taskId: taskId,
+            type: request.type,
+            status: wasCancelled
+                ? TaskResultStatus.cancelled
+                : TaskResultStatus.failed,
+            errorMessage: wasCancelled ? null : e.toString(),
+          ).toMap(),
+        );
       }
 
       processing = false;
@@ -173,41 +180,6 @@ class DesktopTaskExecutor implements BackgroundTaskExecutor {
       msg.remove('action');
       queue.add(msg);
       processNext();
-    });
-  }
-
-  static VoiceModel _voiceModelFromPayload(Map<String, Object?> payload) {
-    return VoiceModel.fromJson({
-      'id': payload['modelId'],
-      'display_name': payload['displayName'],
-      'family': payload['family'],
-      'runtime': payload['runtime'],
-      'status': const {'approved_for_distribution': false},
-      'source': const {'archive_url': ''},
-      'install': {
-        'archive_format': 'tar.bz2',
-        'install_dir_name': payload['installDirName'],
-      },
-      'files': {
-        'model': payload['modelFile'],
-        'tokens': payload['tokensFile'],
-        'lexicon': payload['lexiconFile'],
-        'voices': payload['voicesFile'],
-        'data_dir': payload['dataDir'],
-        'pocket_lm_main': payload['pocketLmMain'],
-        'pocket_encoder': payload['pocketEncoder'],
-        'pocket_decoder': payload['pocketDecoder'],
-        'pocket_text_conditioner': payload['pocketTextConditioner'],
-        'pocket_vocab_json': payload['pocketVocabJson'],
-        'pocket_token_scores_json': payload['pocketTokenScoresJson'],
-      },
-      'defaults': {
-        'provider': payload['provider'],
-        'num_threads': payload['numThreads'],
-        'speed': 1.0,
-        'speaker_id': payload['speakerId'],
-        'max_num_sentences': payload['maxNumSentences'],
-      },
     });
   }
 }

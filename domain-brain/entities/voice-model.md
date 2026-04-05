@@ -23,6 +23,7 @@ A single approved model entry that describes how a voice should be downloaded, i
 - `defaultSpeakerId: int`
 - `maxNumSentences: int`
 - `approvedForDistribution: bool`
+- `pocketDefaultReferenceAudio: string`
 
 ## Ownership
 
@@ -32,5 +33,6 @@ A single approved model entry that describes how a voice should be downloaded, i
 ## Notes
 
 - `installDirName` defines the expected extracted directory name.
-- `modelFile`, `tokensFile`, and optional `lexiconFile` or `dataDir` define the readiness check.
+- `modelFile`, `tokensFile`, optional `lexiconFile` or `dataDir`, and any family-specific runtime assets define the readiness check.
+- Pocket TTS entries may declare `pocketDefaultReferenceAudio` so regular synthesis can fall back to a bundled default voice when cloning is not enabled.
 - A `VoiceModel` may be usable for local development even when redistribution is still blocked.

@@ -5,6 +5,7 @@
 - The Advanced panel always shows the `Voice Cloning` toggle, but cloning-specific controls stay hidden until that toggle is enabled.
 - Voice Lab does not own a separate synthesis text field; cloned synthesis always uses the text entered in the Basic panel.
 - Voice cloning mode depends on a ready Pocket TTS model and is disabled until that model is installed.
+- When Pocket TTS is selected outside clone mode, regular synthesis falls back to the model's bundled default reference clip instead of the imported voice library.
 - Enabling voice cloning automatically switches the main desktop model selector to Pocket TTS so cloned synthesis uses the correct runtime.
 - Import starts from `Import WAV File`, which opens the system file chooser and restricts selection to `.wav` audio.
 - The import dialog stores the chosen path as read-only UI state; users should not need to type filesystem paths manually.

@@ -197,7 +197,8 @@
         "pocket_decoder": "decoder.int8.onnx",
         "pocket_text_conditioner": "text_conditioner.onnx",
         "pocket_vocab_json": "vocab.json",
-        "pocket_token_scores_json": "token_scores.json"
+        "pocket_token_scores_json": "token_scores.json",
+        "pocket_default_reference_audio": "test_wavs/bria.wav"
       },
       "defaults": {
         "provider": "cpu",

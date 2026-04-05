@@ -54,6 +54,7 @@ void main() {
     expect(catalog.models, hasLength(1));
     expect(catalog.models.single.installDirName, 'demo-model');
     expect(catalog.models.single.lexiconFile, 'lexicon.txt');
+    expect(catalog.models.single.pocketDefaultReferenceAudio, isEmpty);
   });
 
   test('detects incomplete and complete model directories', () async {
@@ -171,6 +172,7 @@ void main() {
         pocketTextConditioner: 'text_conditioner.onnx',
         pocketVocabJson: 'vocab.json',
         pocketTokenScoresJson: 'token_scores.json',
+        pocketDefaultReferenceAudio: 'test_wavs/bria.wav',
       );
 
       await File('${tempDir.path}/lm_flow.int8.onnx').writeAsString('flow');
@@ -192,6 +194,14 @@ void main() {
       ).writeAsString('conditioner');
       await File('${tempDir.path}/vocab.json').writeAsString('{}');
       await File('${tempDir.path}/token_scores.json').writeAsString('{}');
+
+      expect(
+        await ModelFileValidator.getStatus(tempDir.path, model),
+        ModelStatus.incomplete,
+      );
+
+      await Directory('${tempDir.path}/test_wavs').create(recursive: true);
+      await File('${tempDir.path}/test_wavs/bria.wav').writeAsString('wav');
 
       expect(
         await ModelFileValidator.getStatus(tempDir.path, model),
@@ -229,6 +239,7 @@ void main() {
       pocketTextConditioner: 'text_conditioner.onnx',
       pocketVocabJson: 'vocab.json',
       pocketTokenScoresJson: 'token_scores.json',
+      pocketDefaultReferenceAudio: 'test_wavs/bria.wav',
     );
 
     final expectedDir = Directory('${tempDir.path}/${model.installDirName}');
@@ -244,6 +255,8 @@ void main() {
     ).writeAsString('conditioner');
     await File('${nestedDir.path}/vocab.json').writeAsString('{}');
     await File('${nestedDir.path}/token_scores.json').writeAsString('{}');
+    await Directory('${nestedDir.path}/test_wavs').create(recursive: true);
+    await File('${nestedDir.path}/test_wavs/bria.wav').writeAsString('wav');
 
     expect(
       await ModelFileValidator.getStatus(expectedDir.path, model),
@@ -344,6 +357,49 @@ void main() {
       expect(manager.hasActiveTasks, isFalse);
     },
   );
+
+  test('voice model task payload preserves Pocket runtime metadata', () {
+    const pocketModel = VoiceModel(
+      id: 'pocket-tts-en',
+      displayName: 'Pocket TTS English (Voice Cloning)',
+      family: 'pocket',
+      runtime: 'sherpa-onnx',
+      approvedForDistribution: false,
+      archiveUrl: 'https://example.com/pocket.tar.bz2',
+      archiveFormat: 'tar.bz2',
+      installDirName: 'sherpa-onnx-pocket-tts-int8-2026-01-26',
+      modelFile: '',
+      tokensFile: '',
+      lexiconFile: '',
+      voicesFile: '',
+      dataDir: '',
+      provider: 'cpu',
+      numThreads: 2,
+      defaultSpeed: 1,
+      defaultSpeakerId: 7,
+      maxNumSentences: 1,
+      voiceCloning: true,
+      pocketLmMain: 'lm_main.int8.onnx',
+      pocketEncoder: 'encoder.onnx',
+      pocketDecoder: 'decoder.int8.onnx',
+      pocketTextConditioner: 'text_conditioner.onnx',
+      pocketVocabJson: 'vocab.json',
+      pocketTokenScoresJson: 'token_scores.json',
+      pocketDefaultReferenceAudio: 'test_wavs/bria.wav',
+    );
+
+    final payload = VoiceModelTaskPayload.build(
+      modelDir: '/tmp/pocket-model',
+      voice: pocketModel,
+    );
+    final decoded = VoiceModelTaskPayload.decode(payload);
+
+    expect(payload['defaultSpeakerId'], 7);
+    expect(payload['pocketDefaultReferenceAudio'], 'test_wavs/bria.wav');
+    expect(decoded.defaultSpeakerId, 7);
+    expect(decoded.pocketDefaultReferenceAudio, 'test_wavs/bria.wav');
+    expect(decoded.pocketTokenScoresJson, 'token_scores.json');
+  });
 
   test('extracts tar.bz2 archives with nested model files', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
