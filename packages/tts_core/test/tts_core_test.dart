@@ -315,6 +315,36 @@ void main() {
     },
   );
 
+  test(
+    'model preload tasks complete when async executor results arrive',
+    () async {
+      final executor = _FakeBackgroundTaskExecutor();
+      final manager = TaskManager(executor: executor);
+      addTearDown(manager.dispose);
+
+      await manager.initialize();
+      final taskId = await manager.submitModelPreload(
+        modelDir: '/tmp/demo-model',
+        voice: _demoVoiceModel,
+      );
+
+      final queuedTask = manager.tasks.firstWhere((task) => task.id == taskId);
+      expect(queuedTask.type, LongRunningTaskType.preloadModel);
+      expect(queuedTask.status, LongRunningTaskStatus.queued);
+      expect(manager.hasActiveTasks, isTrue);
+
+      executor.completeTask(taskId, LongRunningTaskType.preloadModel);
+      await Future<void>.delayed(Duration.zero);
+
+      final completedTask = manager.tasks.firstWhere(
+        (task) => task.id == taskId,
+      );
+      expect(completedTask.status, LongRunningTaskStatus.completed);
+      expect(completedTask.finishedAt, isNotNull);
+      expect(manager.hasActiveTasks, isFalse);
+    },
+  );
+
   test('extracts tar.bz2 archives with nested model files', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
     addTearDown(() => tempDir.delete(recursive: true));
@@ -376,6 +406,7 @@ void main() {
 class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {
   final StreamController<TaskResult> _controller =
       StreamController<TaskResult>.broadcast();
+  final List<TaskRequest> submittedRequests = <TaskRequest>[];
 
   @override
   Stream<TaskResult> get results => _controller.stream;
@@ -384,13 +415,46 @@ class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {
   Future<void> initialize() async {}
 
   @override
-  Future<void> submit(TaskRequest request) async {}
+  Future<void> submit(TaskRequest request) async {
+    submittedRequests.add(request);
+  }
 
   @override
   void requestCancel(String taskId) {}
+
+  void completeTask(String taskId, LongRunningTaskType type) {
+    _controller.add(
+      TaskResult(
+        taskId: taskId,
+        type: type,
+        status: TaskResultStatus.completed,
+      ),
+    );
+  }
 
   @override
   void dispose() {
     _controller.close();
   }
 }
+
+const VoiceModel _demoVoiceModel = VoiceModel(
+  id: 'demo-model',
+  displayName: 'Demo Model',
+  family: 'vits',
+  runtime: 'sherpa-onnx',
+  approvedForDistribution: false,
+  archiveUrl: 'https://example.com/demo.tar.bz2',
+  archiveFormat: 'tar.bz2',
+  installDirName: 'demo-model',
+  modelFile: 'demo.onnx',
+  tokensFile: 'tokens.txt',
+  lexiconFile: '',
+  voicesFile: '',
+  dataDir: 'espeak-ng-data',
+  provider: 'cpu',
+  numThreads: 1,
+  defaultSpeed: 1,
+  defaultSpeakerId: 0,
+  maxNumSentences: 1,
+);

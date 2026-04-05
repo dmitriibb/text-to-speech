@@ -13,6 +13,8 @@ import 'tts_service.dart';
 class IsolateTaskExecutor implements BackgroundTaskExecutor {
   Isolate? _isolate;
   SendPort? _commandPort;
+  ReceivePort? _receivePort;
+  StreamSubscription<Object?>? _receiveSubscription;
   final _resultsController = StreamController<TaskResult>.broadcast();
   Future<void>? _initialization;
 
@@ -26,12 +28,12 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
 
   Future<void> _initializeInternal() async {
     final receivePort = ReceivePort();
+    _receivePort = receivePort;
 
     _isolate = await Isolate.spawn(_isolateMain, receivePort.sendPort);
 
     final completer = Completer<SendPort>();
-    late final StreamSubscription<Object?> subscription;
-    subscription = receivePort.listen((message) {
+    _receiveSubscription = receivePort.listen((message) {
       if (message is SendPort) {
         if (!completer.isCompleted) {
           completer.complete(message);
@@ -45,7 +47,6 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
     });
 
     _commandPort = await completer.future;
-    unawaited(subscription.cancel());
   }
 
   @override
@@ -64,6 +65,10 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
     _isolate?.kill(priority: Isolate.beforeNextEvent);
     _isolate = null;
     _commandPort = null;
+    _receivePort?.close();
+    _receivePort = null;
+    unawaited(_receiveSubscription?.cancel());
+    _receiveSubscription = null;
     _initialization = null;
     unawaited(_resultsController.close());
   }
@@ -107,7 +112,10 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
       try {
         final cacheKey = payload['cacheKey']! as String;
         if (loadedCacheKey != cacheKey) {
-          tts.loadModel(payload['modelDir']! as String, _voiceModelFromPayload(payload));
+          tts.loadModel(
+            payload['modelDir']! as String,
+            _voiceModelFromPayload(payload),
+          );
           loadedCacheKey = cacheKey;
         }
 
