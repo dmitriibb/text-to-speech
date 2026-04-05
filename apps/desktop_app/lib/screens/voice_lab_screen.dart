@@ -4,10 +4,8 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
-import 'package:shared_ui/shared_ui.dart';
 
 import '../models/cloned_voice.dart';
-import '../services/audio_service.dart';
 import '../state/app_state.dart';
 import '../state/voice_lab_state.dart';
 
@@ -124,7 +122,7 @@ class _VoiceSampleImportDialogState extends State<VoiceSampleImportDialog> {
   }
 }
 
-class VoiceLabScreen extends StatefulWidget {
+class VoiceLabScreen extends StatelessWidget {
   const VoiceLabScreen({
     super.key,
     this.openVoiceSampleFile,
@@ -135,14 +133,34 @@ class VoiceLabScreen extends StatefulWidget {
   final VoiceLabState? stateOverride;
 
   @override
-  State<VoiceLabScreen> createState() => _VoiceLabScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Voice Lab'), centerTitle: false),
+      body: VoiceLabPanel(
+        openVoiceSampleFile: openVoiceSampleFile,
+        stateOverride: stateOverride,
+      ),
+    );
+  }
 }
 
-class _VoiceLabScreenState extends State<VoiceLabScreen> {
+class VoiceLabPanel extends StatefulWidget {
+  const VoiceLabPanel({
+    super.key,
+    this.openVoiceSampleFile,
+    this.stateOverride,
+  });
+
+  final OpenVoiceSampleFile? openVoiceSampleFile;
+  final VoiceLabState? stateOverride;
+
+  @override
+  State<VoiceLabPanel> createState() => _VoiceLabPanelState();
+}
+
+class _VoiceLabPanelState extends State<VoiceLabPanel> {
   late final VoiceLabState _state;
   late final bool _ownsState;
-  final _textController = TextEditingController();
-  final double _speed = 1.0;
 
   @override
   void initState() {
@@ -156,7 +174,6 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
 
   @override
   void dispose() {
-    _textController.dispose();
     if (_ownsState) {
       _state.dispose();
     }
@@ -167,71 +184,123 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
       value: _state,
-      child: Scaffold(
-        appBar: AppBar(title: const Text('Voice Lab'), centerTitle: false),
-        body: Consumer<VoiceLabState>(
-          builder: (context, state, _) {
-            if (state.isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      child: Consumer<VoiceLabState>(
+        builder: (context, state, _) {
+          if (state.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 800),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Pocket TTS model status
-                      _buildModelStatus(context, state),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(context),
+                const SizedBox(height: 16),
+                _buildVoiceCloningToggle(context, state),
+                const SizedBox(height: 16),
+                _buildSharedTextStatus(context, state),
+                const SizedBox(height: 16),
+                _buildModelStatus(context, state),
+                const SizedBox(height: 24),
+                _buildImportSection(context, state),
+                const SizedBox(height: 24),
+                _buildVoiceLibrary(context, state),
+                if (state.errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  _buildErrorBanner(context, state.errorMessage!),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
 
-                      const SizedBox(height: 24),
-
-                      // Import voice button
-                      _buildImportSection(context, state),
-
-                      const SizedBox(height: 24),
-
-                      // Voice library
-                      _buildVoiceLibrary(context, state),
-
-                      // Error banner
-                      if (state.errorMessage != null) ...[
-                        const SizedBox(height: 12),
-                        _buildErrorBanner(context, state.errorMessage!),
-                      ],
-
-                      // Task list for cloned speech output
-                      const SizedBox(height: 16),
-                      Consumer<AppState>(
-                        builder: (context, appState, _) {
-                          return TaskListPanel(
-                            playbackInfo: TaskPlaybackInfo(
-                              playingTaskId: appState.playingTaskId,
-                              isPlaying:
-                                  appState.playbackState ==
-                                  PlaybackState.playing,
-                              activeTaskId: appState.activeTaskId,
-                              position: appState.playbackPosition,
-                              duration: appState.playbackDuration,
-                            ),
-                            onPlay: (path) => appState.playTaskAudio(path),
-                            onStop: () => appState.stopPlayback(),
-                            onSeek: (position) =>
-                                appState.seekPlayback(position),
-                            onSave: (path) => appState.saveTaskAudio(path),
-                            onCancelTask: appState.cancelManagedTask,
-                            onDismissTask: appState.dismissManagedTask,
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ),
+  Widget _buildHeader(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          Icons.science_outlined,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Advanced Functionality',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
-            );
-          },
+              Text(
+                'Voice Lab stays beside the Basic panel and uses its text input.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVoiceCloningToggle(BuildContext context, VoiceLabState state) {
+    final enabled = state.hasPocketModel;
+    final subtitle = !enabled
+        ? 'Install Pocket TTS from the model catalog to enable voice cloning.'
+        : state.isVoiceCloningEnabled
+        ? 'Voice cloning is active and uses Pocket TTS in the main model selector.'
+        : 'Enable to switch the main model selector to Pocket TTS automatically.';
+
+    return Card(
+      child: SwitchListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        value: enabled && state.isVoiceCloningEnabled,
+        onChanged: enabled ? state.setVoiceCloningEnabled : null,
+        secondary: const Icon(Icons.toggle_on_outlined),
+        title: const Text('Voice Cloning'),
+        subtitle: Text(subtitle),
+      ),
+    );
+  }
+
+  Widget _buildSharedTextStatus(BuildContext context, VoiceLabState state) {
+    final body = state.hasSharedInputText
+        ? state.sharedInputText
+        : 'No shared text yet. Type or paste text into the Basic panel on the left.';
+    final tone = state.hasSharedInputText
+        ? Theme.of(context).colorScheme.surfaceContainerHighest
+        : Theme.of(context).colorScheme.surfaceContainerLow;
+
+    return Card(
+      color: tone,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Shared Text Input',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              body,
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              state.selectedModelName == null
+                  ? 'No main model selected yet.'
+                  : state.isPocketModelSelected
+                  ? 'Main model: ${state.selectedModelName}'
+                  : 'Main model: ${state.selectedModelName} (voice cloning switches this to Pocket TTS)',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
         ),
       ),
     );
@@ -408,37 +477,25 @@ class _VoiceLabScreenState extends State<VoiceLabScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            // Synthesis controls
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textController,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter text to speak with this voice...',
-                      border: OutlineInputBorder(),
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      isDense: true,
-                    ),
-                    maxLines: 1,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: state.hasPocketModel
-                      ? () => state.generateWithClonedVoice(
-                          voice: voice,
-                          text: _textController.text,
-                          speed: _speed,
-                        )
-                      : null,
-                  icon: const Icon(Icons.record_voice_over, size: 18),
-                  label: const Text('Clone'),
-                ),
-              ],
+            Text(
+              state.hasSharedInputText
+                  ? 'Uses the shared text from the Basic panel.'
+                  : 'Add text on the left before generating cloned speech.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed:
+                    state.hasPocketModel &&
+                        state.isVoiceCloningEnabled &&
+                        state.hasSharedInputText
+                    ? () => state.generateWithClonedVoice(voice: voice)
+                    : null,
+                icon: const Icon(Icons.record_voice_over, size: 18),
+                label: const Text('Generate With Cloned Voice'),
+              ),
             ),
           ],
         ),

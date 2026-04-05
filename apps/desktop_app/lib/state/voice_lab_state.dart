@@ -11,9 +11,7 @@ import '../services/voice_library_service.dart';
 import 'app_state.dart';
 
 class VoiceLabState extends ChangeNotifier {
-  VoiceLabState({
-    required AppState appState,
-  }) : _appState = appState;
+  VoiceLabState({required AppState appState}) : _appState = appState;
 
   final AppState _appState;
   final VoiceLibraryService _libraryService = VoiceLibraryService();
@@ -33,6 +31,13 @@ class VoiceLabState extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get previewingVoiceId => _previewingVoiceId;
   bool get isPreviewPlaying => _isPreviewPlaying;
+  bool get isVoiceCloningEnabled => _appState.isVoiceCloningEnabled;
+  bool get hasSharedInputText => _appState.inputText.trim().isNotEmpty;
+  String get sharedInputText => _appState.inputText.trim();
+  double get sharedSpeed => _appState.speed;
+  String? get selectedModelName => _appState.selectedModel?.voice.displayName;
+  bool get isPocketModelSelected =>
+      _appState.selectedModel?.voice.family == 'pocket';
 
   void setError(String message) {
     _errorMessage = message;
@@ -42,14 +47,16 @@ class VoiceLabState extends ChangeNotifier {
   /// The Pocket TTS model from the catalog, if installed and ready.
   InstalledModel? get pocketModel {
     return _appState.installedModels
-        .where((m) =>
-            m.voice.family == 'pocket' && m.status == ModelStatus.ready)
+        .where(
+          (m) => m.voice.family == 'pocket' && m.status == ModelStatus.ready,
+        )
         .firstOrNull;
   }
 
   bool get hasPocketModel => pocketModel != null;
 
   Future<void> initialize() async {
+    _appState.addListener(_handleAppStateChanged);
     _previewSub = _previewAudio.onStateChanged.listen((state) {
       _isPreviewPlaying = state == PlaybackState.playing;
       if (state == PlaybackState.stopped) {
@@ -59,6 +66,10 @@ class VoiceLabState extends ChangeNotifier {
     });
 
     await loadVoices();
+  }
+
+  Future<void> setVoiceCloningEnabled(bool enabled) {
+    return _appState.setVoiceCloningEnabled(enabled);
   }
 
   Future<void> loadVoices() async {
@@ -128,11 +139,7 @@ class VoiceLabState extends ChangeNotifier {
   }
 
   /// Generates speech using a cloned voice via the Pocket TTS model.
-  Future<void> generateWithClonedVoice({
-    required ClonedVoice voice,
-    required String text,
-    required double speed,
-  }) async {
+  Future<void> generateWithClonedVoice({required ClonedVoice voice}) async {
     final model = pocketModel;
     if (model == null || model.modelDir == null) {
       _errorMessage = 'Pocket TTS model is not installed';
@@ -140,8 +147,9 @@ class VoiceLabState extends ChangeNotifier {
       return;
     }
 
-    if (text.trim().isEmpty) {
-      _errorMessage = 'Please enter text to synthesize';
+    final sharedText = _appState.inputText.trim();
+    if (sharedText.isEmpty) {
+      _errorMessage = 'Enter text in the Basic panel before cloning speech';
       notifyListeners();
       return;
     }
@@ -158,8 +166,9 @@ class VoiceLabState extends ChangeNotifier {
         return;
       }
 
-      final outputDir =
-          Directory(p.join(Directory.systemTemp.path, 'tts_generated'));
+      final outputDir = Directory(
+        p.join(Directory.systemTemp.path, 'tts_generated'),
+      );
       await outputDir.create(recursive: true);
       final outputPath = p.join(
         outputDir.path,
@@ -169,8 +178,8 @@ class VoiceLabState extends ChangeNotifier {
       await _appState.taskManager.submitClonedSynthesis(
         modelDir: model.modelDir!,
         voice: model.voice,
-        text: text.trim(),
-        speed: speed,
+        text: sharedText,
+        speed: _appState.speed,
         outputPath: outputPath,
         referenceAudio: wave.samples,
         referenceSampleRate: wave.sampleRate,
@@ -182,8 +191,13 @@ class VoiceLabState extends ChangeNotifier {
     }
   }
 
+  void _handleAppStateChanged() {
+    notifyListeners();
+  }
+
   @override
   void dispose() {
+    _appState.removeListener(_handleAppStateChanged);
     unawaited(_previewSub?.cancel());
     _previewAudio.dispose();
     super.dispose();

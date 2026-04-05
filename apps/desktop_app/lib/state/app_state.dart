@@ -47,6 +47,8 @@ class AppState extends ChangeNotifier {
   // ---- Provider state ----
   List<String> _availableProviders = const ['cpu'];
   String _selectedProvider = 'cpu';
+  bool _isAdvancedLabEnabled = false;
+  bool _isVoiceCloningEnabled = false;
 
   // ---- Getters ----
   List<InstalledModel> get installedModels => _installedModels;
@@ -72,6 +74,20 @@ class AppState extends ChangeNotifier {
 
   List<String> get availableProviders => _availableProviders;
   String get selectedProvider => _selectedProvider;
+  bool get isAdvancedLabEnabled => _isAdvancedLabEnabled;
+  bool get isVoiceCloningEnabled => _isVoiceCloningEnabled;
+  bool get hasPocketModel => pocketModel != null;
+
+  InstalledModel? get pocketModel {
+    for (final model in installedModels) {
+      if (model.voice.family == 'pocket' &&
+          model.status == ModelStatus.ready &&
+          model.modelDir != null) {
+        return model;
+      }
+    }
+    return null;
+  }
 
   /// True when a ready model is selected and text is non-empty.
   bool get canGenerate =>
@@ -133,16 +149,31 @@ class AppState extends ChangeNotifier {
 
     try {
       _installedModels = await _modelService.getInstalledModels();
+      if (_isVoiceCloningEnabled && pocketModel == null) {
+        _isVoiceCloningEnabled = false;
+      }
 
-      // Auto-select first ready model if none selected.
+      final readyPocketModel = pocketModel;
+
+      // Auto-select the current ready model, preferring Pocket TTS while
+      // cloning mode is enabled.
       if (_selectedModel == null ||
           _selectedModel!.status != ModelStatus.ready) {
         final ready = readyModels;
         if (ready.isNotEmpty) {
-          await selectModel(ready.first);
+          await selectModel(
+            _isVoiceCloningEnabled && readyPocketModel != null
+                ? readyPocketModel
+                : ready.first,
+          );
         } else {
           _selectedModel = null;
         }
+      }
+      if (_isVoiceCloningEnabled &&
+          readyPocketModel != null &&
+          _selectedModel?.voice.id != readyPocketModel.voice.id) {
+        await selectModel(readyPocketModel);
       }
     } catch (e) {
       _errorMessage = 'Failed to scan models: $e';
@@ -158,6 +189,9 @@ class AppState extends ChangeNotifier {
   Future<void> selectModel(InstalledModel model) async {
     if (model.status != ModelStatus.ready || model.modelDir == null) return;
 
+    if (_isVoiceCloningEnabled && model.voice.family != 'pocket') {
+      _isVoiceCloningEnabled = false;
+    }
     _selectedModel = model;
     _selectedSpeakerId = model.voice.defaultSpeakerId;
     _errorMessage = null;
@@ -173,6 +207,41 @@ class AppState extends ChangeNotifier {
       _errorMessage = 'Failed to start background voice load: $e';
       notifyListeners();
     }
+  }
+
+  void setAdvancedLabEnabled(bool enabled) {
+    if (_isAdvancedLabEnabled == enabled) return;
+    _isAdvancedLabEnabled = enabled;
+    if (!enabled) {
+      _isVoiceCloningEnabled = false;
+    }
+    notifyListeners();
+  }
+
+  Future<void> setVoiceCloningEnabled(bool enabled) async {
+    if (!enabled) {
+      if (_isVoiceCloningEnabled) {
+        _isVoiceCloningEnabled = false;
+        notifyListeners();
+      }
+      return;
+    }
+
+    final readyPocketModel = pocketModel;
+    if (readyPocketModel == null) {
+      _isVoiceCloningEnabled = false;
+      notifyListeners();
+      return;
+    }
+
+    _isVoiceCloningEnabled = true;
+    notifyListeners();
+
+    if (_selectedModel?.voice.id == readyPocketModel.voice.id) {
+      return;
+    }
+
+    await selectModel(readyPocketModel);
   }
 
   /// Downloads a model from the catalog.

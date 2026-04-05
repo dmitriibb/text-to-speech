@@ -6,7 +6,7 @@ Let the desktop user clone a voice from a short audio sample and use the cloned 
 
 ## Current Status
 
-In progress. A desktop prototype exists for Voice Lab, imported reference audio, and Pocket TTS-based cloned synthesis. The main-screen model discovery issue is fixed, Pocket TTS installation hardening is in place, install-task UX now reports real download or extraction progress, desktop model discovery is aligned to a single app-managed storage path, task cleanup semantics remove temporary files on cancel or dismiss, desktop task-row save now exports a real copy of generated audio, the shared tar extraction path has been hardened so Piper installs preserve the full runtime payload, and the Voice Lab import flow now uses the desktop system file chooser instead of requiring manual path entry.
+In progress. A desktop prototype exists for Voice Lab, imported reference audio, and Pocket TTS-based cloned synthesis. The main-screen model discovery issue is fixed, Pocket TTS installation hardening is in place, install-task UX now reports real download or extraction progress, desktop model discovery is aligned to a single app-managed storage path, task cleanup semantics remove temporary files on cancel or dismiss, desktop task-row save now exports a real copy of generated audio, the shared tar extraction path has been hardened so Piper installs preserve the full runtime payload, the Voice Lab import flow now uses the desktop system file chooser instead of requiring manual path entry, and the desktop UI is being refactored so Advanced Functionality appears inline beside Basic Functionality instead of opening as a separate screen.
 
 ## Context
 
@@ -27,7 +27,7 @@ In progress. A desktop prototype exists for Voice Lab, imported reference audio,
 3. **Embedding extraction** — run the embedding model on the sample to produce a speaker vector.
 4. **Custom voice synthesis** — pass the extracted embedding to the TTS model for synthesis.
 5. **Voice library** — save and manage cloned voices (name, embedding, sample audio) for reuse.
-6. **Voice Lab screen** — dedicated desktop screen for managing cloned voices (record, preview, delete).
+6. **Voice Lab UI** — inline desktop panel for managing cloned voices (import, preview, delete) beside the Basic panel.
 
 ### Out of Scope
 
@@ -45,11 +45,11 @@ In progress. A desktop prototype exists for Voice Lab, imported reference audio,
 1. **Research**: investigate sherpa_onnx speaker embedding APIs in Dart. Check if `OfflineTts.generateWithCallback` or similar accepts raw speaker embeddings.
 2. **Research**: identify a suitable open-license speaker embedding model (e.g., `3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx` from sherpa-onnx models).
 3. **Prototype**: build a minimal Dart script that extracts an embedding from a WAV file and feeds it to Kokoro synthesis.
-4. **Audio input UI**: add recording (via `record` package or raw FFI) and file picker to a new Voice Lab screen. The desktop file chooser path is now implemented for WAV import.
+4. **Audio input UI**: add recording (via `record` package or raw FFI) and file picker to the inline Voice Lab panel. The desktop file chooser path is now implemented for WAV import.
 5. **Embedding service**: create `VoiceEmbeddingService` in desktop app that loads the embedding model and extracts vectors.
 6. **Voice storage**: save cloned voices as JSON metadata + embedding binary in a local directory.
 7. **Integration**: add cloned voices to the speaker dropdown (task 8's UI) so they can be selected like built-in speakers.
-8. **Voice Lab screen**: dedicated screen accessible from desktop app navigation for managing the voice library.
+8. **Voice Lab layout**: inline Advanced panel beside the Basic panel, with shared text input and Pocket TTS-driven voice cloning mode.
 
 ## Blockers
 
@@ -67,4 +67,4 @@ The research phase (steps 1–3) should be completed before committing to the fu
 
 ## Next Steps
 
-Start with step 1 (research sherpa_onnx speaker embedding Dart API).
+Complete and verify the inline Voice Lab layout refactor so clone mode uses shared Basic-panel text and auto-selects Pocket TTS.
