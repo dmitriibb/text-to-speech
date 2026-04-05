@@ -22,10 +22,18 @@ class TaskManager extends ChangeNotifier {
   List<LongRunningTask> get tasks {
     final list = _tasks.values.toList(growable: false);
     list.sort((a, b) {
+      final startedAtComparison = b.startedAt.compareTo(a.startedAt);
+      if (startedAtComparison != 0) {
+        return startedAtComparison;
+      }
+
       final ap = _statusPriority(a.status);
       final bp = _statusPriority(b.status);
-      if (ap != bp) return ap.compareTo(bp);
-      return a.startedAt.compareTo(b.startedAt);
+      if (ap != bp) {
+        return ap.compareTo(bp);
+      }
+
+      return b.id.compareTo(a.id);
     });
     return list;
   }

@@ -24,6 +24,7 @@ Generate understandable speech locally from user-provided text with no cloud dep
 - Pocket TTS requires either the bundled default reference clip or a user-supplied cloning clip before it can generate audio.
 - Android model loading and synthesis must not block the main Flutter UI isolate.
 - Long-running tasks must stay visible in the UI with a short label, elapsed time, and cancel affordance.
+- Long-running task lists show the most recently created task first so new work stays visible without scrolling.
 
 ## Failure Modes
 

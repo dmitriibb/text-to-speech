@@ -358,6 +358,29 @@ void main() {
     },
   );
 
+  test('newer tasks sort ahead of older tasks regardless of status', () async {
+    final executor = _FakeBackgroundTaskExecutor();
+    final manager = TaskManager(executor: executor);
+    addTearDown(manager.dispose);
+
+    final installTaskId = manager.startModelInstall(
+      label: 'Install demo model',
+      statusText: 'Downloading',
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+    await manager.initialize();
+    final preloadTaskId = await manager.submitModelPreload(
+      modelDir: '/tmp/demo-model',
+      voice: _demoVoiceModel,
+    );
+
+    expect(manager.tasks.map((task) => task.id).toList(growable: false), [
+      preloadTaskId,
+      installTaskId,
+    ]);
+  });
+
   test('voice model task payload preserves Pocket runtime metadata', () {
     const pocketModel = VoiceModel(
       id: 'pocket-tts-en',

@@ -28,6 +28,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - User-visible install task status must reflect the real install phase, not unrelated preload tasks.
 - Terminal install tasks keep a stable elapsed duration and preserve failure details.
 - Cancelling an install task removes the partial files created by that install attempt.
+- The shared long-running task list shows newly created install work at the top.
 
 ## Failure Modes
 
