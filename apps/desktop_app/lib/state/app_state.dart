@@ -29,7 +29,7 @@ class AppState extends ChangeNotifier {
 
   // ---- Synthesis state ----
   String _inputText = '';
-  double _speed = 1.0;
+  double _speed = speechSpeedDefault;
   int _selectedSpeakerId = 0;
   SynthesisStatus _synthesisStatus = SynthesisStatus.idle;
   String? _errorMessage;
@@ -193,7 +193,10 @@ class AppState extends ChangeNotifier {
       _isVoiceCloningEnabled = false;
     }
     _selectedModel = model;
-    _selectedSpeakerId = model.voice.defaultSpeakerId;
+    _selectedSpeakerId = _resolveSpeakerId(
+      model.voice,
+      preferredSpeakerId: model.voice.defaultSpeakerId,
+    );
     _errorMessage = null;
     notifyListeners();
 
@@ -319,12 +322,20 @@ class AppState extends ChangeNotifier {
   }
 
   void setSpeed(double speed) {
-    _speed = speed.clamp(0.25, 3.0);
+    _speed = clampSpeechSpeed(speed);
     notifyListeners();
   }
 
   void setSpeakerId(int speakerId) {
-    _selectedSpeakerId = speakerId;
+    final selectedModel = _selectedModel;
+    if (selectedModel == null) {
+      return;
+    }
+
+    _selectedSpeakerId = _resolveSpeakerId(
+      selectedModel.voice,
+      preferredSpeakerId: speakerId,
+    );
     notifyListeners();
   }
 
@@ -580,6 +591,24 @@ class AppState extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  int _resolveSpeakerId(VoiceModel voice, {int? preferredSpeakerId}) {
+    final speakers = voice.speakers;
+    if (speakers.isEmpty) {
+      return voice.defaultSpeakerId;
+    }
+
+    if (preferredSpeakerId != null &&
+        speakers.any((speaker) => speaker.id == preferredSpeakerId)) {
+      return preferredSpeakerId;
+    }
+
+    if (speakers.any((speaker) => speaker.id == voice.defaultSpeakerId)) {
+      return voice.defaultSpeakerId;
+    }
+
+    return speakers.first.id;
   }
 
   // ---- Provider Persistence ----

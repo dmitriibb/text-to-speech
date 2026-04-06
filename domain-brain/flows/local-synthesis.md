@@ -6,7 +6,7 @@ Generate understandable speech locally from user-provided text with no cloud dep
 
 ## Steps
 
-1. User enters text and chooses a ready voice plus speed.
+1. User enters text and chooses a ready voice plus speed, and for multi-speaker models also chooses a speaker.
 2. App validates that text is non-empty.
 3. The app queues long-running voice-load or synthesis work in the shared isolate task executor instead of blocking the UI isolate.
 4. The task runner loads the selected model into `sherpa-onnx` if needed.
@@ -19,6 +19,7 @@ Generate understandable speech locally from user-provided text with no cloud dep
 
 - Synthesis requires a selected ready model.
 - Synthesis requires non-empty text.
+- Multi-speaker models expose the same speaker-selection control on desktop and Android.
 - Output is written to `.wav` before playback, export, or sharing.
 - After install, synthesis works offline.
 - Pocket TTS requires either the bundled default reference clip or a user-supplied cloning clip before it can generate audio.

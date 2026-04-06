@@ -57,6 +57,12 @@ void main() {
     expect(catalog.models.single.pocketDefaultReferenceAudio, isEmpty);
   });
 
+  test('clamps speech speed to the supported range', () {
+    expect(clampSpeechSpeed(0.1), speechSpeedMin);
+    expect(clampSpeechSpeed(1.0), speechSpeedDefault);
+    expect(clampSpeechSpeed(2.5), speechSpeedMax);
+  });
+
   test('detects incomplete and complete model directories', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
     addTearDown(() => tempDir.delete(recursive: true));

@@ -33,7 +33,8 @@ class AppState extends ChangeNotifier {
   String? _activeInstallTaskId;
 
   String _inputText = '';
-  double _speed = 1.0;
+  double _speed = speechSpeedDefault;
+  int _selectedSpeakerId = 0;
   SynthesisStatus _synthesisStatus = SynthesisStatus.idle;
   String? _errorMessage;
 
@@ -52,6 +53,7 @@ class AppState extends ChangeNotifier {
 
   String get inputText => _inputText;
   double get speed => _speed;
+  int get selectedSpeakerId => _selectedSpeakerId;
   SynthesisStatus get synthesisStatus => _synthesisStatus;
   String? get errorMessage => _errorMessage;
 
@@ -119,7 +121,13 @@ class AppState extends ChangeNotifier {
       _installedModels = await _modelService.getInstalledModels();
       final nextSelection = _resolveSelection();
       if (nextSelection != null) {
-        _speed = nextSelection.voice.defaultSpeed;
+        final preserveSpeaker =
+            _selectedModel?.voice.id == nextSelection.voice.id;
+        _speed = clampSpeechSpeed(nextSelection.voice.defaultSpeed);
+        _selectedSpeakerId = _resolveSpeakerId(
+          nextSelection.voice,
+          preferredSpeakerId: preserveSpeaker ? _selectedSpeakerId : null,
+        );
       }
       _selectedModel = nextSelection;
       _errorMessage = null;
@@ -157,7 +165,11 @@ class AppState extends ChangeNotifier {
     }
 
     _selectedModel = model;
-    _speed = model.voice.defaultSpeed;
+    _speed = clampSpeechSpeed(model.voice.defaultSpeed);
+    _selectedSpeakerId = _resolveSpeakerId(
+      model.voice,
+      preferredSpeakerId: model.voice.defaultSpeakerId,
+    );
     _errorMessage = null;
     notifyListeners();
 
@@ -242,7 +254,20 @@ class AppState extends ChangeNotifier {
   }
 
   void setSpeed(double speed) {
-    _speed = speed.clamp(0.25, 3.0);
+    _speed = clampSpeechSpeed(speed);
+    notifyListeners();
+  }
+
+  void setSpeakerId(int speakerId) {
+    final selectedModel = _selectedModel;
+    if (selectedModel == null) {
+      return;
+    }
+
+    _selectedSpeakerId = _resolveSpeakerId(
+      selectedModel.voice,
+      preferredSpeakerId: speakerId,
+    );
     notifyListeners();
   }
 
@@ -272,7 +297,7 @@ class AppState extends ChangeNotifier {
         voice: selectedModel.voice,
         text: inputText,
         speed: speed,
-        speakerId: selectedModel.voice.defaultSpeakerId,
+        speakerId: _selectedSpeakerId,
         outputPath: await _resolveOutputPath(),
       );
       _errorMessage = null;
@@ -478,6 +503,24 @@ class AppState extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  int _resolveSpeakerId(VoiceModel voice, {int? preferredSpeakerId}) {
+    final speakers = voice.speakers;
+    if (speakers.isEmpty) {
+      return voice.defaultSpeakerId;
+    }
+
+    if (preferredSpeakerId != null &&
+        speakers.any((speaker) => speaker.id == preferredSpeakerId)) {
+      return preferredSpeakerId;
+    }
+
+    if (speakers.any((speaker) => speaker.id == voice.defaultSpeakerId)) {
+      return voice.defaultSpeakerId;
+    }
+
+    return speakers.first.id;
   }
 
   @override

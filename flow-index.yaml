@@ -53,6 +53,7 @@ flows:
       - packages/tts_core/lib/src/services/tts_service.dart
       - packages/tts_core/lib/src/services/isolate_task_executor.dart
       - packages/tts_core/lib/src/services/text_input_validator.dart
+      - packages/shared_ui/lib/src/widgets/voice_settings_controls.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/state/app_state.dart
       - apps/android_app/lib/state/app_state.dart

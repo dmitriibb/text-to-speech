@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../models/long_running_task.dart';
 import '../models/voice_model.dart';
 import 'background_task_executor.dart';
+import 'synthesis_settings.dart';
 import 'voice_model_task_payload.dart';
 
 class TaskManager extends ChangeNotifier {
@@ -108,7 +109,7 @@ class TaskManager extends ChangeNotifier {
             providerOverride: providerOverride,
           ),
           'text': text,
-          'speed': speed,
+          'speed': clampSpeechSpeed(speed),
           'speakerId': speakerId,
           'outputPath': outputPath,
         },
@@ -153,7 +154,7 @@ class TaskManager extends ChangeNotifier {
             providerOverride: providerOverride,
           ),
           'text': text,
-          'speed': speed,
+          'speed': clampSpeechSpeed(speed),
           'speakerId': 0,
           'outputPath': outputPath,
           'useReferenceAudio': true,

@@ -6,6 +6,7 @@ export 'src/services/isolate_task_executor.dart';
 export 'src/services/model_archive_extractor.dart';
 export 'src/services/model_download_cancelled_exception.dart';
 export 'src/services/model_file_validator.dart';
+export 'src/services/synthesis_settings.dart';
 export 'src/services/task_manager.dart';
 export 'src/services/text_input_validator.dart';
 export 'src/services/tts_service.dart';

@@ -5,6 +5,7 @@ import 'package:path/path.dart' as p;
 import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 
 import '../models/voice_model.dart';
+import 'synthesis_settings.dart';
 
 class SynthesisResult {
   final Float32List samples;
@@ -111,7 +112,7 @@ class TtsService {
 
   SynthesisResult synthesize(
     String text, {
-    double speed = 1.0,
+    double speed = speechSpeedDefault,
     int speakerId = 0,
   }) {
     if (_tts == null) {
@@ -123,7 +124,12 @@ class TtsService {
       return _synthesizePocketWithDefaultReference(text, speed: speed);
     }
 
-    final audio = _tts!.generate(text: text, sid: speakerId, speed: speed);
+    final normalizedSpeed = clampSpeechSpeed(speed);
+    final audio = _tts!.generate(
+      text: text,
+      sid: speakerId,
+      speed: normalizedSpeed,
+    );
     return _toSynthesisResult(audio, context: 'speech synthesis');
   }
 
@@ -132,15 +138,16 @@ class TtsService {
     String text, {
     required Float32List referenceAudio,
     required int referenceSampleRate,
-    double speed = 1.0,
+    double speed = speechSpeedDefault,
     int numSteps = 2,
   }) {
     if (_tts == null) {
       throw StateError('TTS engine not initialized. Call loadModel first.');
     }
 
+    final normalizedSpeed = clampSpeechSpeed(speed);
     final config = sherpa.OfflineTtsGenerationConfig(
-      speed: speed,
+      speed: normalizedSpeed,
       referenceAudio: referenceAudio,
       referenceSampleRate: referenceSampleRate,
       numSteps: numSteps,
@@ -185,8 +192,9 @@ class TtsService {
       );
     }
 
+    final normalizedSpeed = clampSpeechSpeed(speed);
     final config = sherpa.OfflineTtsGenerationConfig(
-      speed: speed,
+      speed: normalizedSpeed,
       referenceAudio: wave.samples,
       referenceSampleRate: wave.sampleRate,
       extra: _pocketDefaultExtra,

@@ -1,4 +1,5 @@
 import '../models/voice_model.dart';
+import 'synthesis_settings.dart';
 
 class VoiceModelTaskPayload {
   static Map<String, Object?> build({
@@ -65,7 +66,7 @@ class VoiceModelTaskPayload {
       'defaults': {
         'provider': payload['provider'],
         'num_threads': payload['numThreads'],
-        'speed': 1.0,
+        'speed': speechSpeedDefault,
         'speaker_id': payload['defaultSpeakerId'],
         'max_num_sentences': payload['maxNumSentences'],
       },

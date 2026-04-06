@@ -11,7 +11,7 @@ Phase 1 MVP - functional on Linux.
 - Local TTS synthesis using sherpa-onnx (no cloud API)
 - Text input with multi-line support
 - Voice selection from approved model catalog
-- Speed control (0.25x to 3.0x)
+- Speed control (0.5x to 2.0x)
 - Audio playback
 - WAV file export
 - Model download from within the app

@@ -9,6 +9,6 @@
 - Synthesis requires both a selected `ready` model and non-empty input text.
 - Synthesized output is written to a local `.wav` file before playback, export, or sharing.
 - After a model is installed, local synthesis must work without network access.
-- Speed input is bounded to the app-supported range of `0.25x` to `3.0x`.
+- Speed input is bounded to the app-supported range of `0.5x` to `2.0x`.
 - Models with Unknown redistribution status may be used for local validation and development, but must not be treated as ship-ready bundled assets.
 - Repair or reinstall must never silently leave a broken model marked as `ready`.
