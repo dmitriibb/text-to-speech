@@ -7,17 +7,21 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 ## Steps
 
 1. App keeps the last generated `.wav` path in state.
-2. On startup, apps that persist generated `.wav` files across sessions rehydrate existing files back into the task list so they can still be managed.
-3. User expands a completed synthesis task and uses shared playback controls.
-4. The app plays exactly one generated audio at a time and exposes progress plus seeking.
-5. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
-6. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
-7. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
-8. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
+2. Completed synthesis output writes both the `.wav` file and a lightweight generated-audio metadata record on local disk.
+3. A separate local stats JSON file is kept ready for future per-model generation metrics, even if it is still empty.
+4. On startup, apps that persist generated `.wav` files across sessions rehydrate existing files back into the task list so they can still be managed.
+5. User expands a completed synthesis task and sees the audio name, generation time, and model used alongside shared playback controls.
+6. The app plays exactly one generated audio at a time and exposes progress plus seeking.
+7. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
+8. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
+9. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
+10. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
 
 ## Invariants
 
 - Output actions operate on an existing generated local `.wav`.
+- Generated audio metadata is persisted in local JSON, not only in memory, so completed audio can be restored with its name, timing, and model details.
+- Generated audio metadata and stats storage must stay lightweight and local; no database is required for the current scope.
 - If generated audio survives app restart on disk, the task list must restore an entry for it on startup so the user can delete it later.
 - Task-row playback and output actions target the selected task's `.wav`, not just the most recent global output path.
 - Only one generated audio may be active at a time across the app.
@@ -38,6 +42,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Android playback controls queue until the clip finishes
 - desktop export failure
 - Android share failure
+- generated-audio metadata JSON missing, stale, or corrupt
 - destructive task action deletes audio without confirmation
 - task-row output action targets the wrong generated file
 - generated audio file remains on disk after its task is dismissed

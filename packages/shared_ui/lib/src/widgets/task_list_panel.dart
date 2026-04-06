@@ -250,10 +250,34 @@ class _TaskRowState extends State<_TaskRow> {
           if (task.hasPlayableAudio) ...[
             if (task.type == LongRunningTaskType.installModel)
               const SizedBox(height: 12),
+            _buildGeneratedAudioDetails(context, task),
+            const SizedBox(height: 12),
             _buildPlaybackControls(context, task, isPlayingThis, isActiveThis),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildGeneratedAudioDetails(
+    BuildContext context,
+    LongRunningTask task,
+  ) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Generated in ${widget.manager.formatElapsed(task)}',
+          style: textTheme.bodySmall,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Model: ${task.modelName ?? 'Unknown'}',
+          style: textTheme.bodySmall,
+        ),
+      ],
     );
   }
 

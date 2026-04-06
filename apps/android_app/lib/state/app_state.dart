@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:tts_core/tts_core.dart';
 
@@ -16,6 +15,8 @@ class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
   final TaskManager taskManager = TaskManager(executor: IsolateTaskExecutor());
+  GeneratedAudioStore? _generatedAudioStore;
+  final Set<String> _persistedGeneratedAudioPaths = <String>{};
 
   StreamSubscription<PlaybackState>? _audioSubscription;
   StreamSubscription<Duration>? _audioPositionSubscription;
@@ -109,6 +110,8 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     });
     _modelsDirectory = await _modelService.getModelsDirectory();
+    _generatedAudioStore = await _createGeneratedAudioStore();
+    await _generatedAudioStore!.ensureInitialized();
     await taskManager.initialize();
     await _restoreGeneratedAudioTasks();
     await refreshModels();
@@ -320,32 +323,51 @@ class AppState extends ChangeNotifier {
   }
 
   Future<Directory> _generatedAudioDirectory() async {
-    final supportDir = await getApplicationSupportDirectory();
-    return Directory(p.join(supportDir.path, 'generated_audio'));
+    final modelsDirectory =
+        _modelsDirectory ?? await _modelService.getModelsDirectory();
+    return Directory(
+      p.join(Directory(modelsDirectory).parent.path, 'generated_audio'),
+    );
+  }
+
+  Future<GeneratedAudioStore> _createGeneratedAudioStore() async {
+    final outputDir = await _generatedAudioDirectory();
+    return GeneratedAudioStore(
+      libraryFile: File(
+        p.join(outputDir.path, GeneratedAudioStore.defaultLibraryPath),
+      ),
+      statsFile: File(
+        p.join(outputDir.path, GeneratedAudioStore.defaultStatsPath),
+      ),
+    );
   }
 
   Future<void> _restoreGeneratedAudioTasks() async {
     try {
-      final outputDir = await _generatedAudioDirectory();
-      if (!await outputDir.exists()) {
-        _generatedWavPath = taskManager.latestCompletedSynthesis?.outputPath;
+      final store = _generatedAudioStore;
+      if (store == null) {
         return;
       }
 
-      final restoredTasks = <LongRunningTask>[];
-      await for (final entity in outputDir.list(followLinks: false)) {
-        if (entity is! File ||
-            p.extension(entity.path).toLowerCase() != '.wav') {
-          continue;
-        }
+      final persistedTasks = await store.loadTasks();
+      _persistedGeneratedAudioPaths
+        ..clear()
+        ..addAll(
+          persistedTasks.map((task) => task.outputPath).whereType<String>(),
+        );
 
-        final restoredTask = await _buildRestoredGeneratedAudioTask(entity);
-        if (restoredTask != null) {
-          restoredTasks.add(restoredTask);
+      final legacyTasks = await _restoreLegacyGeneratedAudioTasks(
+        existingOutputPaths: _persistedGeneratedAudioPaths,
+      );
+      for (final task in legacyTasks) {
+        await store.upsertTask(task);
+        final outputPath = task.outputPath;
+        if (outputPath != null) {
+          _persistedGeneratedAudioPaths.add(outputPath);
         }
       }
 
-      taskManager.restoreTasks(restoredTasks);
+      taskManager.restoreTasks([...persistedTasks, ...legacyTasks]);
       _generatedWavPath = taskManager.latestCompletedSynthesis?.outputPath;
       if (_generatedWavPath != null) {
         _synthesisStatus = SynthesisStatus.done;
@@ -376,6 +398,7 @@ class AppState extends ChangeNotifier {
       label: basename,
       startedAt: startedAt,
       status: LongRunningTaskStatus.completed,
+      modelName: 'Unknown',
       finishedAt: finishedAt,
       outputPath: file.path,
     );
@@ -447,6 +470,9 @@ class AppState extends ChangeNotifier {
         if (await file.exists()) {
           await file.delete();
         }
+
+        await _generatedAudioStore?.removeByOutputPath(outputPath);
+        _persistedGeneratedAudioPaths.remove(outputPath);
       }
 
       taskManager.dismissTask(task.id);
@@ -569,6 +595,7 @@ class AppState extends ChangeNotifier {
   }
 
   void _handleTaskManagerChanged() {
+    unawaited(_persistCompletedGeneratedAudioTasks());
     final hasSynthesis = taskManager.hasActiveSynthesisTasks;
     if (hasSynthesis) {
       _synthesisStatus = SynthesisStatus.generating;
@@ -582,6 +609,54 @@ class AppState extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  Future<List<LongRunningTask>> _restoreLegacyGeneratedAudioTasks({
+    required Set<String> existingOutputPaths,
+  }) async {
+    final outputDir = await _generatedAudioDirectory();
+    if (!await outputDir.exists()) {
+      return const <LongRunningTask>[];
+    }
+
+    final restoredTasks = <LongRunningTask>[];
+    await for (final entity in outputDir.list(followLinks: false)) {
+      if (entity is! File ||
+          p.extension(entity.path).toLowerCase() != '.wav' ||
+          existingOutputPaths.contains(entity.path)) {
+        continue;
+      }
+
+      final restoredTask = await _buildRestoredGeneratedAudioTask(entity);
+      if (restoredTask != null) {
+        restoredTasks.add(restoredTask);
+      }
+    }
+
+    return restoredTasks;
+  }
+
+  Future<void> _persistCompletedGeneratedAudioTasks() async {
+    final store = _generatedAudioStore;
+    if (store == null) {
+      return;
+    }
+
+    try {
+      for (final task in taskManager.completedSynthesisTasks) {
+        final outputPath = task.outputPath;
+        if (outputPath == null ||
+            _persistedGeneratedAudioPaths.contains(outputPath)) {
+          continue;
+        }
+
+        await store.upsertTask(task);
+        _persistedGeneratedAudioPaths.add(outputPath);
+      }
+    } catch (error) {
+      _errorMessage = 'Failed to persist generated audio metadata: $error';
+      notifyListeners();
+    }
   }
 
   int _resolveSpeakerId(VoiceModel voice, {int? preferredSpeakerId}) {

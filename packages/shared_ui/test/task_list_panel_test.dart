@@ -101,6 +101,44 @@ void main() {
       expect(dismissedTask?.id, taskId);
     },
   );
+
+  testWidgets('expanded generated audio row shows model and duration', (
+    tester,
+  ) async {
+    final manager = TaskManager(executor: _FakeBackgroundTaskExecutor());
+    addTearDown(manager.dispose);
+
+    manager.restoreTasks([
+      LongRunningTask(
+        id: 'restored-speech-1',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-1',
+        startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+        status: LongRunningTaskStatus.completed,
+        modelName: 'Test Voice',
+        finishedAt: DateTime(2026, 4, 6, 10, 0, 3),
+        outputPath: '/tmp/output.wav',
+      ),
+    ]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChangeNotifierProvider<TaskManager>.value(
+          value: manager,
+          child: const Scaffold(
+            body: TaskListPanel(playbackInfo: TaskPlaybackInfo()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('speech-1'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Generated in 3s'), findsOneWidget);
+    expect(find.text('Model: Test Voice'), findsOneWidget);
+  });
 }
 
 void _noop() {}

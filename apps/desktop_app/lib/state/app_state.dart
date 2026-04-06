@@ -17,6 +17,8 @@ class AppState extends ChangeNotifier {
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
   final TaskManager taskManager = TaskManager(executor: IsolateTaskExecutor());
+  GeneratedAudioStore? _generatedAudioStore;
+  final Set<String> _persistedGeneratedAudioPaths = <String>{};
 
   // ---- Model state ----
   List<InstalledModel> _installedModels = [];
@@ -138,7 +140,10 @@ class AppState extends ChangeNotifier {
     _availableProviders = GpuDetector.detectAvailableProviders();
     _selectedProvider = await _loadProviderPreference();
 
+    _generatedAudioStore = await _createGeneratedAudioStore();
+    await _generatedAudioStore!.ensureInitialized();
     await taskManager.initialize();
+    await _restoreGeneratedAudioTasks();
     await refreshModels();
   }
 
@@ -378,9 +383,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
 
     final selectedModel = _selectedModel!;
-    final outputDir = Directory(
-      p.join(Directory.systemTemp.path, 'tts_generated'),
-    );
+    final outputDir = await _generatedAudioDirectory();
     await outputDir.create(recursive: true);
     final outputPath = p.join(
       outputDir.path,
@@ -562,6 +565,9 @@ class AppState extends ChangeNotifier {
         if (await file.exists()) {
           await file.delete();
         }
+
+        await _generatedAudioStore?.removeByOutputPath(outputPath);
+        _persistedGeneratedAudioPaths.remove(outputPath);
       }
 
       taskManager.dismissTask(task.id);
@@ -577,6 +583,7 @@ class AppState extends ChangeNotifier {
   // ---- Task Manager Integration ----
 
   void _handleTaskManagerChanged() {
+    unawaited(_persistCompletedGeneratedAudioTasks());
     final hasSynthesis = taskManager.hasActiveSynthesisTasks;
     if (hasSynthesis) {
       _synthesisStatus = SynthesisStatus.generating;
@@ -591,6 +598,72 @@ class AppState extends ChangeNotifier {
       }
     }
     notifyListeners();
+  }
+
+  Future<Directory> _generatedAudioDirectory() async {
+    final modelsDirectory = await _modelService.getModelsDirectory();
+    return Directory(
+      p.join(Directory(modelsDirectory).parent.path, 'generated_audio'),
+    );
+  }
+
+  Future<GeneratedAudioStore> _createGeneratedAudioStore() async {
+    final outputDir = await _generatedAudioDirectory();
+    return GeneratedAudioStore(
+      libraryFile: File(
+        p.join(outputDir.path, GeneratedAudioStore.defaultLibraryPath),
+      ),
+      statsFile: File(
+        p.join(outputDir.path, GeneratedAudioStore.defaultStatsPath),
+      ),
+    );
+  }
+
+  Future<void> _restoreGeneratedAudioTasks() async {
+    try {
+      final store = _generatedAudioStore;
+      if (store == null) {
+        return;
+      }
+
+      final persistedTasks = await store.loadTasks();
+      _persistedGeneratedAudioPaths
+        ..clear()
+        ..addAll(
+          persistedTasks.map((task) => task.outputPath).whereType<String>(),
+        );
+
+      taskManager.restoreTasks(persistedTasks);
+      _generatedWavPath = taskManager.latestCompletedSynthesis?.outputPath;
+      if (_generatedWavPath != null) {
+        _synthesisStatus = SynthesisStatus.done;
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to restore generated audio: $e';
+    }
+  }
+
+  Future<void> _persistCompletedGeneratedAudioTasks() async {
+    final store = _generatedAudioStore;
+    if (store == null) {
+      return;
+    }
+
+    try {
+      for (final task in taskManager.completedSynthesisTasks) {
+        final outputPath = task.outputPath;
+        if (outputPath == null ||
+            _persistedGeneratedAudioPaths.contains(outputPath)) {
+          continue;
+        }
+
+        await store.upsertTask(task);
+        _persistedGeneratedAudioPaths.add(outputPath);
+      }
+    } catch (e) {
+      _errorMessage = 'Failed to persist generated audio metadata: $e';
+      notifyListeners();
+    }
   }
 
   int _resolveSpeakerId(VoiceModel voice, {int? preferredSpeakerId}) {

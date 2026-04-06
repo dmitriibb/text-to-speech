@@ -42,6 +42,9 @@ class TaskManager extends ChangeNotifier {
   List<LongRunningTask> get activeTasks =>
       tasks.where((t) => t.isActive).toList(growable: false);
 
+  List<LongRunningTask> get completedSynthesisTasks =>
+      tasks.where((task) => task.hasPlayableAudio).toList(growable: false);
+
   bool get hasActiveTasks => _tasks.values.any((t) => t.isActive);
 
   bool get hasActiveSynthesisTasks => _tasks.values.any(
@@ -94,6 +97,7 @@ class TaskManager extends ChangeNotifier {
       }
 
       _tasks[task.id] = task;
+      _trackRestoredTaskCounters(task);
       if (outputPath != null) {
         existingOutputPaths.add(outputPath);
       }
@@ -124,6 +128,8 @@ class TaskManager extends ChangeNotifier {
       label: 'speech-$_speechCounter',
       startedAt: DateTime.now(),
       status: LongRunningTaskStatus.queued,
+      modelId: voice.id,
+      modelName: voice.displayName,
     );
 
     _tasks[task.id] = task;
@@ -169,6 +175,8 @@ class TaskManager extends ChangeNotifier {
       label: 'cloned-speech-$_speechCounter',
       startedAt: DateTime.now(),
       status: LongRunningTaskStatus.queued,
+      modelId: voice.id,
+      modelName: voice.displayName,
     );
 
     _tasks[task.id] = task;
@@ -504,6 +512,27 @@ class TaskManager extends ChangeNotifier {
         return 4;
       case LongRunningTaskStatus.cancelled:
         return 5;
+    }
+  }
+
+  void _trackRestoredTaskCounters(LongRunningTask task) {
+    final label = task.label;
+
+    if (label.startsWith('cloned-speech-')) {
+      final value = int.tryParse(label.substring('cloned-speech-'.length));
+      if (value != null && value > _speechCounter) {
+        _speechCounter = value;
+      }
+      return;
+    }
+
+    if (!label.startsWith('speech-')) {
+      return;
+    }
+
+    final value = int.tryParse(label.substring('speech-'.length));
+    if (value != null && value > _speechCounter) {
+      _speechCounter = value;
     }
   }
 }

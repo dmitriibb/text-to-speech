@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -460,6 +461,135 @@ void main() {
 
     expect(manager.tasks, hasLength(1));
     expect(manager.tasks.single.id, 'restored-speech-1');
+  });
+
+  test('restored speech labels advance the next generated task name', () async {
+    final executor = _FakeBackgroundTaskExecutor();
+    final manager = TaskManager(executor: executor);
+    addTearDown(manager.dispose);
+
+    manager.restoreTasks([
+      LongRunningTask(
+        id: 'restored-speech-2',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-2',
+        startedAt: DateTime(2026, 4, 6, 10, 1, 0),
+        status: LongRunningTaskStatus.completed,
+        finishedAt: DateTime(2026, 4, 6, 10, 1, 3),
+        outputPath: '/tmp/generated_audio/speech-2.wav',
+      ),
+    ]);
+
+    await manager.initialize();
+    final taskId = await manager.submitSynthesis(
+      modelDir: '/tmp/demo-model',
+      voice: _demoVoiceModel,
+      text: 'hello',
+      speed: 1,
+      speakerId: 0,
+      outputPath: '/tmp/generated_audio/speech-3.wav',
+    );
+
+    final queuedTask = manager.tasks.firstWhere((task) => task.id == taskId);
+    expect(queuedTask.label, 'speech-3');
+    expect(queuedTask.modelName, _demoVoiceModel.displayName);
+  });
+
+  test(
+    'generated audio store persists records and initializes stats',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+      addTearDown(() => tempDir.delete(recursive: true));
+
+      final outputFile = File('${tempDir.path}/speech-1.wav');
+      await outputFile.writeAsString('wav');
+
+      final store = GeneratedAudioStore(
+        libraryFile: File(
+          '${tempDir.path}/${GeneratedAudioStore.defaultLibraryPath}',
+        ),
+        statsFile: File(
+          '${tempDir.path}/${GeneratedAudioStore.defaultStatsPath}',
+        ),
+      );
+
+      final task = LongRunningTask(
+        id: 'task-1',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-1',
+        startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+        status: LongRunningTaskStatus.completed,
+        modelId: 'demo-model',
+        modelName: 'Demo Model',
+        finishedAt: DateTime(2026, 4, 6, 10, 0, 4),
+        outputPath: outputFile.path,
+      );
+
+      await store.upsertTask(task);
+      final loadedTasks = await store.loadTasks();
+
+      expect(loadedTasks, hasLength(1));
+      expect(loadedTasks.single.label, 'speech-1');
+      expect(loadedTasks.single.modelId, 'demo-model');
+      expect(loadedTasks.single.modelName, 'Demo Model');
+      expect(
+        loadedTasks.single.finishedAt?.difference(loadedTasks.single.startedAt),
+        const Duration(seconds: 4),
+      );
+
+      final statsPayload =
+          jsonDecode(
+                await File(
+                  '${tempDir.path}/${GeneratedAudioStore.defaultStatsPath}',
+                ).readAsString(),
+              )
+              as Map<String, Object?>;
+      expect(statsPayload['version'], GeneratedAudioStore.schemaVersion);
+      expect(statsPayload['models'], isEmpty);
+    },
+  );
+
+  test('generated audio store prunes records whose wav file is gone', () async {
+    final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final outputFile = File('${tempDir.path}/speech-1.wav');
+    await outputFile.writeAsString('wav');
+
+    final store = GeneratedAudioStore(
+      libraryFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultLibraryPath}',
+      ),
+      statsFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultStatsPath}',
+      ),
+    );
+
+    await store.upsertTask(
+      LongRunningTask(
+        id: 'task-1',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-1',
+        startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+        status: LongRunningTaskStatus.completed,
+        finishedAt: DateTime(2026, 4, 6, 10, 0, 4),
+        outputPath: outputFile.path,
+      ),
+    );
+
+    await outputFile.delete();
+    final loadedTasks = await store.loadTasks();
+
+    expect(loadedTasks, isEmpty);
+
+    final libraryPayload =
+        jsonDecode(
+              await File(
+                '${tempDir.path}/${GeneratedAudioStore.defaultLibraryPath}',
+              ).readAsString(),
+            )
+            as Map<String, Object?>;
+    expect(libraryPayload['items'], isEmpty);
   });
 
   test('voice model task payload preserves Pocket runtime metadata', () {
