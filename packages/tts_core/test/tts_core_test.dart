@@ -387,6 +387,81 @@ void main() {
     ]);
   });
 
+  test(
+    'restored completed synthesis tasks are surfaced in newest-first order',
+    () {
+      final manager = TaskManager(executor: _FakeBackgroundTaskExecutor());
+      addTearDown(manager.dispose);
+
+      final olderTask = LongRunningTask(
+        id: 'restored-speech-1',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-1',
+        startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+        status: LongRunningTaskStatus.completed,
+        finishedAt: DateTime(2026, 4, 6, 10, 0, 2),
+        outputPath: '/tmp/generated_audio/speech-1.wav',
+      );
+      final newerTask = LongRunningTask(
+        id: 'restored-speech-2',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-2',
+        startedAt: DateTime(2026, 4, 6, 10, 1, 0),
+        status: LongRunningTaskStatus.completed,
+        finishedAt: DateTime(2026, 4, 6, 10, 1, 3),
+        outputPath: '/tmp/generated_audio/speech-2.wav',
+      );
+
+      manager.restoreTasks([olderTask, newerTask]);
+
+      expect(manager.tasks.map((task) => task.id).toList(growable: false), [
+        'restored-speech-2',
+        'restored-speech-1',
+      ]);
+      expect(
+        manager.latestCompletedSynthesis?.outputPath,
+        '/tmp/generated_audio/speech-2.wav',
+      );
+    },
+  );
+
+  test('restoring tasks ignores duplicate output paths and active tasks', () {
+    final manager = TaskManager(executor: _FakeBackgroundTaskExecutor());
+    addTearDown(manager.dispose);
+
+    final completedTask = LongRunningTask(
+      id: 'restored-speech-1',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'speech-1',
+      startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+      status: LongRunningTaskStatus.completed,
+      finishedAt: DateTime(2026, 4, 6, 10, 0, 2),
+      outputPath: '/tmp/generated_audio/speech-1.wav',
+    );
+    final duplicateTask = LongRunningTask(
+      id: 'restored-speech-1-duplicate',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'speech-1-duplicate',
+      startedAt: DateTime(2026, 4, 6, 10, 2, 0),
+      status: LongRunningTaskStatus.completed,
+      finishedAt: DateTime(2026, 4, 6, 10, 2, 1),
+      outputPath: '/tmp/generated_audio/speech-1.wav',
+    );
+    final activeTask = LongRunningTask(
+      id: 'restored-active',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'speech-active',
+      startedAt: DateTime(2026, 4, 6, 10, 3, 0),
+      status: LongRunningTaskStatus.running,
+      outputPath: '/tmp/generated_audio/speech-active.wav',
+    );
+
+    manager.restoreTasks([completedTask, duplicateTask, activeTask]);
+
+    expect(manager.tasks, hasLength(1));
+    expect(manager.tasks.single.id, 'restored-speech-1');
+  });
+
   test('voice model task payload preserves Pocket runtime metadata', () {
     const pocketModel = VoiceModel(
       id: 'pocket-tts-en',

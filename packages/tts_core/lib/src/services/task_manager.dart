@@ -76,6 +76,38 @@ class TaskManager extends ChangeNotifier {
     _initialized = true;
   }
 
+  void restoreTasks(Iterable<LongRunningTask> tasks) {
+    var changed = false;
+    final existingOutputPaths = _tasks.values
+        .map((task) => task.outputPath)
+        .whereType<String>()
+        .toSet();
+
+    for (final task in tasks) {
+      if (task.isActive) {
+        continue;
+      }
+
+      final outputPath = task.outputPath;
+      if (outputPath != null && existingOutputPaths.contains(outputPath)) {
+        continue;
+      }
+
+      _tasks[task.id] = task;
+      if (outputPath != null) {
+        existingOutputPaths.add(outputPath);
+      }
+      changed = true;
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    _stopTickerIfIdle();
+    notifyListeners();
+  }
+
   Future<String> submitSynthesis({
     required String modelDir,
     required VoiceModel voice,

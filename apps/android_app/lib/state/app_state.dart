@@ -88,7 +88,6 @@ class AppState extends ChangeNotifier {
   Future<void> initialize() async {
     taskManager.addListener(_handleTaskManagerChanged);
 
-    _modelsDirectory = await _modelService.getModelsDirectory();
     _audioSubscription = _audioService.onStateChanged.listen((state) {
       _playbackState = state;
       notifyListeners();
@@ -109,7 +108,9 @@ class AppState extends ChangeNotifier {
       _errorMessage = 'Playback failed: $error';
       notifyListeners();
     });
+    _modelsDirectory = await _modelService.getModelsDirectory();
     await taskManager.initialize();
+    await _restoreGeneratedAudioTasks();
     await refreshModels();
   }
 
@@ -309,14 +310,92 @@ class AppState extends ChangeNotifier {
   }
 
   Future<String> _resolveOutputPath() async {
-    final supportDir = await getApplicationSupportDirectory();
-    final outputDir = Directory(p.join(supportDir.path, 'generated_audio'));
+    final outputDir = await _generatedAudioDirectory();
     await outputDir.create(recursive: true);
 
     return p.join(
       outputDir.path,
       'speech-${DateTime.now().microsecondsSinceEpoch}.wav',
     );
+  }
+
+  Future<Directory> _generatedAudioDirectory() async {
+    final supportDir = await getApplicationSupportDirectory();
+    return Directory(p.join(supportDir.path, 'generated_audio'));
+  }
+
+  Future<void> _restoreGeneratedAudioTasks() async {
+    try {
+      final outputDir = await _generatedAudioDirectory();
+      if (!await outputDir.exists()) {
+        _generatedWavPath = taskManager.latestCompletedSynthesis?.outputPath;
+        return;
+      }
+
+      final restoredTasks = <LongRunningTask>[];
+      await for (final entity in outputDir.list(followLinks: false)) {
+        if (entity is! File ||
+            p.extension(entity.path).toLowerCase() != '.wav') {
+          continue;
+        }
+
+        final restoredTask = await _buildRestoredGeneratedAudioTask(entity);
+        if (restoredTask != null) {
+          restoredTasks.add(restoredTask);
+        }
+      }
+
+      taskManager.restoreTasks(restoredTasks);
+      _generatedWavPath = taskManager.latestCompletedSynthesis?.outputPath;
+      if (_generatedWavPath != null) {
+        _synthesisStatus = SynthesisStatus.done;
+      }
+    } catch (error) {
+      _errorMessage = 'Failed to restore generated audio: $error';
+    }
+  }
+
+  Future<LongRunningTask?> _buildRestoredGeneratedAudioTask(File file) async {
+    final stat = await file.stat();
+    if (stat.size <= 0) {
+      return null;
+    }
+
+    final basename = p.basenameWithoutExtension(file.path);
+    final startedAt = _inferGeneratedAudioStartedAt(
+      basename,
+      fallback: stat.modified,
+    );
+    final finishedAt = stat.modified.isAfter(startedAt)
+        ? stat.modified
+        : startedAt;
+
+    return LongRunningTask(
+      id: 'restored-$basename',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: basename,
+      startedAt: startedAt,
+      status: LongRunningTaskStatus.completed,
+      finishedAt: finishedAt,
+      outputPath: file.path,
+    );
+  }
+
+  DateTime _inferGeneratedAudioStartedAt(
+    String basename, {
+    required DateTime fallback,
+  }) {
+    const prefix = 'speech-';
+    if (!basename.startsWith(prefix)) {
+      return fallback;
+    }
+
+    final timestamp = int.tryParse(basename.substring(prefix.length));
+    if (timestamp == null) {
+      return fallback;
+    }
+
+    return DateTime.fromMicrosecondsSinceEpoch(timestamp);
   }
 
   Future<void> cancelTask(String taskId) async {

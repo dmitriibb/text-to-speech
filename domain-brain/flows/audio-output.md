@@ -7,16 +7,18 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 ## Steps
 
 1. App keeps the last generated `.wav` path in state.
-2. User expands a completed synthesis task and uses shared playback controls.
-3. The app plays exactly one generated audio at a time and exposes progress plus seeking.
-4. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
-5. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
-6. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
-7. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
+2. On startup, apps that persist generated `.wav` files across sessions rehydrate existing files back into the task list so they can still be managed.
+3. User expands a completed synthesis task and uses shared playback controls.
+4. The app plays exactly one generated audio at a time and exposes progress plus seeking.
+5. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
+6. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
+7. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
+8. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
 
 ## Invariants
 
 - Output actions operate on an existing generated local `.wav`.
+- If generated audio survives app restart on disk, the task list must restore an entry for it on startup so the user can delete it later.
 - Task-row playback and output actions target the selected task's `.wav`, not just the most recent global output path.
 - Only one generated audio may be active at a time across the app.
 - Playback must expose play/pause plus a seekable progress position for the active audio.
