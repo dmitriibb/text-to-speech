@@ -51,6 +51,19 @@ class AudioService {
     });
   }
 
+  Future<void> pause() {
+    return _queueOperation(() async {
+      if (_state != PlaybackState.playing) {
+        return;
+      }
+
+      final pausedPosition = _currentPlaybackPosition();
+      await _stopCurrentProcess(resetPosition: false);
+      _updatePosition(pausedPosition);
+      _setState(PlaybackState.paused);
+    });
+  }
+
   Future<void> seek(Duration position) {
     return _queueOperation(() async {
       final total = _duration;
@@ -78,6 +91,21 @@ class AudioService {
   bool get _hasReachedEnd =>
       _duration != null && _position.compareTo(_duration!) >= 0;
 
+  Duration _currentPlaybackPosition() {
+    if (_startedAt == null) {
+      return _position;
+    }
+
+    final elapsed = DateTime.now().difference(_startedAt!);
+    final nextPosition = _startPosition + elapsed;
+    final total = _duration;
+    if (total != null && nextPosition.compareTo(total) >= 0) {
+      return total;
+    }
+
+    return nextPosition;
+  }
+
   Future<void> _disposeInternal() async {
     await _stopCurrentProcess(resetPosition: false);
     _currentFilePath = null;
@@ -102,22 +130,24 @@ class AudioService {
     _startProgressTimer(generation);
     _setState(PlaybackState.playing);
 
-    unawaited(process.exitCode.then((_) {
-      if (_playbackGeneration != generation) {
-        return;
-      }
+    unawaited(
+      process.exitCode.then((_) {
+        if (_playbackGeneration != generation) {
+          return;
+        }
 
-      _process = null;
-      _startedAt = null;
-      _stopProgressTimer();
+        _process = null;
+        _startedAt = null;
+        _stopProgressTimer();
 
-      final total = _duration;
-      if (total != null && _position.compareTo(total) < 0) {
-        _updatePosition(total);
-      }
+        final total = _duration;
+        if (total != null && _position.compareTo(total) < 0) {
+          _updatePosition(total);
+        }
 
-      _setState(PlaybackState.stopped);
-    }));
+        _setState(PlaybackState.stopped);
+      }),
+    );
   }
 
   Future<void> _stopCurrentProcess({required bool resetPosition}) async {
@@ -146,14 +176,7 @@ class AudioService {
         return;
       }
 
-      final elapsed = DateTime.now().difference(_startedAt!);
-      final nextPosition = _startPosition + elapsed;
-      final total = _duration;
-      if (total != null && nextPosition.compareTo(total) >= 0) {
-        _updatePosition(total);
-      } else {
-        _updatePosition(nextPosition);
-      }
+      _updatePosition(_currentPlaybackPosition());
     });
   }
 
@@ -169,22 +192,21 @@ class AudioService {
     if (Platform.isWindows) {
       return _startWindowsProcess(filePath, from);
     }
-    throw UnsupportedError('Desktop playback is only implemented for Linux and Windows.');
+    throw UnsupportedError(
+      'Desktop playback is only implemented for Linux and Windows.',
+    );
   }
 
   Future<Process> _startLinuxProcess(String filePath, Duration from) async {
     try {
-      return await Process.start(
-        'ffplay',
-        [
-          '-nodisp',
-          '-autoexit',
-          '-loglevel',
-          'quiet',
-          if (from.inMicroseconds > 0) ...['-ss', _formatSeconds(from)],
-          filePath,
-        ],
-      );
+      return await Process.start('ffplay', [
+        '-nodisp',
+        '-autoexit',
+        '-loglevel',
+        'quiet',
+        if (from.inMicroseconds > 0) ...['-ss', _formatSeconds(from)],
+        filePath,
+      ]);
     } catch (_) {
       if (from.inMicroseconds > 0) {
         throw Exception('Seeking on Linux requires ffplay from ffmpeg.');
@@ -202,29 +224,22 @@ class AudioService {
 
   Future<Process> _startWindowsProcess(String filePath, Duration from) async {
     try {
-      return await Process.start(
-        'ffplay',
-        [
-          '-nodisp',
-          '-autoexit',
-          '-loglevel',
-          'quiet',
-          if (from.inMicroseconds > 0) ...['-ss', _formatSeconds(from)],
-          filePath,
-        ],
-      );
+      return await Process.start('ffplay', [
+        '-nodisp',
+        '-autoexit',
+        '-loglevel',
+        'quiet',
+        if (from.inMicroseconds > 0) ...['-ss', _formatSeconds(from)],
+        filePath,
+      ]);
     } catch (_) {
       if (from.inMicroseconds > 0) {
         throw Exception('Seeking on Windows requires ffplay from ffmpeg.');
       }
 
       final escapedPath = filePath.replaceAll("'", "''");
-      final script =
-          "(New-Object Media.SoundPlayer '$escapedPath').PlaySync()";
-      return Process.start(
-        'powershell',
-        ['-NoProfile', '-Command', script],
-      );
+      final script = "(New-Object Media.SoundPlayer '$escapedPath').PlaySync()";
+      return Process.start('powershell', ['-NoProfile', '-Command', script]);
     }
   }
 
@@ -253,7 +268,9 @@ class AudioService {
         final chunkSize = data.getUint32(offset + 4, Endian.little);
         final chunkDataOffset = offset + 8;
 
-        if (chunkType == 'fmt ' && chunkSize >= 16 && chunkDataOffset + 16 <= bytes.length) {
+        if (chunkType == 'fmt ' &&
+            chunkSize >= 16 &&
+            chunkDataOffset + 16 <= bytes.length) {
           byteRate = data.getUint32(chunkDataOffset + 8, Endian.little);
         } else if (chunkType == 'data') {
           dataSize = chunkSize;
@@ -263,7 +280,10 @@ class AudioService {
         offset = chunkDataOffset + chunkSize + (chunkSize.isOdd ? 1 : 0);
       }
 
-      if (byteRate == null || byteRate <= 0 || dataSize == null || dataSize < 0) {
+      if (byteRate == null ||
+          byteRate <= 0 ||
+          dataSize == null ||
+          dataSize < 0) {
         return null;
       }
 

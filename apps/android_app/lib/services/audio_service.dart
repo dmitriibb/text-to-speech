@@ -1,19 +1,20 @@
 import 'dart:async';
 
-import 'package:just_audio/just_audio.dart';
+import 'audio_player_backend.dart';
 
 enum PlaybackState { stopped, playing, paused }
 
 class AudioService {
-  AudioService() {
+  AudioService({AudioPlayerBackend? player})
+    : _player = player ?? JustAudioPlayerBackend() {
     _playerStateSubscription = _player.playerStateStream.listen((state) {
-      if (state.processingState == ProcessingState.completed) {
+      if (state.processingState == AudioProcessingState.completed) {
         _treatReadyAsStopped = true;
         _setState(PlaybackState.stopped);
       } else if (state.playing) {
         _treatReadyAsStopped = false;
         _setState(PlaybackState.playing);
-      } else if (state.processingState == ProcessingState.ready) {
+      } else if (state.processingState == AudioProcessingState.ready) {
         _setState(
           _treatReadyAsStopped ? PlaybackState.stopped : PlaybackState.paused,
         );
@@ -26,14 +27,16 @@ class AudioService {
     _durationSubscription = _player.durationStream.listen(_updateDuration);
   }
 
-  final AudioPlayer _player = AudioPlayer();
+  final AudioPlayerBackend _player;
   final _stateController = StreamController<PlaybackState>.broadcast();
   final _positionController = StreamController<Duration>.broadcast();
   final _durationController = StreamController<Duration?>.broadcast();
-  late final StreamSubscription<PlayerState> _playerStateSubscription;
+  final _errorController = StreamController<Object>.broadcast();
+  late final StreamSubscription<AudioPlayerSnapshot> _playerStateSubscription;
   late final StreamSubscription<Duration> _positionSubscription;
   late final StreamSubscription<Duration?> _durationSubscription;
   Future<void> _pendingOperation = Future<void>.value();
+  bool _isDisposed = false;
 
   PlaybackState _state = PlaybackState.stopped;
   Duration _position = Duration.zero;
@@ -44,6 +47,7 @@ class AudioService {
   Stream<PlaybackState> get onStateChanged => _stateController.stream;
   Stream<Duration> get onPositionChanged => _positionController.stream;
   Stream<Duration?> get onDurationChanged => _durationController.stream;
+  Stream<Object> get onError => _errorController.stream;
   PlaybackState get state => _state;
   Duration get position => _position;
   Duration? get duration => _duration;
@@ -64,22 +68,40 @@ class AudioService {
         _updateDuration(null);
         await _player.setFilePath(filePath);
         _currentFilePath = filePath;
-      } else if (_player.processingState == ProcessingState.completed) {
+      } else if (_player.processingState == AudioProcessingState.completed) {
         await _player.seek(Duration.zero);
       }
 
       _treatReadyAsStopped = false;
-      await _player.play();
     });
+
+    _startPlayback();
   }
 
   Future<void> stop() async {
     await _queueOperation(() async {
+      if (_currentFilePath == null) {
+        return;
+      }
+
       _treatReadyAsStopped = true;
       await _player.pause();
       await _player.seek(Duration.zero);
       _updatePosition(Duration.zero);
       _setState(PlaybackState.stopped);
+    });
+  }
+
+  Future<void> pause() async {
+    await _queueOperation(() async {
+      if (_currentFilePath == null) {
+        return;
+      }
+
+      _treatReadyAsStopped = false;
+      await _player.pause();
+      _updatePosition(_player.position);
+      _setState(PlaybackState.paused);
     });
   }
 
@@ -90,24 +112,45 @@ class AudioService {
         return;
       }
 
-      _treatReadyAsStopped = _state != PlaybackState.playing;
+      final keepPlaying = _state == PlaybackState.playing;
+      _treatReadyAsStopped = _state == PlaybackState.stopped;
       final clamped = Duration(
         milliseconds: position.inMilliseconds.clamp(0, total.inMilliseconds),
       );
       await _player.seek(clamped);
       _updatePosition(clamped);
+      if (!keepPlaying) {
+        _setState(
+          _treatReadyAsStopped ? PlaybackState.stopped : PlaybackState.paused,
+        );
+      }
     });
   }
 
   Future<void> dispose() async {
+    _isDisposed = true;
     _currentFilePath = null;
     await _playerStateSubscription.cancel();
     await _positionSubscription.cancel();
     await _durationSubscription.cancel();
     await _player.dispose();
+    await _errorController.close();
     await _stateController.close();
     await _positionController.close();
     await _durationController.close();
+  }
+
+  void _startPlayback() {
+    unawaited(
+      _player.play().catchError((Object error, StackTrace stackTrace) {
+        if (_isDisposed) {
+          return;
+        }
+        _treatReadyAsStopped = true;
+        _setState(PlaybackState.stopped);
+        _errorController.addError(error, stackTrace);
+      }),
+    );
   }
 
   Future<void> _queueOperation(Future<void> Function() action) {

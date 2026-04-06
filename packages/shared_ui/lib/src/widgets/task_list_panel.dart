@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tts_core/tts_core.dart';
@@ -8,6 +10,7 @@ import 'cancel_task_dialog.dart';
 typedef TaskAudioCallback = void Function(String outputPath);
 typedef TaskSeekCallback = void Function(Duration position);
 typedef TaskActionCallback = Future<void> Function(LongRunningTask task);
+typedef TaskPlaybackActionCallback = Future<void> Function();
 
 class TaskPlaybackInfo {
   const TaskPlaybackInfo({
@@ -30,7 +33,7 @@ class TaskListPanel extends StatelessWidget {
     super.key,
     required this.playbackInfo,
     this.onPlay,
-    this.onStop,
+    this.onPausePlayback,
     this.onSave,
     this.onSeek,
     this.onCancelTask,
@@ -39,7 +42,7 @@ class TaskListPanel extends StatelessWidget {
 
   final TaskPlaybackInfo playbackInfo;
   final TaskAudioCallback? onPlay;
-  final VoidCallback? onStop;
+  final TaskPlaybackActionCallback? onPausePlayback;
   final TaskAudioCallback? onSave;
   final TaskSeekCallback? onSeek;
   final TaskActionCallback? onCancelTask;
@@ -66,7 +69,7 @@ class TaskListPanel extends StatelessWidget {
                     manager: manager,
                     playbackInfo: playbackInfo,
                     onPlay: onPlay,
-                    onStop: onStop,
+                    onPausePlayback: onPausePlayback,
                     onSave: onSave,
                     onSeek: onSeek,
                     onCancelTask: onCancelTask,
@@ -89,7 +92,7 @@ class _TaskRow extends StatefulWidget {
     required this.manager,
     required this.playbackInfo,
     this.onPlay,
-    this.onStop,
+    this.onPausePlayback,
     this.onSave,
     this.onSeek,
     this.onCancelTask,
@@ -100,7 +103,7 @@ class _TaskRow extends StatefulWidget {
   final TaskManager manager;
   final TaskPlaybackInfo playbackInfo;
   final TaskAudioCallback? onPlay;
-  final VoidCallback? onStop;
+  final TaskPlaybackActionCallback? onPausePlayback;
   final TaskAudioCallback? onSave;
   final TaskSeekCallback? onSeek;
   final TaskActionCallback? onCancelTask;
@@ -212,7 +215,10 @@ class _TaskRowState extends State<_TaskRow> {
       duration: isActiveThis ? widget.playbackInfo.duration : null,
       onTogglePlayback: () {
         if (isPlayingThis) {
-          widget.onStop?.call();
+          final pausePlayback = widget.onPausePlayback;
+          if (pausePlayback != null) {
+            unawaited(pausePlayback());
+          }
         } else if (task.outputPath != null) {
           widget.onPlay?.call(task.outputPath!);
         }
@@ -314,6 +320,14 @@ class _TaskRowState extends State<_TaskRow> {
     LongRunningTask task,
     TaskManager manager,
   ) async {
+    final pausePlayback = widget.onPausePlayback;
+    if (pausePlayback != null) {
+      await pausePlayback();
+    }
+    if (!context.mounted) {
+      return;
+    }
+
     final confirmed = await showCancelTaskDialog(context, task);
     if (confirmed) {
       if (widget.onCancelTask != null) {
@@ -325,6 +339,21 @@ class _TaskRowState extends State<_TaskRow> {
   }
 
   Future<void> _handleDismiss(LongRunningTask task, TaskManager manager) async {
+    if (task.outputPath != null) {
+      final pausePlayback = widget.onPausePlayback;
+      if (pausePlayback != null) {
+        await pausePlayback();
+      }
+      if (!mounted) {
+        return;
+      }
+
+      final confirmed = await showRemoveGeneratedAudioDialog(context, task);
+      if (!confirmed) {
+        return;
+      }
+    }
+
     if (widget.onDismissTask != null) {
       await widget.onDismissTask!(task);
     } else {

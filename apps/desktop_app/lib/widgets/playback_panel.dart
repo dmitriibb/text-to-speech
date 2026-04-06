@@ -19,7 +19,7 @@ class PlaybackPanel extends StatelessWidget {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                _buildPlayStopButton(context, state),
+                _buildPlayPauseButton(context, state),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Text(
@@ -39,20 +39,20 @@ class PlaybackPanel extends StatelessWidget {
     );
   }
 
-  Widget _buildPlayStopButton(BuildContext context, AppState state) {
+  Widget _buildPlayPauseButton(BuildContext context, AppState state) {
     final isPlaying = state.playbackState == PlaybackState.playing;
 
     return IconButton.filled(
       iconSize: 32,
       onPressed: () {
         if (isPlaying) {
-          state.stopPlayback();
+          state.pausePlayback();
         } else {
           state.play();
         }
       },
-      icon: Icon(isPlaying ? Icons.stop : Icons.play_arrow),
-      tooltip: isPlaying ? 'Stop' : 'Play',
+      icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+      tooltip: isPlaying ? 'Pause' : 'Play',
     );
   }
 

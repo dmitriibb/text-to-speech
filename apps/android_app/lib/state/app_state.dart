@@ -20,6 +20,7 @@ class AppState extends ChangeNotifier {
   StreamSubscription<PlaybackState>? _audioSubscription;
   StreamSubscription<Duration>? _audioPositionSubscription;
   StreamSubscription<Duration?>? _audioDurationSubscription;
+  StreamSubscription<Object>? _audioErrorSubscription;
   String? _currentTaskId;
 
   List<InstalledModel> _installedModels = [];
@@ -100,6 +101,10 @@ class AppState extends ChangeNotifier {
       duration,
     ) {
       _playbackDuration = duration;
+      notifyListeners();
+    });
+    _audioErrorSubscription = _audioService.onError.listen((error) {
+      _errorMessage = 'Playback failed: $error';
       notifyListeners();
     });
     await taskManager.initialize();
@@ -371,15 +376,21 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> playTaskAudio(String outputPath) async {
-    _currentTaskId = null;
+    String? nextTaskId;
     for (final task in taskManager.tasks) {
       if (task.outputPath == outputPath) {
-        _currentTaskId = task.id;
+        nextTaskId = task.id;
         break;
       }
     }
+
+    final isSameActiveAudio =
+        _currentTaskId == nextTaskId && _playbackState == PlaybackState.paused;
+    _currentTaskId = nextTaskId;
     _generatedWavPath = outputPath;
-    _playbackPosition = Duration.zero;
+    if (!isSameActiveAudio) {
+      _playbackPosition = Duration.zero;
+    }
     notifyListeners();
     try {
       await _audioService.play(outputPath);
@@ -387,6 +398,17 @@ class AppState extends ChangeNotifier {
     } catch (error) {
       _errorMessage = 'Playback failed: $error';
       _currentTaskId = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> pausePlayback() async {
+    try {
+      await _audioService.pause();
+      _errorMessage = null;
+      notifyListeners();
+    } catch (error) {
+      _errorMessage = 'Pause failed: $error';
       notifyListeners();
     }
   }
@@ -464,6 +486,7 @@ class AppState extends ChangeNotifier {
     unawaited(_audioSubscription?.cancel());
     unawaited(_audioPositionSubscription?.cancel());
     unawaited(_audioDurationSubscription?.cancel());
+    unawaited(_audioErrorSubscription?.cancel());
     taskManager.dispose();
     _modelService.dispose();
     unawaited(_audioService.dispose());

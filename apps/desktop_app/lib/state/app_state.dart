@@ -406,22 +406,39 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> playTaskAudio(String outputPath) async {
-    _currentTaskId = null;
+    String? nextTaskId;
     // Find the task ID for this output path.
     for (final task in taskManager.tasks) {
       if (task.outputPath == outputPath) {
-        _currentTaskId = task.id;
+        nextTaskId = task.id;
         break;
       }
     }
+
+    final isSameActiveAudio =
+        _currentTaskId == nextTaskId && _playbackState == PlaybackState.paused;
+    _currentTaskId = nextTaskId;
     _generatedWavPath = outputPath;
-    _playbackPosition = Duration.zero;
+    if (!isSameActiveAudio) {
+      _playbackPosition = Duration.zero;
+    }
     notifyListeners();
     try {
       await _audioService.play(outputPath);
     } catch (e) {
       _errorMessage = 'Playback failed: $e';
       _currentTaskId = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> pausePlayback() async {
+    try {
+      await _audioService.pause();
+      _errorMessage = null;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Pause failed: $e';
       notifyListeners();
     }
   }

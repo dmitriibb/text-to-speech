@@ -29,9 +29,12 @@ class _AudioPlaybackControlsState extends State<AudioPlaybackControls> {
 
   @override
   Widget build(BuildContext context) {
+    final toggleIcon = widget.isPlaying ? Icons.pause : Icons.play_arrow;
+    final toggleLabel = widget.isPlaying ? 'Pause' : 'Play';
     final total = widget.duration ?? Duration.zero;
     final maxMillis = total.inMilliseconds > 0 ? total.inMilliseconds : 1;
-    final sliderValue = _dragValue ??
+    final sliderValue =
+        _dragValue ??
         widget.position.inMilliseconds.clamp(0, maxMillis).toDouble();
     final currentMillis = sliderValue.round().clamp(0, maxMillis);
     final canSeek = widget.onSeek != null && total.inMilliseconds > 0;
@@ -43,8 +46,8 @@ class _AudioPlaybackControlsState extends State<AudioPlaybackControls> {
           children: [
             FilledButton.tonalIcon(
               onPressed: widget.onTogglePlayback,
-              icon: Icon(widget.isPlaying ? Icons.stop : Icons.play_arrow),
-              label: Text(widget.isPlaying ? 'Stop' : 'Play'),
+              icon: Icon(toggleIcon),
+              label: Text(toggleLabel),
             ),
             if (widget.secondaryActionLabel != null) ...[
               const SizedBox(width: 12),
@@ -77,19 +80,13 @@ class _AudioPlaybackControlsState extends State<AudioPlaybackControls> {
                         setState(() {
                           _dragValue = null;
                         });
-                        widget.onSeek!(
-                          Duration(milliseconds: value.round()),
-                        );
+                        widget.onSeek!(Duration(milliseconds: value.round()));
                       }
                     : null,
               ),
               Row(
                 children: [
-                  Text(
-                    _format(
-                      Duration(milliseconds: currentMillis),
-                    ),
-                  ),
+                  Text(_format(Duration(milliseconds: currentMillis))),
                   const Spacer(),
                   Text(_format(total)),
                 ],
