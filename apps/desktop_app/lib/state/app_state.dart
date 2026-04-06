@@ -657,8 +657,14 @@ class AppState extends ChangeNotifier {
           continue;
         }
 
-        await store.upsertTask(task);
         _persistedGeneratedAudioPaths.add(outputPath);
+        try {
+          await store.upsertTask(task);
+          await store.updateStatisticsForTask(task);
+        } catch (_) {
+          _persistedGeneratedAudioPaths.remove(outputPath);
+          rethrow;
+        }
       }
     } catch (e) {
       _errorMessage = 'Failed to persist generated audio metadata: $e';

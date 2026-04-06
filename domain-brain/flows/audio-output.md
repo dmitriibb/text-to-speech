@@ -8,7 +8,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 
 1. App keeps the last generated `.wav` path in state.
 2. Completed synthesis output writes both the `.wav` file and a lightweight generated-audio metadata record on local disk.
-3. A separate local stats JSON file is kept ready for future per-model generation metrics, even if it is still empty.
+3. A separate local stats JSON file stores a per-model map keyed by model name with bounded aggregate generation metrics.
 4. On startup, apps that persist generated `.wav` files across sessions rehydrate existing files back into the task list so they can still be managed.
 5. User expands a completed synthesis task and sees the audio name, generation time, and model used alongside shared playback controls.
 6. The app plays exactly one generated audio at a time and exposes progress plus seeking.
@@ -22,6 +22,9 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Output actions operate on an existing generated local `.wav`.
 - Generated audio metadata is persisted in local JSON, not only in memory, so completed audio can be restored with its name, timing, and model details.
 - Generated audio metadata and stats storage must stay lightweight and local; no database is required for the current scope.
+- Generated-audio stats aggregate per model name and update only when a speech generation completes successfully.
+- Per-model stats track total input characters, total generation seconds, total output seconds, and derived per-100-character averages.
+- Per-model stats cap aggregated character count at `1,000,000` while preserving the current averaged rates so the file stays bounded.
 - If generated audio survives app restart on disk, the task list must restore an entry for it on startup so the user can delete it later.
 - Task-row playback and output actions target the selected task's `.wav`, not just the most recent global output path.
 - Only one generated audio may be active at a time across the app.

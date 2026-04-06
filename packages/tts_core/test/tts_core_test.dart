@@ -519,6 +519,7 @@ void main() {
         label: 'speech-1',
         startedAt: DateTime(2026, 4, 6, 10, 0, 0),
         status: LongRunningTaskStatus.completed,
+        inputCharacterCount: 200,
         modelId: 'demo-model',
         modelName: 'Demo Model',
         finishedAt: DateTime(2026, 4, 6, 10, 0, 4),
@@ -530,6 +531,7 @@ void main() {
 
       expect(loadedTasks, hasLength(1));
       expect(loadedTasks.single.label, 'speech-1');
+      expect(loadedTasks.single.inputCharacterCount, 200);
       expect(loadedTasks.single.modelId, 'demo-model');
       expect(loadedTasks.single.modelName, 'Demo Model');
       expect(
@@ -548,6 +550,111 @@ void main() {
       expect(statsPayload['models'], isEmpty);
     },
   );
+
+  test('generated audio store updates per-model statistics', () async {
+    final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final outputFile = File('${tempDir.path}/speech-1.wav');
+    await outputFile.writeAsString('wav');
+
+    final store = GeneratedAudioStore(
+      libraryFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultLibraryPath}',
+      ),
+      statsFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultStatsPath}',
+      ),
+    );
+
+    final task = LongRunningTask(
+      id: 'task-1',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'speech-1',
+      startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+      status: LongRunningTaskStatus.completed,
+      inputCharacterCount: 200,
+      modelName: 'Demo Model',
+      finishedAt: DateTime(2026, 4, 6, 10, 0, 4),
+      outputPath: outputFile.path,
+    );
+
+    await store.updateStatisticsForTask(task, outputSecondsOverride: 8);
+    final statistics = await store.loadStatistics();
+    final demoStats = statistics['Demo Model'];
+
+    expect(demoStats, isNotNull);
+    expect(demoStats!.totalChars, 200);
+    expect(demoStats.generationTotalSeconds, 4);
+    expect(demoStats.outputTotalSeconds, 8);
+    expect(demoStats.generationSecondsPer100Chars, 2);
+    expect(demoStats.outputSecondsPer100Chars, 4);
+  });
+
+  test('generated audio store caps aggregated model statistics', () async {
+    final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final outputFile = File('${tempDir.path}/speech-1.wav');
+    await outputFile.writeAsString('wav');
+
+    final store = GeneratedAudioStore(
+      libraryFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultLibraryPath}',
+      ),
+      statsFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultStatsPath}',
+      ),
+    );
+
+    final firstTask = LongRunningTask(
+      id: 'task-1',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'speech-1',
+      startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+      status: LongRunningTaskStatus.completed,
+      inputCharacterCount: 900000,
+      modelName: 'Demo Model',
+      finishedAt: DateTime(2026, 4, 6, 10, 30, 0),
+      outputPath: outputFile.path,
+    );
+    final secondTask = LongRunningTask(
+      id: 'task-2',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: 'speech-2',
+      startedAt: DateTime(2026, 4, 6, 11, 0, 0),
+      status: LongRunningTaskStatus.completed,
+      inputCharacterCount: 200000,
+      modelName: 'Demo Model',
+      finishedAt: DateTime(2026, 4, 6, 11, 10, 0),
+      outputPath: outputFile.path,
+    );
+
+    await store.updateStatisticsForTask(firstTask, outputSecondsOverride: 3600);
+    await store.updateStatisticsForTask(
+      secondTask,
+      outputSecondsOverride: 1200,
+    );
+
+    final statistics = await store.loadStatistics();
+    final demoStats = statistics['Demo Model'];
+
+    expect(demoStats, isNotNull);
+    expect(demoStats!.totalChars, GeneratedAudioStatistics.charCap);
+    expect(
+      demoStats.generationSecondsPer100Chars,
+      closeTo(0.2181818181818182, 0.000001),
+    );
+    expect(
+      demoStats.outputSecondsPer100Chars,
+      closeTo(0.43636363636363634, 0.000001),
+    );
+    expect(
+      demoStats.generationTotalSeconds,
+      closeTo(2181.818181818182, 0.000001),
+    );
+    expect(demoStats.outputTotalSeconds, closeTo(4363.636363636364, 0.000001));
+  });
 
   test('generated audio store prunes records whose wav file is gone', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
@@ -572,6 +679,7 @@ void main() {
         label: 'speech-1',
         startedAt: DateTime(2026, 4, 6, 10, 0, 0),
         status: LongRunningTaskStatus.completed,
+        inputCharacterCount: 200,
         finishedAt: DateTime(2026, 4, 6, 10, 0, 4),
         outputPath: outputFile.path,
       ),

@@ -128,6 +128,7 @@ class TaskManager extends ChangeNotifier {
       label: 'speech-$_speechCounter',
       startedAt: DateTime.now(),
       status: LongRunningTaskStatus.queued,
+      inputCharacterCount: text.length,
       modelId: voice.id,
       modelName: voice.displayName,
     );
@@ -175,6 +176,7 @@ class TaskManager extends ChangeNotifier {
       label: 'cloned-speech-$_speechCounter',
       startedAt: DateTime.now(),
       status: LongRunningTaskStatus.queued,
+      inputCharacterCount: text.length,
       modelId: voice.id,
       modelName: voice.displayName,
     );
