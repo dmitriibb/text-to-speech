@@ -39,6 +39,12 @@
 - Scenario: The desktop user selects a WAV sample for Voice Lab, but the file is removed before import completes.
   Expected handling: import is blocked and the UI shows a concrete file-not-found error.
 
+- Scenario: The desktop user selects an MP3 sample for Voice Lab.
+  Expected handling: the app detects the MP3 automatically, converts it to a stored WAV reference clip during import, and keeps the rest of the cloning flow unchanged.
+
+- Scenario: The desktop user selects an MP3 sample for Voice Lab, but `ffmpeg` is unavailable or conversion fails.
+  Expected handling: import is blocked and the UI shows a concrete conversion error instead of saving an unusable reference clip.
+
 - Scenario: Share or export fails after a successful synthesis.
   Expected handling: the generated `.wav` stays available and only the output action fails.
 

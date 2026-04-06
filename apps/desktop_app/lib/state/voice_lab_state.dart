@@ -81,7 +81,7 @@ class VoiceLabState extends ChangeNotifier {
     }
   }
 
-  /// Adds a new cloned voice from a WAV file path.
+  /// Adds a new cloned voice from a selected audio file path.
   Future<void> addVoice({
     required String name,
     required String audioPath,

@@ -7,8 +7,9 @@
 - Voice cloning mode depends on a ready Pocket TTS model and is disabled until that model is installed.
 - When Pocket TTS is selected outside clone mode, regular synthesis falls back to the model's bundled default reference clip instead of the imported voice library.
 - Enabling voice cloning automatically switches the main desktop model selector to Pocket TTS so cloned synthesis uses the correct runtime.
-- Import starts from `Import WAV File`, which opens the system file chooser and restricts selection to `.wav` audio.
+- Import starts from a single `Import Audio File` action, which opens the system file chooser and accepts `.wav` and `.mp3` audio.
 - The import dialog stores the chosen path as read-only UI state; users should not need to type filesystem paths manually.
 - Import succeeds only when the user provides a voice name and the chosen file still exists at import time.
-- A successful import copies the reference clip into `~/.tts_app/voice_library` and adds a metadata entry to `voices.json`.
+- Voice Lab detects the imported sample format automatically; if the user selects an `.mp3`, desktop converts it to `.wav` at import time before saving it into the voice library.
+- A successful import stores the normalized reference clip as `.wav` under `~/.tts_app/voice_library` and adds a metadata entry to `voices.json`.
 - Imported voices can be previewed, deleted, and used as reference audio for Pocket TTS cloned synthesis tasks.

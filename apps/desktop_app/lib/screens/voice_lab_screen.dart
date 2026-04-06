@@ -67,8 +67,8 @@ class _VoiceSampleImportDialogState extends State<VoiceSampleImportDialog> {
               controller: _pathController,
               readOnly: true,
               decoration: const InputDecoration(
-                labelText: 'Selected WAV File',
-                hintText: 'Choose a reference WAV file',
+                labelText: 'Selected Audio File',
+                hintText: 'Choose a reference WAV or MP3 file',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -76,11 +76,11 @@ class _VoiceSampleImportDialogState extends State<VoiceSampleImportDialog> {
             OutlinedButton.icon(
               onPressed: _chooseFile,
               icon: const Icon(Icons.folder_open),
-              label: const Text('Choose WAV File'),
+              label: const Text('Choose Audio File'),
             ),
             const SizedBox(height: 8),
             Text(
-              'Use a 10–30 second mono WAV clip of the voice you want to clone.',
+              'Use a 10–30 second mono WAV or MP3 clip of the voice you want to clone. MP3 files are converted to WAV automatically.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -352,14 +352,14 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Provide a short WAV audio clip (10–30 seconds) of the voice you want to clone.',
+              'Provide a short WAV or MP3 audio clip (10–30 seconds) of the voice you want to clone. MP3 files are converted to WAV automatically.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
             FilledButton.tonalIcon(
               onPressed: () => _showImportDialog(context, state),
               icon: const Icon(Icons.upload_file),
-              label: const Text('Import WAV File'),
+              label: const Text('Import Audio File'),
             ),
           ],
         ),
@@ -512,13 +512,13 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
       return openVoiceSampleFile();
     }
 
-    const wavTypeGroup = XTypeGroup(
-      label: 'WAV audio',
-      extensions: ['wav'],
-      mimeTypes: ['audio/wav', 'audio/x-wav'],
+    const audioTypeGroup = XTypeGroup(
+      label: 'Audio samples',
+      extensions: ['wav', 'mp3'],
+      mimeTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'],
     );
     final selectedFile = await openFile(
-      acceptedTypeGroups: const [wavTypeGroup],
+      acceptedTypeGroups: const [audioTypeGroup],
       confirmButtonText: 'Select voice sample',
     );
     return selectedFile?.path;

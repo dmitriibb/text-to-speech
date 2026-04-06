@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tts_core/tts_core.dart';
 
 void main() {
-  testWidgets('enables import after choosing a WAV file', (tester) async {
+  testWidgets('enables import after choosing an audio file', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -24,12 +24,34 @@ void main() {
     );
     expect(importButton.onPressed, isNull);
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose WAV File'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose Audio File'));
     await tester.pump();
 
     importButton = tester.widget(find.widgetWithText(FilledButton, 'Import'));
     expect(importButton.onPressed, isNotNull);
     expect(find.text('narrator'), findsOneWidget);
+  });
+
+  testWidgets('auto-fills the voice name for MP3 imports too', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: VoiceSampleImportDialog(
+            openVoiceSampleFile: () async => '/tmp/podcast-host.mp3',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose Audio File'));
+    await tester.pump();
+
+    final importButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Import'),
+    );
+    expect(importButton.onPressed, isNotNull);
+    expect(find.text('podcast-host'), findsOneWidget);
   });
 
   testWidgets('embedded voice lab panel uses shared basic text', (
