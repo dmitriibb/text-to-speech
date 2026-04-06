@@ -7,6 +7,35 @@ import 'package:shared_ui/shared_ui.dart';
 import 'package:tts_core/tts_core.dart';
 
 void main() {
+  testWidgets('generation estimate summary hides empty estimates', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(home: Scaffold(body: GenerationEstimateSummary())),
+    );
+
+    expect(find.textContaining('Expected generation time:'), findsNothing);
+    expect(find.textContaining('Expected audio length:'), findsNothing);
+  });
+
+  testWidgets('generation estimate summary formats seconds and minutes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: GenerationEstimateSummary(
+            expectedGenerationDuration: Duration(seconds: 30),
+            expectedOutputDuration: Duration(minutes: 3, seconds: 15),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Expected generation time: 30 sec'), findsOneWidget);
+    expect(find.text('Expected audio length: 3:15'), findsOneWidget);
+  });
+
   testWidgets('playing task row shows a pause button', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

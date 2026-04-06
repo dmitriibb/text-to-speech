@@ -574,6 +574,7 @@ void main() {
       startedAt: DateTime(2026, 4, 6, 10, 0, 0),
       status: LongRunningTaskStatus.completed,
       inputCharacterCount: 200,
+      speechSpeed: 0.5,
       modelName: 'Demo Model',
       finishedAt: DateTime(2026, 4, 6, 10, 0, 4),
       outputPath: outputFile.path,
@@ -586,9 +587,10 @@ void main() {
     expect(demoStats, isNotNull);
     expect(demoStats!.totalChars, 200);
     expect(demoStats.generationTotalSeconds, 4);
-    expect(demoStats.outputTotalSeconds, 8);
+    expect(demoStats.outputTotalSeconds, 4);
     expect(demoStats.generationSecondsPer100Chars, 2);
-    expect(demoStats.outputSecondsPer100Chars, 4);
+    expect(demoStats.outputSecondsPer100Chars, 2);
+    expect(demoStats.expectedOutputSecondsForChars(250, speechSpeed: 0.5), 10);
   });
 
   test('generated audio store caps aggregated model statistics', () async {

@@ -129,6 +129,7 @@ class TaskManager extends ChangeNotifier {
       startedAt: DateTime.now(),
       status: LongRunningTaskStatus.queued,
       inputCharacterCount: text.length,
+      speechSpeed: clampSpeechSpeed(speed),
       modelId: voice.id,
       modelName: voice.displayName,
     );
@@ -177,6 +178,7 @@ class TaskManager extends ChangeNotifier {
       startedAt: DateTime.now(),
       status: LongRunningTaskStatus.queued,
       inputCharacterCount: text.length,
+      speechSpeed: clampSpeechSpeed(speed),
       modelId: voice.id,
       modelName: voice.displayName,
     );

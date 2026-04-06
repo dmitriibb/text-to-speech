@@ -24,6 +24,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Generated audio metadata and stats storage must stay lightweight and local; no database is required for the current scope.
 - Generated-audio stats aggregate per model name and update only when a speech generation completes successfully.
 - Per-model stats track total input characters, total generation seconds, total output seconds, and derived per-100-character averages.
+- Stored output-duration stats are normalized to speech speed `1.0`; UI output-length estimates adjust that baseline by the currently selected speech speed.
 - Per-model stats cap aggregated character count at `1,000,000` while preserving the current averaged rates so the file stays bounded.
 - If generated audio survives app restart on disk, the task list must restore an entry for it on startup so the user can delete it later.
 - Task-row playback and output actions target the selected task's `.wav`, not just the most recent global output path.

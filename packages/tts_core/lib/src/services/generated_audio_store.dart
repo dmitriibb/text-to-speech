@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import '../models/long_running_task.dart';
+import 'synthesis_settings.dart';
 import 'tts_service.dart';
 
 class GeneratedAudioStatistics {
@@ -69,6 +70,37 @@ class GeneratedAudioStatistics {
     );
   }
 
+  double expectedGenerationSecondsForChars(int inputCharacters) {
+    if (inputCharacters <= 0 || generationSecondsPer100Chars <= 0) {
+      return 0;
+    }
+    return generationSecondsPer100Chars * inputCharacters / 100;
+  }
+
+  double expectedOutputSecondsForChars(
+    int inputCharacters, {
+    required double speechSpeed,
+  }) {
+    if (inputCharacters <= 0 || outputSecondsPer100Chars <= 0) {
+      return 0;
+    }
+
+    final normalizedSpeed = clampSpeechSpeed(speechSpeed);
+    return outputSecondsPer100Chars * inputCharacters / 100 / normalizedSpeed;
+  }
+
+  static double normalizeOutputSecondsForSpeechSpeed(
+    double outputSeconds, {
+    required double speechSpeed,
+  }) {
+    if (outputSeconds <= 0) {
+      return 0;
+    }
+
+    final normalizedSpeed = clampSpeechSpeed(speechSpeed);
+    return outputSeconds * normalizedSpeed;
+  }
+
   Map<String, Object?> toJson() {
     return {
       'generationSecondsPer100Chars': generationSecondsPer100Chars,
@@ -101,6 +133,7 @@ class GeneratedAudioRecord {
     required this.startedAt,
     required this.finishedAt,
     this.inputCharacterCount,
+    this.speechSpeed,
     this.modelId,
     this.modelName,
   });
@@ -111,6 +144,7 @@ class GeneratedAudioRecord {
   final DateTime startedAt;
   final DateTime finishedAt;
   final int? inputCharacterCount;
+  final double? speechSpeed;
   final String? modelId;
   final String? modelName;
 
@@ -130,6 +164,7 @@ class GeneratedAudioRecord {
       'outputPath': outputPath,
       if (inputCharacterCount != null)
         'inputCharacterCount': inputCharacterCount,
+      if (speechSpeed != null) 'speechSpeed': speechSpeed,
       if (modelId != null) 'modelId': modelId,
       if (modelName != null) 'modelName': modelName,
     };
@@ -164,6 +199,7 @@ class GeneratedAudioRecord {
       startedAt: DateTime.parse(startedAtRaw),
       finishedAt: DateTime.parse(finishedAtRaw),
       inputCharacterCount: json['inputCharacterCount'] as int?,
+      speechSpeed: (json['speechSpeed'] as num?)?.toDouble(),
       modelId: json['modelId'] as String?,
       modelName: json['modelName'] as String?,
     );
@@ -194,6 +230,7 @@ class GeneratedAudioRecord {
       startedAt: task.startedAt,
       finishedAt: finishedAt,
       inputCharacterCount: task.inputCharacterCount,
+      speechSpeed: task.speechSpeed,
       modelId: task.modelId,
       modelName: task.modelName,
     );
@@ -207,6 +244,7 @@ class GeneratedAudioRecord {
       startedAt: startedAt,
       status: LongRunningTaskStatus.completed,
       inputCharacterCount: inputCharacterCount,
+      speechSpeed: speechSpeed,
       modelId: modelId,
       modelName: modelName,
       finishedAt: finishedAt,
@@ -325,11 +363,16 @@ class GeneratedAudioStore {
       );
       final outputSeconds =
           outputSecondsOverride ?? await _readOutputDurationSeconds(outputPath);
+      final normalizedOutputSeconds =
+          GeneratedAudioStatistics.normalizeOutputSecondsForSpeechSpeed(
+            outputSeconds,
+            speechSpeed: task.speechSpeed ?? speechSpeedDefault,
+          );
 
       statistics[modelName] = current.recordGeneration(
         inputCharacters: inputCharacterCount,
         generationSeconds: generationSeconds,
-        outputSeconds: outputSeconds,
+        outputSeconds: normalizedOutputSeconds,
       );
       await _writeStatistics(statistics);
     });

@@ -18,6 +18,7 @@ class AppState extends ChangeNotifier {
   final AudioService _audioService = AudioService();
   final TaskManager taskManager = TaskManager(executor: IsolateTaskExecutor());
   GeneratedAudioStore? _generatedAudioStore;
+  Map<String, GeneratedAudioStatistics> _generatedAudioStatistics = const {};
   final Set<String> _persistedGeneratedAudioPaths = <String>{};
 
   // ---- Model state ----
@@ -73,6 +74,10 @@ class AppState extends ChangeNotifier {
   String? get activeTaskId => _currentTaskId;
   Duration get playbackPosition => _playbackPosition;
   Duration? get playbackDuration => _playbackDuration;
+  Duration? get expectedGenerationDuration =>
+      _expectedGenerationDurationForCurrentInput();
+  Duration? get expectedOutputDuration =>
+      _expectedOutputDurationForCurrentInput();
 
   List<String> get availableProviders => _availableProviders;
   String get selectedProvider => _selectedProvider;
@@ -142,6 +147,7 @@ class AppState extends ChangeNotifier {
 
     _generatedAudioStore = await _createGeneratedAudioStore();
     await _generatedAudioStore!.ensureInitialized();
+    await _reloadGeneratedAudioStatistics();
     await taskManager.initialize();
     await _restoreGeneratedAudioTasks();
     await refreshModels();
@@ -666,10 +672,66 @@ class AppState extends ChangeNotifier {
           rethrow;
         }
       }
+      await _reloadGeneratedAudioStatistics();
     } catch (e) {
       _errorMessage = 'Failed to persist generated audio metadata: $e';
       notifyListeners();
     }
+  }
+
+  Future<void> _reloadGeneratedAudioStatistics() async {
+    final store = _generatedAudioStore;
+    if (store == null) {
+      _generatedAudioStatistics = const {};
+      return;
+    }
+
+    _generatedAudioStatistics = await store.loadStatistics();
+  }
+
+  Duration? _expectedGenerationDurationForCurrentInput() {
+    final stats = _currentModelStatistics;
+    final characterCount = _trimmedInputCharacterCount;
+    if (stats == null || characterCount <= 0) {
+      return null;
+    }
+
+    final seconds = stats.expectedGenerationSecondsForChars(characterCount);
+    return _secondsToDurationOrNull(seconds);
+  }
+
+  Duration? _expectedOutputDurationForCurrentInput() {
+    final stats = _currentModelStatistics;
+    final characterCount = _trimmedInputCharacterCount;
+    if (stats == null || characterCount <= 0) {
+      return null;
+    }
+
+    final seconds = stats.expectedOutputSecondsForChars(
+      characterCount,
+      speechSpeed: _speed,
+    );
+    return _secondsToDurationOrNull(seconds);
+  }
+
+  GeneratedAudioStatistics? get _currentModelStatistics {
+    final modelName = _selectedModel?.voice.displayName;
+    if (modelName == null) {
+      return null;
+    }
+    return _generatedAudioStatistics[modelName];
+  }
+
+  int get _trimmedInputCharacterCount => _inputText.trim().length;
+
+  Duration? _secondsToDurationOrNull(double seconds) {
+    if (seconds <= 0) {
+      return null;
+    }
+
+    return Duration(
+      microseconds: (seconds * Duration.microsecondsPerSecond).round(),
+    );
   }
 
   int _resolveSpeakerId(VoiceModel voice, {int? preferredSpeakerId}) {

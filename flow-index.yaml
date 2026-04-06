@@ -66,13 +66,13 @@ flows:
       - domain-brain/flows/audio-output.md
       - domain-brain/state-machines/playback-lifecycle.md
     paths:
-      - packages/tts_core/lib/src/models/generated_audio_record.dart
       - packages/tts_core/lib/src/services/generated_audio_store.dart
       - apps/desktop_app/lib/services/audio_service.dart
       - apps/android_app/lib/services/audio_service.dart
       - apps/desktop_app/lib/state/app_state.dart
       - apps/android_app/lib/state/app_state.dart
       - packages/shared_ui/lib/src/widgets/audio_playback_controls.dart
+      - packages/shared_ui/lib/src/widgets/generation_estimate_summary.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
     entities:
       - GeneratedAudio

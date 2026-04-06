@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_ui/shared_ui.dart';
 
 import '../state/app_state.dart';
 
@@ -31,16 +32,15 @@ class _TextInputPanelState extends State<TextInputPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Text',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Text', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             TextField(
               controller: _controller,
@@ -59,6 +59,10 @@ class _TextInputPanelState extends State<TextInputPanel> {
                       )
                     : null,
               ),
+            ),
+            GenerationEstimateSummary(
+              expectedGenerationDuration: state.expectedGenerationDuration,
+              expectedOutputDuration: state.expectedOutputDuration,
             ),
           ],
         ),
