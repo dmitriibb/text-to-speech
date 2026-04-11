@@ -90,3 +90,9 @@
 - Synced the new model catalog entries into `packages/model_catalog/approved_models.json`, `apps/desktop_app/assets/approved_models.json`, and `apps/android_app/assets/approved_models.json`
 - Updated model validation and task payload encoding so background work preserves multilingual runtime metadata and install checks catch missing helper assets
 - Added durable repo notes in `models.list.md` and expanded licensing and domain-brain docs with the Kokoro packaging distinction and future-model guidance
+
+## Checkpoint 14
+- Replaced the Windows desktop generated-audio fallback player in `apps/desktop_app/lib/services/audio_service.dart` with an in-process MCI-backed controller so pause, stop, replay, and seek all control the same active clip
+- Added `apps/desktop_app/test/audio_service_test.dart` to cover the Windows resume and seek flows that previously spawned overlapping playback
+- Updated `domain-brain/flows/audio-output.md`, `domain-brain/state-machines/playback-lifecycle.md`, and the archived task record to document the Windows playback-control invariant
+- Fixed the nullable byte-count formatting error in `apps/desktop_app/lib/widgets/model_status_banner.dart` and verified the desktop app with `flutter test test/audio_service_test.dart` plus `flutter analyze`

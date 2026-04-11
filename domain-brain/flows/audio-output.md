@@ -32,6 +32,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Playback must expose play/pause plus a seekable progress position for the active audio.
 - Resuming the same loaded audio must continue from the paused progress position unless playback had already reached the end.
 - Interactive playback controls must remain responsive while audio is actively playing.
+- Desktop Windows playback must control the currently loaded audio in-process so repeated play or seek actions replace or retarget that clip instead of layering overlapping playback.
 - Playback and export/share are platform-specific service responsibilities behind a shared UI contract.
 - Destructive task-row actions pause active playback before showing confirmation.
 - Desktop task-row save must open a real save target and copy the generated `.wav` there.
