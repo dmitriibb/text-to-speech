@@ -6,7 +6,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 
 ## Steps
 
-1. App loads the catalog and selects a `VoiceModel`.
+1. User opens the dedicated Models screen and chooses a `VoiceModel` from the approved catalog.
 2. App resolves the platform-specific model storage root.
 3. App downloads the model archive from the catalog URL.
 4. App extracts the archive through the shared pure-Dart extractor using the file-based archive path for `tar.bz2` assets.

@@ -144,7 +144,7 @@ class VoiceLabState extends ChangeNotifier {
 
     final sharedText = _appState.inputText.trim();
     if (sharedText.isEmpty) {
-      _errorMessage = 'Enter text in the Basic panel before cloning speech';
+      _errorMessage = 'Enter text on the Home screen before cloning speech';
       notifyListeners();
       return;
     }

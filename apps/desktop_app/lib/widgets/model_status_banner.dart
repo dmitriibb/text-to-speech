@@ -4,7 +4,8 @@ import 'package:tts_core/tts_core.dart';
 
 import '../state/app_state.dart';
 
-/// Shows model install status and keeps the full desktop catalog discoverable.
+/// Shows a compact readiness summary now that full model management lives on
+/// the dedicated Models screen.
 class ModelStatusBanner extends StatelessWidget {
   const ModelStatusBanner({super.key});
 
@@ -16,16 +17,16 @@ class ModelStatusBanner extends StatelessWidget {
           return _downloadingBanner(context, state);
         }
 
-        return _modelCatalogBanner(context, state);
+        return _summaryBanner(context, state);
       },
     );
   }
 
-  Widget _modelCatalogBanner(BuildContext context, AppState state) {
+  Widget _summaryBanner(BuildContext context, AppState state) {
     final readyModels = state.readyModels;
-    final installableModels = state.installableModels;
     final hasReadyModels = readyModels.isNotEmpty;
     final colorScheme = Theme.of(context).colorScheme;
+    final selectedVoice = state.selectedModel?.voice.displayName;
 
     return Card(
       color: hasReadyModels ? null : colorScheme.secondaryContainer,
@@ -65,51 +66,12 @@ class ModelStatusBanner extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               hasReadyModels
-                  ? 'Installed models appear in the Voice selector. Additional approved desktop models can still be installed below.'
-                  : 'Download a voice model to start generating speech.',
+                  ? 'Selected voice: ${selectedVoice ?? 'None'}. Open Models from the navigation menu to install or repair other voices.'
+                  : 'Open Models from the navigation menu to download a voice model before generating speech.',
               style: TextStyle(
                 color: hasReadyModels ? null : colorScheme.onSecondaryContainer,
               ),
             ),
-            if (readyModels.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: readyModels
-                    .map((model) => Chip(label: Text(model.voice.displayName)))
-                    .toList(),
-              ),
-            ],
-            if (installableModels.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Available to install',
-                style: Theme.of(context).textTheme.labelLarge,
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: installableModels.map((m) {
-                  final label = m.status == ModelStatus.incomplete
-                      ? 'Repair ${m.voice.displayName}'
-                      : 'Install ${m.voice.displayName}';
-                  return FilledButton.tonal(
-                    onPressed: () => state.downloadModel(m.voice),
-                    child: Text(label),
-                  );
-                }).toList(),
-              ),
-            ] else if (hasReadyModels) ...[
-              const SizedBox(height: 12),
-              Text(
-                'All approved desktop models from the catalog are already installed.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
           ],
         ),
       ),

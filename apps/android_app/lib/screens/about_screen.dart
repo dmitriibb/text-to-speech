@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:tts_core/tts_core.dart';
 
 import '../state/app_state.dart';
+import '../widgets/app_navigation_drawer.dart';
+import 'home_screen.dart';
+import 'models_screen.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -10,9 +13,12 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('About'),
+      drawer: AppNavigationDrawer(
+        selectedDestination: AppDestination.about,
+        onDestinationSelected: (destination) =>
+            _navigateToDestination(context, destination),
       ),
+      appBar: AppBar(title: const Text('About')),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -69,7 +75,8 @@ class AboutScreen extends StatelessWidget {
                       children: [
                         _StatusLine(
                           label: 'Selected voice',
-                          value: state.selectedModel?.voice.displayName ??
+                          value:
+                              state.selectedModel?.voice.displayName ??
                               'No voice selected yet',
                         ),
                         const SizedBox(height: 10),
@@ -96,6 +103,26 @@ class AboutScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _navigateToDestination(
+    BuildContext context,
+    AppDestination destination,
+  ) {
+    Navigator.of(context).pop();
+
+    switch (destination) {
+      case AppDestination.home:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const HomeScreen()),
+        );
+      case AppDestination.models:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),
+        );
+      case AppDestination.about:
+        break;
+    }
   }
 }
 

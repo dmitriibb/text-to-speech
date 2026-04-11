@@ -1,14 +1,35 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:android_app/widgets/app_navigation_drawer.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('android app package is configured', () {
-    expect(true, isTrue);
+  testWidgets('android navigation drawer exposes models destination', (
+    tester,
+  ) async {
+    AppDestination? selectedDestination;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          appBar: AppBar(),
+          drawer: AppNavigationDrawer(
+            selectedDestination: AppDestination.home,
+            onDestinationSelected: (destination) {
+              selectedDestination = destination;
+            },
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Models'), findsOneWidget);
+    expect(find.text('About'), findsOneWidget);
+
+    await tester.tap(find.text('Models'));
+    expect(selectedDestination, AppDestination.models);
   });
 }

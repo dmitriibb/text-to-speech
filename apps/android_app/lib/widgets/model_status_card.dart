@@ -16,7 +16,7 @@ class ModelStatusCard extends StatelessWidget {
         }
 
         final readyModels = state.readyModels;
-        final installable = state.installableModels;
+        final selectedVoice = state.selectedModel?.voice.displayName;
 
         return Card(
           child: Padding(
@@ -53,27 +53,9 @@ class ModelStatusCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   readyModels.isEmpty
-                      ? 'Download a development voice into app-private storage to unlock local speech generation.'
-                      : 'Models are stored privately under ${state.modelsDirectory ?? 'the app support directory'}.',
+                      ? 'Open Models from the navigation menu to install a voice into app-private storage.'
+                      : 'Selected voice: ${selectedVoice ?? 'None'}. Manage installs from the Models screen.',
                 ),
-                if (installable.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: installable.map((model) {
-                      final label = model.status == ModelStatus.incomplete
-                          ? 'Repair ${model.voice.displayName}'
-                          : 'Install ${model.voice.displayName}';
-                      return FilledButton.tonal(
-                        onPressed: state.canManageModels
-                            ? () => state.downloadModel(model.voice)
-                            : null,
-                        child: Text(label),
-                      );
-                    }).toList(),
-                  ),
-                ],
               ],
             ),
           ),

@@ -8,6 +8,9 @@ import 'package:provider/provider.dart';
 import '../models/cloned_voice.dart';
 import '../state/app_state.dart';
 import '../state/voice_lab_state.dart';
+import '../widgets/app_navigation_drawer.dart';
+import 'home_screen.dart';
+import 'models_screen.dart';
 
 typedef OpenVoiceSampleFile = Future<String?> Function();
 
@@ -135,12 +138,37 @@ class VoiceLabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: AppNavigationDrawer(
+        selectedDestination: AppDestination.voiceLab,
+        onDestinationSelected: (destination) =>
+            _navigateToDestination(context, destination),
+      ),
       appBar: AppBar(title: const Text('Voice Lab'), centerTitle: false),
       body: VoiceLabPanel(
         openVoiceSampleFile: openVoiceSampleFile,
         stateOverride: stateOverride,
       ),
     );
+  }
+
+  void _navigateToDestination(
+    BuildContext context,
+    AppDestination destination,
+  ) {
+    Navigator.of(context).pop();
+
+    switch (destination) {
+      case AppDestination.home:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const HomeScreen()),
+        );
+      case AppDestination.models:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),
+        );
+      case AppDestination.voiceLab:
+        break;
+    }
   }
 }
 
@@ -231,7 +259,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               Text(
-                'Extended tools stay beside the Basic panel.',
+                'Desktop-only voice cloning stays separate from the main generation flow.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],

@@ -22,12 +22,21 @@ flows:
     paths:
       - apps/android_app/lib/screens/home_screen.dart
       - apps/android_app/lib/screens/about_screen.dart
+      - apps/android_app/lib/screens/models_screen.dart
+      - apps/android_app/lib/widgets/app_navigation_drawer.dart
+      - apps/desktop_app/lib/screens/home_screen.dart
+      - apps/desktop_app/lib/screens/models_screen.dart
+      - apps/desktop_app/lib/screens/voice_lab_screen.dart
+      - apps/desktop_app/lib/widgets/app_navigation_drawer.dart
   model_catalog_and_approval:
     docs:
       - domain-brain/flows/model-catalog-and-approval.md
     paths:
       - packages/model_catalog/approved_models.json
       - packages/tts_core/lib/src/models/voice_model.dart
+      - packages/shared_ui/lib/src/widgets/model_management_panel.dart
+      - apps/android_app/lib/screens/models_screen.dart
+      - apps/desktop_app/lib/screens/models_screen.dart
       - docs/licensing.md
     entities:
       - ModelCatalog
@@ -39,9 +48,12 @@ flows:
     paths:
       - packages/tts_core/lib/src/services/model_archive_extractor.dart
       - packages/tts_core/lib/src/services/model_file_validator.dart
+      - packages/shared_ui/lib/src/widgets/model_management_panel.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/services/model_service.dart
+      - apps/desktop_app/lib/screens/models_screen.dart
       - apps/android_app/lib/services/model_service.dart
+      - apps/android_app/lib/screens/models_screen.dart
     entities:
       - VoiceModel
       - InstalledModel

@@ -11,7 +11,7 @@ Keep one clear source of truth for which models the apps may offer, how those mo
 3. Desktop and Android bundle the catalog as an asset.
 4. Apps scan local storage and combine catalog metadata with local status to produce `InstalledModel` entries.
 5. Licensing status in the catalog and `docs/licensing.md` determines whether a model is development-only or potentially ship-ready later.
-6. App UI keeps non-ready catalog entries visible so users can install or repair additional approved models even after one model is already ready.
+6. App UI keeps non-ready catalog entries visible on the dedicated Models screen so users can install or repair additional approved models even after one model is already ready.
 
 ## Invariants
 
