@@ -41,14 +41,12 @@ class ModelsScreen extends StatelessWidget {
                 children: [
                   ModelManagementPanel(
                     models: state.installedModels,
-                    selectedModelId: state.selectedModel?.voice.id,
                     isDownloading: state.isDownloading,
                     currentInstallProgress: state.currentInstallProgress,
                     canManageModels: state.canManageModels,
-                    storageDescription:
-                        'Models are stored privately under ${state.modelsDirectory ?? 'the app support directory'}.',
                     onRefresh: state.refreshModels,
                     onInstall: state.downloadModel,
+                    onDelete: state.deleteModel,
                   ),
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 12),

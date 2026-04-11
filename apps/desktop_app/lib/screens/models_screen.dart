@@ -32,14 +32,12 @@ class ModelsScreen extends StatelessWidget {
                 constraints: const BoxConstraints(maxWidth: 960),
                 child: ModelManagementPanel(
                   models: state.installedModels,
-                  selectedModelId: state.selectedModel?.voice.id,
                   isDownloading: state.isDownloading,
                   currentInstallProgress: state.currentInstallProgress,
-                  canManageModels: true,
-                  storageDescription:
-                      'Models are stored in the desktop app-managed models directory.',
+                  canManageModels: state.canManageModels,
                   onRefresh: state.refreshModels,
                   onInstall: state.downloadModel,
+                  onDelete: state.deleteModel,
                 ),
               ),
             ),

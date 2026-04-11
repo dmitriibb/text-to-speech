@@ -214,6 +214,14 @@ class ModelService {
     _activeClient?.close();
   }
 
+  Future<void> deleteModel(VoiceModel model) async {
+    final modelsDir = await getModelsDirectory();
+    final modelDir = Directory(p.join(modelsDir, model.installDirName));
+    if (await modelDir.exists()) {
+      await modelDir.delete(recursive: true);
+    }
+  }
+
   void _throwIfCancelled() {
     if (_cancelRequested) {
       throw const ModelDownloadCancelledException();

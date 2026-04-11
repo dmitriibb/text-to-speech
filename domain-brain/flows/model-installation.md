@@ -15,6 +15,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 7. App exposes the model as `ready` only if validation succeeds.
 8. App task UI reports the actual install phase (`Downloading`, `Extracting`, `Validating`) and preserves terminal error details for later inspection.
 9. If the user cancels the install task, the app removes the partial archive and extracted model files created by that task.
+10. If the user deletes an installed model from the Models screen, the app removes only the local extracted files and keeps the catalog entry visible as `not installed`.
 
 ## Invariants
 
@@ -28,6 +29,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - User-visible install task status must reflect the real install phase, not unrelated preload tasks.
 - Terminal install tasks keep a stable elapsed duration and preserve failure details.
 - Cancelling an install task removes the partial files created by that install attempt.
+- Deleting a model removes its local files without removing it from the catalog list.
 - The shared long-running task list shows newly created install work at the top.
 
 ## Failure Modes

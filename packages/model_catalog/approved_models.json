@@ -8,6 +8,9 @@
       "display_name": "Piper English Lessac Medium",
       "family": "vits",
       "runtime": "sherpa-onnx",
+      "size_mb": 64.0,
+      "supported_languages": ["English"],
+      "description": "Balanced single-speaker English voice for everyday offline speech. Small footprint and fast CPU generation.",
       "phase0_default": true,
       "status": {
         "approved_for_local_validation": true,
@@ -57,6 +60,9 @@
       "display_name": "VITS LJSpeech",
       "family": "vits",
       "runtime": "sherpa-onnx",
+      "size_mb": 122.0,
+      "supported_languages": ["English"],
+      "description": "Single-speaker English narration model based on LJ Speech. Clear voice with a larger footprint than Piper Lessac.",
       "phase0_default": false,
       "status": {
         "approved_for_local_validation": true,
@@ -103,6 +109,9 @@
       "display_name": "Kokoro English (11 speakers)",
       "family": "kokoro",
       "runtime": "sherpa-onnx",
+      "size_mb": 369.0,
+      "supported_languages": ["English"],
+      "description": "Higher-quality English multi-speaker model with 11 built-in voices. Supports speaker switching for voice selection.",
       "phase0_default": false,
       "status": {
         "approved_for_local_validation": true,
@@ -162,6 +171,9 @@
       "display_name": "Pocket TTS English (Voice Cloning)",
       "family": "pocket",
       "runtime": "sherpa-onnx",
+      "size_mb": 203.0,
+      "supported_languages": ["English"],
+      "description": "English zero-shot voice cloning model. Uses a reference audio clip to imitate voice identity during synthesis.",
       "phase0_default": false,
       "status": {
         "approved_for_local_validation": true,

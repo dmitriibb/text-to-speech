@@ -8,7 +8,6 @@ import '../services/audio_service.dart';
 import '../state/app_state.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/error_banner.dart';
-import '../widgets/model_status_card.dart';
 import '../widgets/settings_panel.dart';
 import '../widgets/text_input_panel.dart';
 
@@ -43,8 +42,6 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const ModelStatusCard(),
-                  const SizedBox(height: 16),
                   const TextInputPanel(),
                   const SizedBox(height: 16),
                   const SettingsPanel(),

@@ -5,7 +5,6 @@ import 'package:shared_ui/shared_ui.dart';
 import '../services/audio_service.dart';
 import '../state/app_state.dart';
 import '../widgets/app_navigation_drawer.dart';
-import '../widgets/model_status_banner.dart';
 import '../widgets/settings_panel.dart';
 import '../widgets/text_input_panel.dart';
 import 'models_screen.dart';
@@ -47,8 +46,6 @@ class HomeScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const ModelStatusBanner(),
-        const SizedBox(height: 16),
         const TextInputPanel(),
         const SizedBox(height: 16),
         const SettingsPanel(),

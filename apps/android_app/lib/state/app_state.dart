@@ -255,6 +255,23 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> deleteModel(VoiceModel voice) async {
+    if (!canManageModels) {
+      return;
+    }
+
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _modelService.deleteModel(voice);
+      await refreshModels();
+    } catch (error) {
+      _errorMessage = 'Failed to delete model: $error';
+      notifyListeners();
+    }
+  }
+
   void setInputText(String text) {
     _inputText = text;
     if (_errorMessage != null && TextInputValidator.validate(text) == null) {

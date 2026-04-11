@@ -84,6 +84,7 @@ class AppState extends ChangeNotifier {
   bool get isAdvancedLabEnabled => _isAdvancedLabEnabled;
   bool get isVoiceCloningEnabled => _isVoiceCloningEnabled;
   bool get hasPocketModel => pocketModel != null;
+  bool get canManageModels => !_isLoadingModels && !_isDownloading;
 
   InstalledModel? get pocketModel {
     for (final model in installedModels) {
@@ -321,6 +322,23 @@ class AppState extends ChangeNotifier {
       _isDownloading = false;
       _currentInstallProgress = null;
       _activeInstallTaskId = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> deleteModel(VoiceModel voice) async {
+    if (!canManageModels) {
+      return;
+    }
+
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _modelService.deleteModel(voice);
+      await refreshModels();
+    } catch (e) {
+      _errorMessage = 'Failed to delete model: $e';
       notifyListeners();
     }
   }

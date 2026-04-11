@@ -4,8 +4,8 @@ artifacts/
 models/
 __pycache__/
 *.pyc
-task.checkpoint.md
-task.notes.md
+# task.checkpoint.md
+# task.notes.md
 
 # Flutter
 **/build/
