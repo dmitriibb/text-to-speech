@@ -106,6 +106,10 @@ class VoiceModel {
     this.description = '',
     this.speakers = const <Speaker>[],
     this.voiceCloning = false,
+    this.dictDir = '',
+    this.extraLexiconFiles = const <String>[],
+    this.ruleFsts = const <String>[],
+    this.ruleFars = const <String>[],
     this.pocketLmMain = '',
     this.pocketEncoder = '',
     this.pocketDecoder = '',
@@ -131,6 +135,7 @@ class VoiceModel {
   final String lexiconFile;
   final String voicesFile;
   final String dataDir;
+  final String dictDir;
   final String provider;
   final int numThreads;
   final double defaultSpeed;
@@ -138,6 +143,9 @@ class VoiceModel {
   final int maxNumSentences;
   final List<Speaker> speakers;
   final bool voiceCloning;
+  final List<String> extraLexiconFiles;
+  final List<String> ruleFsts;
+  final List<String> ruleFars;
   final String pocketLmMain;
   final String pocketEncoder;
   final String pocketDecoder;
@@ -145,6 +153,13 @@ class VoiceModel {
   final String pocketVocabJson;
   final String pocketTokenScoresJson;
   final String pocketDefaultReferenceAudio;
+
+  List<String> get allLexiconFiles {
+    return [
+      if (lexiconFile.isNotEmpty) lexiconFile,
+      ...extraLexiconFiles,
+    ];
+  }
 
   factory VoiceModel.fromJson(Map<String, Object?> json) {
     final status = _asObjectMap(json['status']);
@@ -172,6 +187,7 @@ class VoiceModel {
       lexiconFile: files['lexicon'] as String? ?? '',
       voicesFile: files['voices'] as String? ?? '',
       dataDir: files['data_dir'] as String? ?? '',
+      dictDir: files['dict_dir'] as String? ?? '',
       provider: defaults['provider'] as String? ?? 'cpu',
       numThreads: (defaults['num_threads'] as num?)?.toInt() ?? 1,
       defaultSpeed: (defaults['speed'] as num?)?.toDouble() ?? 1.0,
@@ -189,6 +205,9 @@ class VoiceModel {
                 .toList(growable: false)
           : const <Speaker>[],
       voiceCloning: json['voice_cloning'] as bool? ?? false,
+      extraLexiconFiles: _asStringList(files['extra_lexicons']),
+      ruleFsts: _asStringList(files['rule_fsts']),
+      ruleFars: _asStringList(files['rule_fars']),
       pocketLmMain: files['pocket_lm_main'] as String? ?? '',
       pocketEncoder: files['pocket_encoder'] as String? ?? '',
       pocketDecoder: files['pocket_decoder'] as String? ?? '',
@@ -224,8 +243,12 @@ class VoiceModel {
         'model': modelFile,
         'tokens': tokensFile,
         'lexicon': lexiconFile,
+        'extra_lexicons': extraLexiconFiles,
+        'rule_fsts': ruleFsts,
+        'rule_fars': ruleFars,
         'voices': voicesFile,
         'data_dir': dataDir,
+        'dict_dir': dictDir,
         'pocket_lm_main': pocketLmMain,
         'pocket_encoder': pocketEncoder,
         'pocket_decoder': pocketDecoder,

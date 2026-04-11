@@ -9,7 +9,9 @@ class ModelFileValidator {
     return [
       model.modelFile,
       model.tokensFile,
-      model.lexiconFile,
+      ...model.allLexiconFiles,
+      ...model.ruleFsts,
+      ...model.ruleFars,
       model.voicesFile,
       model.pocketLmMain,
       model.pocketEncoder,
@@ -24,6 +26,7 @@ class ModelFileValidator {
   static List<String> requiredDirectoryEntries(VoiceModel model) {
     return [
       model.dataDir,
+      model.dictDir,
     ].where((entry) => entry.isNotEmpty).toList(growable: false);
   }
 

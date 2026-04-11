@@ -83,3 +83,10 @@
 - Reworked the shared `ModelManagementPanel` into expandable rows that show only model name, size, and status when collapsed, then reveal install or delete actions plus detailed metadata when opened
 - Added Android and desktop delete-model actions that remove downloaded files without removing the catalog entry from the Models screen
 - Updated the model domain docs and verified the change with `flutter analyze` in `packages/tts_core`, `packages/shared_ui`, `apps/android_app`, and `apps/desktop_app`, plus `flutter test` in all four packages
+
+## Checkpoint 13
+- Added multilingual Kokoro catalog support for `kokoro-multi-lang-v1_0`, including extra lexicons, Chinese normalization rule FST assets, and a required `dict/` runtime directory
+- Added shared runtime support for the `kitten` model family so `kitten-mini-en-v0_1-fp16` can be loaded through `sherpa-onnx`
+- Synced the new model catalog entries into `packages/model_catalog/approved_models.json`, `apps/desktop_app/assets/approved_models.json`, and `apps/android_app/assets/approved_models.json`
+- Updated model validation and task payload encoding so background work preserves multilingual runtime metadata and install checks catch missing helper assets
+- Added durable repo notes in `models.list.md` and expanded licensing and domain-brain docs with the Kokoro packaging distinction and future-model guidance

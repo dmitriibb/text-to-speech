@@ -1,6 +1,6 @@
 # Licensing Status
 
-Updated: 2026-04-03
+Updated: 2026-04-11
 
 This file records what is currently approved, what is blocked, and what is still Unknown.
 
@@ -41,6 +41,39 @@ This file records what is currently approved, what is blocked, and what is still
 - Needed to decide:
   - explicit model artifact license from the upstream exported release
 
+### `kokoro-en-v0_19`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Apache-2.0
+- Dataset license: Unknown
+- Needed to decide:
+  - confirm redistribution terms for the packaged sherpa release asset
+  - capture any dataset or speaker-asset restrictions that apply to the exported archive
+
+### `kokoro-multi-lang-v1_0`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Apache-2.0
+- Dataset license: Unknown
+- Needed to decide:
+  - confirm redistribution terms for the packaged multilingual sherpa release asset
+  - verify redistribution terms for bundled multilingual speaker assets and Chinese normalization data
+
+### `kitten-mini-en-v0_1-fp16`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Apache-2.0
+- Dataset license: Unknown
+- Needed to decide:
+  - capture an explicit release-level license statement for the sherpa-converted KittenTTS archive
+  - verify whether any bundled speaker assets add extra redistribution constraints
+
 ## Candidate for later shipping review
 
 ### `en_US-ljspeech-medium` from `rhasspy/piper-voices`
@@ -52,6 +85,26 @@ This file records what is currently approved, what is blocked, and what is still
 - Why it is not the current Phase 0 default:
   - the current harness uses official pre-packaged `sherpa-onnx` TTS archives
   - raw Piper voices need extra packaging work for the chosen runtime path
+
+### `MeloTTS`
+
+- Status for Phase 0 runtime: Not used
+- Status for future review: Candidate
+- Repository license signal: MIT
+- Dataset license signal: Mixed and checkpoint-dependent
+- Why it is not a current app model:
+  - this repo currently targets `sherpa-onnx` packaged models
+  - integrating MeloTTS cleanly would likely require a new runtime path or a maintained export workflow
+
+### `OpenVoice V2`
+
+- Status for Phase 0 runtime: Not used
+- Status for future review: Candidate
+- Repository license signal: MIT
+- Dataset license signal: Mixed and checkpoint-dependent
+- Why it is not a current app model:
+  - it is a voice-cloning and style-transfer path, not a drop-in replacement for the current shared runtime
+  - desktop-only integration complexity is significantly higher than Piper, Kokoro, or KittenTTS
 
 ## Rule for the repo
 

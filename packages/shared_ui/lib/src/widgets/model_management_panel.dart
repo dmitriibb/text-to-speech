@@ -279,6 +279,8 @@ class _ModelTile extends StatelessWidget {
         return 'Kokoro';
       case 'pocket':
         return 'Pocket TTS';
+      case 'kitten':
+        return 'KittenTTS';
       default:
         return family;
     }
