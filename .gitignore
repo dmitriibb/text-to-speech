@@ -1,7 +1,7 @@
 .venv/
 .cache/
 artifacts/
-models/
+/models/
 __pycache__/
 *.pyc
 # task.checkpoint.md
