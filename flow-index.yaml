@@ -96,6 +96,11 @@ flows:
       - apps/desktop_app/lib/screens/voice_lab_screen.dart
       - apps/desktop_app/lib/state/voice_lab_state.dart
       - apps/desktop_app/lib/services/voice_library_service.dart
+      - apps/desktop_app/lib/services/open_voice_backend_service.dart
+      - apps/desktop_app/lib/services/open_voice_preferences_service.dart
+      - apps/open_voice_be/src/main.py
+      - apps/open_voice_be/src/job_store.py
+      - apps/open_voice_be/src/storage.py
   benchmark_validation:
     docs:
       - domain-brain/flows/benchmark-validation.md

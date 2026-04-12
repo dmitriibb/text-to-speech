@@ -8,6 +8,8 @@ Let the desktop user clone a voice from a short audio sample and use the cloned 
 
 In progress. A desktop prototype exists for Voice Lab, imported reference audio, and Pocket TTS-based cloned synthesis. The main-screen model discovery issue is fixed, Pocket TTS installation hardening is in place, install-task UX now reports real download or extraction progress, desktop model discovery is aligned to a single app-managed storage path, task cleanup semantics remove temporary files on cancel or dismiss, desktop task-row save now exports a real copy of generated audio, the shared tar extraction path has been hardened so Piper installs preserve the full runtime payload, the Voice Lab import flow now uses the desktop system file chooser instead of requiring manual path entry, Advanced Functionality now appears inline beside Basic Functionality instead of opening as a separate screen, voice-cloning controls stay hidden until clone mode is enabled, reference WAV loading now initializes sherpa bindings before cloned synthesis starts, regular Pocket TTS synthesis now falls back to the model's bundled default reference clip instead of writing an empty WAV, the shared background-task payload now preserves Pocket reference-audio metadata so standard synthesis can use that fallback in the isolate runtime, and Voice Lab import now accepts either WAV or MP3 while normalizing imported MP3 samples to stored WAV files automatically.
 
+OpenVoice backend work has now started. The repo contains a new `apps/open_voice_be` FastAPI app with async preview-job endpoints, disk-backed `.json` job metadata, `.wav` reference and result storage under `storage/`, and a desktop Voice Lab OpenVoice section for backend URL entry, health checks, WAV selection, and async preview polling. The desktop client polls job status with 1s, 2s, 3s, and so on up to 10s. Real OpenVoice inference is still not connected, so preview jobs currently fail with an explicit backend error after the async round-trip.
+
 A Windows-clone repository integrity issue was also found: the shared `src/models/` sources and desktop `lib/models/cloned_voice.dart` were missing from git because `.gitignore` used a recursive `models/` rule. The ignore rule now targets only the repo-root `/models/` directory so source-model files can be committed normally.
 
 ## Context
@@ -69,4 +71,6 @@ The research phase (steps 1–3) should be completed before committing to the fu
 
 ## Next Steps
 
-Complete and verify the inline Voice Lab layout refactor so clone mode uses shared Basic-panel text and auto-selects Pocket TTS.
+1. Replace the placeholder OpenVoice engine with a real inference adapter.
+2. Decide whether OpenVoice presets stay backend-only or need desktop-side save and browse flows in this milestone.
+3. Add end-to-end result export and preset persistence once preview generation succeeds.

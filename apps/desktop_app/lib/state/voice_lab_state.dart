@@ -7,18 +7,40 @@ import 'package:tts_core/tts_core.dart';
 
 import '../models/cloned_voice.dart';
 import '../services/audio_service.dart';
+import '../services/open_voice_backend_service.dart';
+import '../services/open_voice_preferences_service.dart';
 import '../services/voice_library_service.dart';
 import 'app_state.dart';
 
 class VoiceLabState extends ChangeNotifier {
-  VoiceLabState({required AppState appState}) : _appState = appState;
+  VoiceLabState({
+    required AppState appState,
+    VoiceLibraryService? libraryService,
+    OpenVoiceBackendService? openVoiceBackendService,
+    OpenVoicePreferencesService? openVoicePreferencesService,
+  }) : _appState = appState,
+       _libraryService = libraryService ?? VoiceLibraryService(),
+       _openVoiceBackendService =
+           openVoiceBackendService ?? OpenVoiceBackendService(),
+       _openVoicePreferencesService =
+           openVoicePreferencesService ?? OpenVoicePreferencesService();
 
   final AppState _appState;
-  final VoiceLibraryService _libraryService = VoiceLibraryService();
+  final VoiceLibraryService _libraryService;
+  final OpenVoiceBackendService _openVoiceBackendService;
+  final OpenVoicePreferencesService _openVoicePreferencesService;
 
   List<ClonedVoice> _voices = [];
   bool _isLoading = true;
   String? _errorMessage;
+  String _openVoiceBackendUrl = OpenVoiceBackendService.defaultBaseUrl;
+  OpenVoiceBackendConnectionState _openVoiceConnectionState =
+      OpenVoiceBackendConnectionState.disconnected;
+  String? _openVoiceBackendMessage;
+  OpenVoiceCapabilities? _openVoiceCapabilities;
+  String? _openVoiceSamplePath;
+  bool _isOpenVoicePreviewSubmitting = false;
+  String? _activeOpenVoiceJobId;
 
   // Preview playback
   String? _previewingVoiceId;
@@ -33,6 +55,23 @@ class VoiceLabState extends ChangeNotifier {
   bool get isPreviewPlaying => _isPreviewPlaying;
   bool get isVoiceCloningEnabled => _appState.isVoiceCloningEnabled;
   bool get hasSharedInputText => _appState.inputText.trim().isNotEmpty;
+    String get openVoiceBackendUrl => _openVoiceBackendUrl;
+    OpenVoiceBackendConnectionState get openVoiceConnectionState =>
+      _openVoiceConnectionState;
+    String? get openVoiceBackendMessage => _openVoiceBackendMessage;
+    OpenVoiceCapabilities? get openVoiceCapabilities => _openVoiceCapabilities;
+    String? get openVoiceSamplePath => _openVoiceSamplePath;
+    bool get hasOpenVoiceSample =>
+      _openVoiceSamplePath != null && _openVoiceSamplePath!.trim().isNotEmpty;
+    bool get isOpenVoicePreviewSubmitting => _isOpenVoicePreviewSubmitting;
+    String? get activeOpenVoiceJobId => _activeOpenVoiceJobId;
+    bool get canPreviewWithOpenVoice =>
+      isVoiceCloningEnabled &&
+      hasSharedInputText &&
+      hasOpenVoiceSample &&
+      !_isOpenVoicePreviewSubmitting &&
+      _openVoiceConnectionState == OpenVoiceBackendConnectionState.connected &&
+      (_openVoiceCapabilities?.supportsPreview ?? false);
 
   void setError(String message) {
     _errorMessage = message;
@@ -52,6 +91,7 @@ class VoiceLabState extends ChangeNotifier {
 
   Future<void> initialize() async {
     _appState.addListener(_handleAppStateChanged);
+    _openVoiceBackendUrl = await _openVoicePreferencesService.loadBackendUrl();
     _previewSub = _previewAudio.onStateChanged.listen((state) {
       _isPreviewPlaying = state == PlaybackState.playing;
       if (state == PlaybackState.stopped) {
@@ -65,6 +105,53 @@ class VoiceLabState extends ChangeNotifier {
 
   Future<void> setVoiceCloningEnabled(bool enabled) {
     return _appState.setVoiceCloningEnabled(enabled);
+  }
+
+  Future<void> setOpenVoiceBackendUrl(String backendUrl) async {
+    _openVoiceBackendUrl = backendUrl;
+    _openVoiceConnectionState = OpenVoiceBackendConnectionState.disconnected;
+    _openVoiceBackendMessage = null;
+    notifyListeners();
+    await _openVoicePreferencesService.saveBackendUrl(backendUrl);
+  }
+
+  void setOpenVoiceSamplePath(String? samplePath) {
+    _openVoiceSamplePath = samplePath;
+    notifyListeners();
+  }
+
+  Future<void> checkOpenVoiceConnection() async {
+    _errorMessage = null;
+    _openVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
+    _openVoiceBackendMessage = 'Checking backend connection...';
+    notifyListeners();
+
+    try {
+      final baseUri = _openVoiceBackendService.parseBaseUri(_openVoiceBackendUrl);
+      final health = await _openVoiceBackendService.fetchHealth(baseUri);
+      final capabilities = await _openVoiceBackendService.fetchCapabilities(
+        baseUri,
+      );
+      _openVoiceCapabilities = capabilities;
+      _openVoiceConnectionState = OpenVoiceBackendConnectionState.connected;
+      _openVoiceBackendMessage = health.engineReady
+          ? 'Connected to ${health.backend} ${health.version}.'
+          : 'Connected to ${health.backend} ${health.version}, but the OpenVoice engine is not wired yet.';
+    } on OpenVoiceBackendException catch (error) {
+      _openVoiceCapabilities = null;
+      _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+      _openVoiceBackendMessage =
+          'OpenVoice backend is not reachable at ${_openVoiceBackendUrl.trim()}.';
+      _errorMessage = error.message;
+    } catch (error) {
+      _openVoiceCapabilities = null;
+      _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+      _openVoiceBackendMessage =
+          'OpenVoice backend is not reachable at ${_openVoiceBackendUrl.trim()}.';
+      _errorMessage = error.toString();
+    }
+
+    notifyListeners();
   }
 
   Future<void> loadVoices() async {
@@ -133,6 +220,91 @@ class VoiceLabState extends ChangeNotifier {
     await _previewAudio.stop();
   }
 
+  Future<void> previewWithOpenVoice() async {
+    final sharedText = _appState.inputText.trim();
+    if (sharedText.isEmpty) {
+      _errorMessage =
+          'Enter text on the Home screen before requesting an OpenVoice preview';
+      notifyListeners();
+      return;
+    }
+
+    final samplePath = _openVoiceSamplePath;
+    if (samplePath == null || samplePath.trim().isEmpty) {
+      _errorMessage = 'Select a reference WAV file for OpenVoice preview.';
+      notifyListeners();
+      return;
+    }
+
+    if (_openVoiceConnectionState != OpenVoiceBackendConnectionState.connected ||
+        _openVoiceCapabilities == null) {
+      await checkOpenVoiceConnection();
+      if (_openVoiceConnectionState !=
+              OpenVoiceBackendConnectionState.connected ||
+          _openVoiceCapabilities == null) {
+        return;
+      }
+    }
+
+    _isOpenVoicePreviewSubmitting = true;
+    _errorMessage = null;
+    _openVoiceBackendMessage = 'Submitting OpenVoice preview job...';
+    notifyListeners();
+
+    try {
+      final baseUri = _openVoiceBackendService.parseBaseUri(_openVoiceBackendUrl);
+      final submission = await _openVoiceBackendService.submitPreviewJob(
+        baseUri: baseUri,
+        text: sharedText,
+        referenceAudioPath: samplePath,
+      );
+      _activeOpenVoiceJobId = submission.jobId;
+      _openVoiceBackendMessage =
+          'OpenVoice preview job ${submission.jobId} submitted.';
+      notifyListeners();
+
+      final completedJob = await _openVoiceBackendService.waitForJobCompletion(
+        baseUri: baseUri,
+        jobId: submission.jobId,
+        capabilities: _openVoiceCapabilities!,
+      );
+
+      if (completedJob.status == OpenVoiceJobStatus.failed) {
+        _errorMessage = completedJob.error ?? 'OpenVoice preview job failed.';
+        _openVoiceBackendMessage =
+            'OpenVoice preview job ${submission.jobId} failed.';
+        return;
+      }
+
+      final outputDir = Directory(
+        p.join(Directory.systemTemp.path, 'openvoice-preview'),
+      );
+      final outputPath = p.join(
+        outputDir.path,
+        'openvoice-preview-${DateTime.now().microsecondsSinceEpoch}.wav',
+      );
+      final outputFile = await _openVoiceBackendService.downloadJobResult(
+        baseUri: baseUri,
+        jobId: submission.jobId,
+        outputPath: outputPath,
+      );
+
+      await _previewAudio.stop();
+      await _previewAudio.play(outputFile.path);
+      _openVoiceBackendMessage =
+          'OpenVoice preview job ${submission.jobId} is ready.';
+    } on OpenVoiceBackendException catch (error) {
+      _errorMessage = error.message;
+      _openVoiceBackendMessage = 'OpenVoice preview failed.';
+    } catch (error) {
+      _errorMessage = 'OpenVoice preview failed: $error';
+      _openVoiceBackendMessage = 'OpenVoice preview failed.';
+    } finally {
+      _isOpenVoicePreviewSubmitting = false;
+      notifyListeners();
+    }
+  }
+
   /// Generates speech using a cloned voice via the Pocket TTS model.
   Future<void> generateWithClonedVoice({required ClonedVoice voice}) async {
     final model = pocketModel;
@@ -194,6 +366,7 @@ class VoiceLabState extends ChangeNotifier {
   void dispose() {
     _appState.removeListener(_handleAppStateChanged);
     unawaited(_previewSub?.cancel());
+    _openVoiceBackendService.dispose();
     _previewAudio.dispose();
     super.dispose();
   }

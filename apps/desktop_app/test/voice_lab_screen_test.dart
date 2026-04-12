@@ -1,5 +1,6 @@
 import 'package:desktop_app/models/cloned_voice.dart';
 import 'package:desktop_app/screens/voice_lab_screen.dart';
+import 'package:desktop_app/services/open_voice_backend_service.dart';
 import 'package:desktop_app/state/app_state.dart';
 import 'package:desktop_app/state/voice_lab_state.dart';
 import 'package:flutter/material.dart';
@@ -77,7 +78,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('Voice Library'), findsOneWidget);
+    expect(find.text('OpenVoice'), findsOneWidget);
     expect(find.text('Generate With Cloned Voice'), findsOneWidget);
+    expect(find.text('Preview With OpenVoice'), findsOneWidget);
     expect(find.text('Shared Text Input'), findsNothing);
     expect(find.text('Enter text to speak with this voice...'), findsNothing);
   });
@@ -149,6 +152,12 @@ class _FakeVoiceLabState extends VoiceLabState {
   bool isVoiceCloningEnabledValue = true;
   final String sharedInputTextValue;
   final List<ClonedVoice> voicesValue;
+  String openVoiceBackendUrlValue = OpenVoiceBackendService.defaultBaseUrl;
+  OpenVoiceBackendConnectionState openVoiceConnectionStateValue =
+      OpenVoiceBackendConnectionState.disconnected;
+  String? openVoiceBackendMessageValue;
+  String? openVoiceSamplePathValue;
+  bool isOpenVoicePreviewSubmittingValue = false;
 
   @override
   Future<void> initialize() async {}
@@ -172,10 +181,42 @@ class _FakeVoiceLabState extends VoiceLabState {
   bool get hasSharedInputText => sharedInputTextValue.trim().isNotEmpty;
 
   @override
+  String get openVoiceBackendUrl => openVoiceBackendUrlValue;
+
+  @override
+  OpenVoiceBackendConnectionState get openVoiceConnectionState =>
+      openVoiceConnectionStateValue;
+
+  @override
+  String? get openVoiceBackendMessage => openVoiceBackendMessageValue;
+
+  @override
+  String? get openVoiceSamplePath => openVoiceSamplePathValue;
+
+  @override
+  bool get isOpenVoicePreviewSubmitting => isOpenVoicePreviewSubmittingValue;
+
+  @override
+  bool get canPreviewWithOpenVoice => true;
+
+  @override
   Future<void> setVoiceCloningEnabled(bool enabled) async {
     isVoiceCloningEnabledValue = enabled;
     notifyListeners();
   }
+
+  @override
+  Future<void> setOpenVoiceBackendUrl(String backendUrl) async {
+    openVoiceBackendUrlValue = backendUrl;
+  }
+
+  @override
+  void setOpenVoiceSamplePath(String? samplePath) {
+    openVoiceSamplePathValue = samplePath;
+  }
+
+  @override
+  Future<void> checkOpenVoiceConnection() async {}
 
   @override
   Future<void> addVoice({
@@ -194,6 +235,9 @@ class _FakeVoiceLabState extends VoiceLabState {
 
   @override
   Future<void> generateWithClonedVoice({required ClonedVoice voice}) async {}
+
+  @override
+  Future<void> previewWithOpenVoice() async {}
 }
 
 class _FakeDesktopAppState extends AppState {

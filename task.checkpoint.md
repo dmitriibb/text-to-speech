@@ -92,6 +92,11 @@
 - Added durable repo notes in `models.list.md` and expanded licensing and domain-brain docs with the Kokoro packaging distinction and future-model guidance
 
 ## Checkpoint 14
+- Added `openvoice.backend.plan.md` with the recommended architecture for a desktop-only OpenVoice backend exposed over local HTTP
+- Documented the staged rollout: local Python backend first on Windows, then Docker packaging after the API and inference path are stable
+- Captured the recommended Voice Lab UX with separate Pocket TTS and OpenVoice sections, explicit backend health state, and backend-managed preset storage
+
+## Checkpoint 14
 - Replaced the Windows desktop generated-audio fallback player in `apps/desktop_app/lib/services/audio_service.dart` with an in-process MCI-backed controller so pause, stop, replay, and seek all control the same active clip
 - Added `apps/desktop_app/test/audio_service_test.dart` to cover the Windows resume and seek flows that previously spawned overlapping playback
 - Updated `domain-brain/flows/audio-output.md`, `domain-brain/state-machines/playback-lifecycle.md`, and the archived task record to document the Windows playback-control invariant
