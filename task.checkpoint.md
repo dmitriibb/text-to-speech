@@ -106,3 +106,10 @@
 - Marked `apps/open_voice_be/models/` and `apps/open_voice_be/storage/` as local runtime state that must stay out of git history
 - Updated the OpenVoice backend README, the voice-cloning domain flow, and `tasks/task-9-voice-cloning.md` so the first-start download behavior and generated job artifacts are documented as local-only
 - Cleaned the local OpenVoice branch history so downloaded checkpoints and generated preview outputs no longer block pushes to GitHub
+
+## Checkpoint 16
+- Extended desktop Voice Lab so OpenVoice now accepts WAV or MP3 reference audio, converts MP3 to WAV on the desktop side, and uses a `Generate Speech` action instead of a transient preview-only button
+- Lifted `VoiceLabState` to app scope in `apps/desktop_app/lib/app.dart` so navigating away from and back to Voice Lab no longer resets the OpenVoice toggle, selected sample, backend URL, active job id, or in-progress generation state
+- Added `createGeneratedAudioOutputPath()` and `registerExternalGeneratedAudio()` in `apps/desktop_app/lib/state/app_state.dart` so backend-produced OpenVoice WAV files enter the same generated-audio task flow as other speech output
+- Updated `apps/desktop_app/lib/state/voice_lab_state.dart` so completed OpenVoice jobs download into the managed generated-audio directory and appear on the Home screen task list with playback and export controls
+- Refreshed desktop tests plus the app-navigation, audio-output, and voice-cloning domain docs and `tasks/task-9-voice-cloning.md` to reflect the persistent Voice Lab state and shared Home-screen output behavior
