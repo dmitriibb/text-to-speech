@@ -20,10 +20,12 @@
 - The OpenVoice toggle is always interactive and controls only whether the OpenVoice section is visible.
 - When the OpenVoice toggle is on, the section stays visible even if the backend is down so the user can still edit the backend URL and inspect status.
 - While the OpenVoice toggle is on, the desktop app checks backend health immediately and then every 10 seconds in the background.
+- The desktop app uses `GET /health` to determine backend readiness and submits new OpenVoice work through `POST /jobs`.
 - The desktop app polls OpenVoice jobs at 1s, 2s, 3s, and so on up to a 10s maximum interval.
 - The OpenVoice backend stores MVP job state in `apps/open_voice_be/storage/` with `.json` job metadata and `.wav` reference and result audio files.
 - The current OpenVoice implementation uses the official OpenVoice V2 tone-color converter plus official MeloTTS English-v2 as the CPU-only Windows-first base-speaker runtime.
 - The backend downloads required model assets into `apps/open_voice_be/models/` on first startup and needs manual Python environment setup by the user.
+- The preferred local backend launch command is `python -m src.main` from `apps/open_voice_be/`.
 - The downloaded files under `apps/open_voice_be/models/` and the generated job artifacts under `apps/open_voice_be/storage/` are local runtime state and must stay out of git history.
 - The current MVP supports English only through the OpenVoice backend path.
 - The current MVP extracts the target speaker embedding directly from the uploaded reference WAV instead of using the optional OpenVoice VAD splitting helpers.

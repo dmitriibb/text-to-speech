@@ -37,7 +37,6 @@ class VoiceLabState extends ChangeNotifier {
   OpenVoiceBackendConnectionState _openVoiceConnectionState =
       OpenVoiceBackendConnectionState.disconnected;
   String? _openVoiceBackendMessage;
-  OpenVoiceCapabilities? _openVoiceCapabilities;
   String? _openVoiceSamplePath;
   bool _isOpenVoiceEnabled = false;
   bool _isOpenVoicePreviewSubmitting = false;
@@ -62,7 +61,6 @@ class VoiceLabState extends ChangeNotifier {
   OpenVoiceBackendConnectionState get openVoiceConnectionState =>
       _openVoiceConnectionState;
   String? get openVoiceBackendMessage => _openVoiceBackendMessage;
-  OpenVoiceCapabilities? get openVoiceCapabilities => _openVoiceCapabilities;
   String? get openVoiceSamplePath => _openVoiceSamplePath;
   bool get hasOpenVoiceSample =>
       _openVoiceSamplePath != null && _openVoiceSamplePath!.trim().isNotEmpty;
@@ -73,8 +71,7 @@ class VoiceLabState extends ChangeNotifier {
       hasSharedInputText &&
       hasOpenVoiceSample &&
       !_isOpenVoicePreviewSubmitting &&
-      _openVoiceConnectionState == OpenVoiceBackendConnectionState.connected &&
-      (_openVoiceCapabilities?.supportsPreview ?? false);
+      _openVoiceConnectionState == OpenVoiceBackendConnectionState.connected;
 
   void setError(String message) {
     _errorMessage = message;
@@ -156,11 +153,7 @@ class VoiceLabState extends ChangeNotifier {
     try {
       final baseUri = _openVoiceBackendService.parseBaseUri(_openVoiceBackendUrl);
       final health = await _openVoiceBackendService.fetchHealth(baseUri);
-      final capabilities = await _openVoiceBackendService.fetchCapabilities(
-        baseUri,
-      );
-      _openVoiceCapabilities = capabilities;
-      if (health.engineReady && capabilities.supportsPreview) {
+      if (health.engineReady) {
         _openVoiceConnectionState = OpenVoiceBackendConnectionState.connected;
         _openVoiceBackendMessage =
             'Backend is healthy at ${_openVoiceBackendUrl.trim()}.';
@@ -177,7 +170,6 @@ class VoiceLabState extends ChangeNotifier {
         }
       }
     } on OpenVoiceBackendException catch (error) {
-      _openVoiceCapabilities = null;
       _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
       _openVoiceBackendMessage =
           'Backend is down at ${_openVoiceBackendUrl.trim()}.';
@@ -185,7 +177,6 @@ class VoiceLabState extends ChangeNotifier {
         _errorMessage = error.message;
       }
     } catch (error) {
-      _openVoiceCapabilities = null;
       _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
       _openVoiceBackendMessage =
           'Backend is down at ${_openVoiceBackendUrl.trim()}.';
@@ -279,12 +270,10 @@ class VoiceLabState extends ChangeNotifier {
       return;
     }
 
-    if (_openVoiceConnectionState != OpenVoiceBackendConnectionState.connected ||
-        _openVoiceCapabilities == null) {
+    if (_openVoiceConnectionState != OpenVoiceBackendConnectionState.connected) {
       await checkOpenVoiceConnection(showAsError: true);
       if (_openVoiceConnectionState !=
-              OpenVoiceBackendConnectionState.connected ||
-          _openVoiceCapabilities == null) {
+          OpenVoiceBackendConnectionState.connected) {
         return;
       }
     }
@@ -296,7 +285,7 @@ class VoiceLabState extends ChangeNotifier {
 
     try {
       final baseUri = _openVoiceBackendService.parseBaseUri(_openVoiceBackendUrl);
-      final submission = await _openVoiceBackendService.submitPreviewJob(
+      final submission = await _openVoiceBackendService.submitJob(
         baseUri: baseUri,
         text: sharedText,
         referenceAudioPath: samplePath,
@@ -309,7 +298,6 @@ class VoiceLabState extends ChangeNotifier {
       final completedJob = await _openVoiceBackendService.waitForJobCompletion(
         baseUri: baseUri,
         jobId: submission.jobId,
-        capabilities: _openVoiceCapabilities!,
       );
 
       if (completedJob.status == OpenVoiceJobStatus.failed) {

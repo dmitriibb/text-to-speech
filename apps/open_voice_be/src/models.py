@@ -24,15 +24,6 @@ class HealthResponse(BaseModel):
     jobs_in_progress: int
 
 
-class CapabilitiesResponse(BaseModel):
-    languages: list[str] = Field(default_factory=lambda: ['en'])
-    supports_preview: bool
-    supports_preset_save: bool = False
-    supports_style_controls: bool = False
-    style_controls: list[str] = Field(default_factory=list)
-    polling_strategy: dict[str, int]
-
-
 class JobResultPayload(BaseModel):
     audio_ready: bool = False
     download_path: str | None = None

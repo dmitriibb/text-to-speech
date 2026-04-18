@@ -33,7 +33,7 @@ class JobStore:
                 if job.status in (JobStatus.queued, JobStatus.running)
             )
 
-    async def create_clone_preview_job(
+    async def create_job(
         self,
         *,
         text: str,
@@ -49,7 +49,7 @@ class JobStore:
 
         job = JobRecord(
             job_id=job_id,
-            job_type='clone-preview',
+            job_type='clone',
             status=JobStatus.queued,
             text=text,
             language=language,
@@ -58,7 +58,7 @@ class JobStore:
         )
         await self._write_job(job)
 
-        asyncio.create_task(self._run_clone_preview_job(job_id))
+        asyncio.create_task(self._run_job(job_id))
         return job
 
     async def get_job(self, job_id: str) -> JobRecord | None:
@@ -77,7 +77,7 @@ class JobStore:
             self._jobs[job_id] = job
         return job
 
-    async def _run_clone_preview_job(self, job_id: str) -> None:
+    async def _run_job(self, job_id: str) -> None:
         job = await self.get_job(job_id)
         if job is None:
             return

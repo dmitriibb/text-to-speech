@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+import uvicorn
 
 from .config import load_settings
 from .engine import OpenVoiceEngine
 from .job_store import JobStore
-from .models import CapabilitiesResponse, CreateJobResponse, HealthResponse, JobStatus
+from .models import CreateJobResponse, HealthResponse, JobStatus
 from .storage import StorageManager
 
 settings = load_settings()
@@ -31,20 +32,8 @@ async def health() -> HealthResponse:
     )
 
 
-@app.get('/capabilities', response_model=CapabilitiesResponse)
-async def capabilities() -> CapabilitiesResponse:
-    return CapabilitiesResponse(
-        supports_preview=engine.is_ready,
-        polling_strategy={
-            'initial_seconds': 1,
-            'increment_seconds': 1,
-            'max_seconds': 10,
-        },
-    )
-
-
-@app.post('/jobs/clone-preview', response_model=CreateJobResponse, status_code=202)
-async def create_clone_preview_job(
+@app.post('/jobs', response_model=CreateJobResponse, status_code=202)
+async def create_job(
     text: str = Form(...),
     language: str = Form('en'),
     reference_audio: UploadFile = File(...),
@@ -52,7 +41,7 @@ async def create_clone_preview_job(
     if not text.strip():
         raise HTTPException(status_code=400, detail='Text is required.')
 
-    job = await job_store.create_clone_preview_job(
+    job = await job_store.create_job(
         text=text.strip(),
         language=language.strip() or 'en',
         reference_audio=reference_audio,
@@ -81,3 +70,16 @@ async def get_job_result(job_id: str):
     if job.status != JobStatus.succeeded or job.result_audio_path is None:
         raise HTTPException(status_code=409, detail='Job result is not ready.')
     return FileResponse(job.result_audio_path, media_type='audio/wav')
+
+
+def main() -> None:
+    uvicorn.run(
+        'src.main:app',
+        app_dir='.',
+        host=settings.host,
+        port=settings.port,
+    )
+
+
+if __name__ == '__main__':
+    main()

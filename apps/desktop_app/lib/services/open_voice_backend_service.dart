@@ -43,32 +43,6 @@ class OpenVoiceHealth {
   }
 }
 
-class OpenVoiceCapabilities {
-  const OpenVoiceCapabilities({
-    required this.supportsPreview,
-    required this.initialPollingSeconds,
-    required this.incrementSeconds,
-    required this.maxPollingSeconds,
-  });
-
-  final bool supportsPreview;
-  final int initialPollingSeconds;
-  final int incrementSeconds;
-  final int maxPollingSeconds;
-
-  factory OpenVoiceCapabilities.fromJson(Map<String, Object?> json) {
-    final polling = Map<String, Object?>.from(
-      json['polling_strategy'] as Map? ?? const <String, Object?>{},
-    );
-    return OpenVoiceCapabilities(
-      supportsPreview: json['supports_preview'] as bool? ?? false,
-      initialPollingSeconds: polling['initial_seconds'] as int? ?? 1,
-      incrementSeconds: polling['increment_seconds'] as int? ?? 1,
-      maxPollingSeconds: polling['max_seconds'] as int? ?? 10,
-    );
-  }
-}
-
 class OpenVoiceJobSubmission {
   const OpenVoiceJobSubmission({required this.jobId});
 
@@ -129,6 +103,9 @@ class OpenVoiceBackendService {
       _delay = delay ?? ((duration) => Future<void>.delayed(duration));
 
   static const defaultBaseUrl = 'http://127.0.0.1:8008';
+  static const initialPollingSeconds = 1;
+  static const pollingIncrementSeconds = 1;
+  static const maxPollingSeconds = 10;
 
   final http.Client _client;
   final OpenVoiceDelay _delay;
@@ -155,13 +132,7 @@ class OpenVoiceBackendService {
     return OpenVoiceHealth.fromJson(json);
   }
 
-  Future<OpenVoiceCapabilities> fetchCapabilities(Uri baseUri) async {
-    final response = await _client.get(_endpoint(baseUri, '/capabilities'));
-    final json = _decodeJson(response);
-    return OpenVoiceCapabilities.fromJson(json);
-  }
-
-  Future<OpenVoiceJobSubmission> submitPreviewJob({
+  Future<OpenVoiceJobSubmission> submitJob({
     required Uri baseUri,
     required String text,
     required String referenceAudioPath,
@@ -169,7 +140,7 @@ class OpenVoiceBackendService {
   }) async {
     final request = http.MultipartRequest(
       'POST',
-      _endpoint(baseUri, '/jobs/clone-preview'),
+      _endpoint(baseUri, '/jobs'),
     );
     request.fields['text'] = text;
     request.fields['language'] = language;
@@ -196,14 +167,13 @@ class OpenVoiceBackendService {
   Future<OpenVoiceJob> waitForJobCompletion({
     required Uri baseUri,
     required String jobId,
-    required OpenVoiceCapabilities capabilities,
   }) async {
     var attempt = 0;
     var current = await fetchJob(baseUri, jobId);
     while (!current.isTerminal) {
-        final waitSeconds = ((capabilities.initialPollingSeconds +
-              (attempt * capabilities.incrementSeconds))
-            .clamp(1, capabilities.maxPollingSeconds))
+        final waitSeconds = ((initialPollingSeconds +
+              (attempt * pollingIncrementSeconds))
+            .clamp(1, maxPollingSeconds))
           as int;
       await _delay(Duration(seconds: waitSeconds));
       current = await fetchJob(baseUri, jobId);

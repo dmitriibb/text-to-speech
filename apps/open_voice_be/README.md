@@ -2,6 +2,8 @@
 
 Local FastAPI backend for the desktop app's OpenVoice integration.
 
+Platform-specific startup steps live in `how-to-run.md`.
+
 ## Current MVP scope
 
 - Manual local startup by the user
@@ -11,7 +13,7 @@ Local FastAPI backend for the desktop app's OpenVoice integration.
 - Disk-backed job metadata in `storage/jobs/*.json`
 - Reference audio stored in `storage/reference_audio/*.wav`
 - Result audio stored in `storage/results/*.wav`
-- Health and capabilities endpoints for the desktop app
+- Health endpoint for the desktop app
 
 ## Current limitations
 
@@ -28,12 +30,16 @@ python -m venv .venv
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 .\.venv\Scripts\python -m pip install --no-deps git+https://github.com/myshell-ai/OpenVoice.git
-python -m unidic download
-uvicorn src.main:app --app-dir . --host 127.0.0.1 --port 8008
+python -m src.main
 ```
 
 The separate `--no-deps` install for OpenVoice is intentional on Windows.
 It avoids the optional `faster-whisper` and `av` dependency chain, which is not needed for the current backend path because this MVP extracts speaker embeddings directly from the reference WAV instead of running OpenVoice VAD splitting.
+
+The current English-only MVP does not require the large `unidic` dictionary download step.
+
+`python -m src.main` is the preferred local entrypoint.
+Internally it still starts the FastAPI app through `uvicorn`, which is the ASGI web server used to expose the backend over HTTP.
 
 The first English preview request may also download extra tokenizer and BERT assets used by the MeloTTS text pipeline, so the first successful job can take noticeably longer than later jobs.
 
@@ -79,7 +85,6 @@ Everything under `storage/` is generated local runtime data and should not be co
 ## API
 
 - `GET /health`
-- `GET /capabilities`
-- `POST /jobs/clone-preview`
+- `POST /jobs`
 - `GET /jobs/{job_id}`
 - `GET /jobs/{job_id}/result`
