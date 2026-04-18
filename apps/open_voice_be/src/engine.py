@@ -40,6 +40,7 @@ class OpenVoiceEngine:
         *,
         text: str,
         language: str,
+        speed: float,
         reference_audio_path: Path,
         output_path: Path,
     ) -> None:
@@ -50,6 +51,8 @@ class OpenVoiceEngine:
             raise RuntimeError(
                 'This MVP OpenVoice backend currently supports English only.'
             )
+
+        clamped_speed = max(0.5, min(2.0, float(speed)))
 
         working_dir = self._settings.working_dir / output_path.stem
         working_dir.mkdir(parents=True, exist_ok=True)
@@ -66,7 +69,7 @@ class OpenVoiceEngine:
             text,
             speaker_id,
             str(source_audio_path),
-            speed=1.0,
+            speed=clamped_speed,
             quiet=True,
         )
 

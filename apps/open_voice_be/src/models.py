@@ -37,6 +37,7 @@ class JobRecord(BaseModel):
     status: JobStatus
     text: str
     language: str
+    speed: float
     reference_audio_path: str
     result_audio_path: str | None = None
     error: str | None = None

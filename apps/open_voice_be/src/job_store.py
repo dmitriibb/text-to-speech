@@ -38,6 +38,7 @@ class JobStore:
         *,
         text: str,
         language: str,
+        speed: float,
         reference_audio: UploadFile,
     ) -> JobRecord:
         job_id = f'job-{uuid.uuid4()}'
@@ -53,6 +54,7 @@ class JobStore:
             status=JobStatus.queued,
             text=text,
             language=language,
+            speed=speed,
             reference_audio_path=str(stored_reference_path),
             submitted_at=_utc_now(),
         )
@@ -92,6 +94,7 @@ class JobStore:
                 self._engine.generate_preview,
                 text=job.text,
                 language=job.language,
+                speed=job.speed,
                 reference_audio_path=Path(job.reference_audio_path),
                 output_path=result_audio_path,
             )

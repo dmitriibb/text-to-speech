@@ -22,6 +22,7 @@
 - Voice Lab state is app-scoped on desktop, so leaving Voice Lab and returning must not reset OpenVoice toggle state, selected reference audio, active job id, or in-progress generation status.
 - While the OpenVoice toggle is on, the desktop app checks backend health immediately and then every 10 seconds in the background.
 - The desktop app uses `GET /health` to determine backend readiness and submits new OpenVoice work through `POST /jobs`.
+- OpenVoice speech generation uses the shared Home-screen speed value; desktop submits that speed with the job request and the backend applies it during the MeloTTS synthesis step before tone-color conversion.
 - The desktop app polls OpenVoice jobs at 1s, 2s, 3s, and so on up to a 10s maximum interval.
 - OpenVoice reference selection accepts `.wav` and `.mp3`; when the user picks `.mp3`, the desktop app converts it to a temporary `.wav` before uploading it to the backend.
 - OpenVoice uses a `Generate Speech` action, not a transient preview-only action; once the backend returns a `.wav`, the desktop app stores it as generated audio and surfaces it on the Home screen like other completed speech tasks.

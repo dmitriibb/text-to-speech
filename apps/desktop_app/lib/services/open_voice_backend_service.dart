@@ -137,6 +137,7 @@ class OpenVoiceBackendService {
     required String text,
     required String referenceAudioPath,
     String language = 'en',
+    double speed = 1.0,
   }) async {
     final request = http.MultipartRequest(
       'POST',
@@ -144,6 +145,7 @@ class OpenVoiceBackendService {
     );
     request.fields['text'] = text;
     request.fields['language'] = language;
+    request.fields['speed'] = speed.toString();
     request.files.add(
       await http.MultipartFile.fromPath(
         'reference_audio',

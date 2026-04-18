@@ -36,14 +36,21 @@ async def health() -> HealthResponse:
 async def create_job(
     text: str = Form(...),
     language: str = Form('en'),
+    speed: float = Form(1.0),
     reference_audio: UploadFile = File(...),
 ) -> CreateJobResponse:
     if not text.strip():
         raise HTTPException(status_code=400, detail='Text is required.')
+    if speed < 0.5 or speed > 2.0:
+        raise HTTPException(
+            status_code=400,
+            detail='Speed must be between 0.5 and 2.0.',
+        )
 
     job = await job_store.create_job(
         text=text.strip(),
         language=language.strip() or 'en',
+        speed=speed,
         reference_audio=reference_audio,
     )
     return CreateJobResponse(

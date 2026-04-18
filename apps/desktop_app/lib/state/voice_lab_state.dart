@@ -292,6 +292,7 @@ class VoiceLabState extends ChangeNotifier {
         baseUri: baseUri,
         text: sharedText,
         referenceAudioPath: normalizedSamplePath,
+        speed: _appState.speed,
       );
       _activeOpenVoiceJobId = submission.jobId;
       _openVoiceBackendMessage =

@@ -7,9 +7,10 @@ Platform-specific startup steps live in `how-to-run.md`.
 ## Current MVP scope
 
 - Manual local startup by the user
-- Async preview jobs with job IDs
+- Async speech jobs with job IDs
 - Official OpenVoice V2 tone-color conversion on CPU
 - Official MeloTTS English-v2 as the base speaker model on CPU
+- Desktop-controlled speech speed forwarded through the job API
 - Disk-backed job metadata in `storage/jobs/*.json`
 - Reference audio stored in `storage/reference_audio/*.wav`
 - Result audio stored in `storage/results/*.wav`
@@ -41,7 +42,7 @@ The current English-only MVP does not require the large `unidic` dictionary down
 `python -m src.main` is the preferred local entrypoint.
 Internally it still starts the FastAPI app through `uvicorn`, which is the ASGI web server used to expose the backend over HTTP.
 
-The first English preview request may also download extra tokenizer and BERT assets used by the MeloTTS text pipeline, so the first successful job can take noticeably longer than later jobs.
+The first English speech request may also download extra tokenizer and BERT assets used by the MeloTTS text pipeline, so the first successful job can take noticeably longer than later jobs.
 
 ## Model layout
 
@@ -88,3 +89,9 @@ Everything under `storage/` is generated local runtime data and should not be co
 - `POST /jobs`
 - `GET /jobs/{job_id}`
 - `GET /jobs/{job_id}/result`
+
+`POST /jobs` accepts multipart form fields:
+- `text`
+- `language`
+- `speed` in the `0.5` to `2.0` range
+- `reference_audio`
