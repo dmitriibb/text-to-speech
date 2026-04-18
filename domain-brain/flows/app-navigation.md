@@ -11,7 +11,7 @@ Keep the main generation flow focused on text, voice settings, and playback whil
 3. User opens the platform navigation menu.
 4. User selects `Models` to view the approved catalog and start install or repair work on a dedicated screen.
 5. On Android, the user may also select `About`; on desktop, the user may also select `Voice Lab`.
-6. App switches screens without disturbing current selected model, text input, generated audio, or background task state.
+6. App switches screens without disturbing current selected model, text input, generated audio, background task state, or desktop Voice Lab state.
 7. User returns to Home and continues the local generation flow.
 
 ## Invariants
@@ -20,7 +20,7 @@ Keep the main generation flow focused on text, voice settings, and playback whil
 - Model catalog browsing and install actions live on the dedicated Models screen instead of Home.
 - Android navigation exposes Home, Models, and About.
 - Desktop navigation exposes Home, Models, and Voice Lab.
-- Navigation between destinations must not reset selected model, text input, generated audio state, or running tasks.
+- Navigation between destinations must not reset selected model, text input, generated audio state, running tasks, or the current Voice Lab configuration and OpenVoice job progress.
 
 ## Failure Modes
 

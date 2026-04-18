@@ -39,7 +39,7 @@ class VoiceLabState extends ChangeNotifier {
   String? _openVoiceBackendMessage;
   String? _openVoiceSamplePath;
   bool _isOpenVoiceEnabled = false;
-  bool _isOpenVoicePreviewSubmitting = false;
+  bool _isOpenVoiceGenerationSubmitting = false;
   String? _activeOpenVoiceJobId;
   Timer? _openVoiceHealthTimer;
 
@@ -64,13 +64,13 @@ class VoiceLabState extends ChangeNotifier {
   String? get openVoiceSamplePath => _openVoiceSamplePath;
   bool get hasOpenVoiceSample =>
       _openVoiceSamplePath != null && _openVoiceSamplePath!.trim().isNotEmpty;
-  bool get isOpenVoicePreviewSubmitting => _isOpenVoicePreviewSubmitting;
+  bool get isOpenVoiceGenerationSubmitting => _isOpenVoiceGenerationSubmitting;
   String? get activeOpenVoiceJobId => _activeOpenVoiceJobId;
-  bool get canPreviewWithOpenVoice =>
+  bool get canGenerateWithOpenVoice =>
       _isOpenVoiceEnabled &&
       hasSharedInputText &&
       hasOpenVoiceSample &&
-      !_isOpenVoicePreviewSubmitting &&
+      !_isOpenVoiceGenerationSubmitting &&
       _openVoiceConnectionState == OpenVoiceBackendConnectionState.connected;
 
   void setError(String message) {
@@ -166,7 +166,7 @@ class VoiceLabState extends ChangeNotifier {
             'Backend is not healthy at ${_openVoiceBackendUrl.trim()}.';
         if (showAsError) {
           _errorMessage =
-              'Connected to ${health.backend} ${health.version}, but preview is not ready yet.';
+              'Connected to ${health.backend} ${health.version}, but speech generation is not ready yet.';
         }
       }
     } on OpenVoiceBackendException catch (error) {
@@ -254,18 +254,19 @@ class VoiceLabState extends ChangeNotifier {
     await _previewAudio.stop();
   }
 
-  Future<void> previewWithOpenVoice() async {
+  Future<void> generateWithOpenVoice() async {
     final sharedText = _appState.inputText.trim();
     if (sharedText.isEmpty) {
       _errorMessage =
-          'Enter text on the Home screen before requesting an OpenVoice preview';
+          'Enter text on the Home screen before generating OpenVoice speech';
       notifyListeners();
       return;
     }
 
     final samplePath = _openVoiceSamplePath;
     if (samplePath == null || samplePath.trim().isEmpty) {
-      _errorMessage = 'Select a reference WAV file for OpenVoice preview.';
+      _errorMessage =
+          'Select a reference WAV or MP3 file for OpenVoice speech generation.';
       notifyListeners();
       return;
     }
@@ -278,21 +279,23 @@ class VoiceLabState extends ChangeNotifier {
       }
     }
 
-    _isOpenVoicePreviewSubmitting = true;
+    _isOpenVoiceGenerationSubmitting = true;
     _errorMessage = null;
-    _openVoiceBackendMessage = 'Submitting OpenVoice preview job...';
+    _openVoiceBackendMessage = 'Submitting OpenVoice speech job...';
     notifyListeners();
 
     try {
       final baseUri = _openVoiceBackendService.parseBaseUri(_openVoiceBackendUrl);
+      final normalizedSamplePath = await _normalizeOpenVoiceSample(samplePath);
+      final startedAt = DateTime.now();
       final submission = await _openVoiceBackendService.submitJob(
         baseUri: baseUri,
         text: sharedText,
-        referenceAudioPath: samplePath,
+        referenceAudioPath: normalizedSamplePath,
       );
       _activeOpenVoiceJobId = submission.jobId;
       _openVoiceBackendMessage =
-          'OpenVoice preview job ${submission.jobId} submitted.';
+          'OpenVoice speech job ${submission.jobId} submitted.';
       notifyListeners();
 
       final completedJob = await _openVoiceBackendService.waitForJobCompletion(
@@ -301,18 +304,13 @@ class VoiceLabState extends ChangeNotifier {
       );
 
       if (completedJob.status == OpenVoiceJobStatus.failed) {
-        _errorMessage = completedJob.error ?? 'OpenVoice preview job failed.';
+        _errorMessage = completedJob.error ?? 'OpenVoice speech job failed.';
         _openVoiceBackendMessage =
-            'OpenVoice preview job ${submission.jobId} failed.';
+            'OpenVoice speech job ${submission.jobId} failed.';
         return;
       }
-
-      final outputDir = Directory(
-        p.join(Directory.systemTemp.path, 'openvoice-preview'),
-      );
-      final outputPath = p.join(
-        outputDir.path,
-        'openvoice-preview-${DateTime.now().microsecondsSinceEpoch}.wav',
+      final outputPath = await _appState.createGeneratedAudioOutputPath(
+        prefix: 'openvoice-speech',
       );
       final outputFile = await _openVoiceBackendService.downloadJobResult(
         baseUri: baseUri,
@@ -320,20 +318,44 @@ class VoiceLabState extends ChangeNotifier {
         outputPath: outputPath,
       );
 
-      await _previewAudio.stop();
-      await _previewAudio.play(outputFile.path);
+      _appState.registerExternalGeneratedAudio(
+        label: 'openvoice-${submission.jobId}',
+        modelId: 'openvoice',
+        modelName: 'OpenVoice',
+        inputCharacterCount: sharedText.length,
+        speechSpeed: _appState.speed,
+        outputPath: outputFile.path,
+        startedAt: startedAt,
+      );
       _openVoiceBackendMessage =
-          'OpenVoice preview job ${submission.jobId} is ready.';
+          'OpenVoice speech job ${submission.jobId} is ready on the Home screen.';
     } on OpenVoiceBackendException catch (error) {
       _errorMessage = error.message;
-      _openVoiceBackendMessage = 'OpenVoice preview failed.';
+      _openVoiceBackendMessage = 'OpenVoice speech generation failed.';
     } catch (error) {
-      _errorMessage = 'OpenVoice preview failed: $error';
-      _openVoiceBackendMessage = 'OpenVoice preview failed.';
+      _errorMessage = 'OpenVoice speech generation failed: $error';
+      _openVoiceBackendMessage = 'OpenVoice speech generation failed.';
     } finally {
-      _isOpenVoicePreviewSubmitting = false;
+      _isOpenVoiceGenerationSubmitting = false;
       notifyListeners();
     }
+  }
+
+  Future<String> _normalizeOpenVoiceSample(String sourceAudioPath) async {
+    final outputDir = Directory(
+      p.join(Directory.systemTemp.path, 'openvoice-reference'),
+    );
+    await outputDir.create(recursive: true);
+
+    final normalizedPath = p.join(
+      outputDir.path,
+      'openvoice-reference-${DateTime.now().microsecondsSinceEpoch}.wav',
+    );
+    await _libraryService.normalizeAudioToWav(
+      sourceAudioPath: sourceAudioPath,
+      destinationWavPath: normalizedPath,
+    );
+    return normalizedPath;
   }
 
   /// Generates speech using a cloned voice via the Pocket TTS model.

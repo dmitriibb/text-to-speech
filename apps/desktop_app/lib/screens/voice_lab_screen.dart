@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 
 import '../models/cloned_voice.dart';
 import '../services/open_voice_backend_service.dart';
-import '../state/app_state.dart';
 import '../state/voice_lab_state.dart';
 import '../widgets/app_navigation_drawer.dart';
 import 'home_screen.dart';
@@ -189,28 +188,20 @@ class VoiceLabPanel extends StatefulWidget {
 
 class _VoiceLabPanelState extends State<VoiceLabPanel> {
   late final VoiceLabState _state;
-  late final bool _ownsState;
   late final TextEditingController _openVoiceUrlController;
 
   @override
   void initState() {
     super.initState();
-    _ownsState = widget.stateOverride == null;
-    _state =
-        widget.stateOverride ??
-        VoiceLabState(appState: context.read<AppState>());
+    _state = widget.stateOverride ?? context.read<VoiceLabState>();
     _openVoiceUrlController = TextEditingController(
       text: _state.openVoiceBackendUrl,
     );
-    _state.initialize();
   }
 
   @override
   void dispose() {
     _openVoiceUrlController.dispose();
-    if (_ownsState) {
-      _state.dispose();
-    }
     super.dispose();
   }
 
@@ -503,7 +494,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Advanced path through a manually started local backend. This MVP expects a WAV reference sample and uses async job polling.',
+          'Advanced path through a manually started local backend. This MVP accepts a WAV or MP3 reference sample, converts MP3 to WAV automatically, and uses async job polling.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 16),
@@ -521,7 +512,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
             Expanded(
               child: Text(
                 state.openVoiceBackendMessage ??
-                    'Check the backend connection before requesting a preview.',
+                    'Check the backend connection before generating speech.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -555,13 +546,14 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
             OutlinedButton.icon(
               onPressed: () => _selectOpenVoiceSample(state),
               icon: const Icon(Icons.audio_file_outlined),
-              label: const Text('Select Reference WAV'),
+              label: const Text('Select Reference Audio'),
             ),
           ],
         ),
         const SizedBox(height: 12),
         Text(
-          state.openVoiceSamplePath ?? 'No OpenVoice reference WAV selected yet.',
+          state.openVoiceSamplePath ??
+              'No OpenVoice reference audio selected yet.',
           style: Theme.of(
             context,
           ).textTheme.bodySmall?.copyWith(
@@ -571,26 +563,26 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
         const SizedBox(height: 12),
         Text(
           state.hasSharedInputText
-              ? 'Preview uses the text currently entered in the Basic panel.'
-              : 'Add text in the Basic panel before requesting an OpenVoice preview.',
+              ? 'Speech generation uses the text currently entered in the Basic panel.'
+              : 'Add text in the Basic panel before generating OpenVoice speech.',
           style: Theme.of(context).textTheme.bodySmall,
         ),
         const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: state.canPreviewWithOpenVoice
-                ? state.previewWithOpenVoice
+            onPressed: state.canGenerateWithOpenVoice
+                ? state.generateWithOpenVoice
                 : null,
             icon: Icon(
-              state.isOpenVoicePreviewSubmitting
+              state.isOpenVoiceGenerationSubmitting
                   ? Icons.sync
                   : Icons.graphic_eq,
             ),
             label: Text(
-              state.isOpenVoicePreviewSubmitting
-                  ? 'Previewing...'
-                  : 'Preview With OpenVoice',
+              state.isOpenVoiceGenerationSubmitting
+                  ? 'Generating...'
+                  : 'Generate Speech',
             ),
           ),
         ),
@@ -744,14 +736,14 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
       return openVoiceSampleFile();
     }
 
-    const wavTypeGroup = XTypeGroup(
-      label: 'WAV audio samples',
-      extensions: ['wav'],
-      mimeTypes: ['audio/wav', 'audio/x-wav'],
+    const audioTypeGroup = XTypeGroup(
+      label: 'Audio samples',
+      extensions: ['wav', 'mp3'],
+      mimeTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'],
     );
     final selectedFile = await openFile(
-      acceptedTypeGroups: const [wavTypeGroup],
-      confirmButtonText: 'Select OpenVoice reference WAV',
+      acceptedTypeGroups: const [audioTypeGroup],
+      confirmButtonText: 'Select OpenVoice reference audio',
     );
     return selectedFile?.path;
   }

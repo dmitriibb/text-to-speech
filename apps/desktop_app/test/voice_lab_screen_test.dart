@@ -5,6 +5,7 @@ import 'package:desktop_app/state/app_state.dart';
 import 'package:desktop_app/state/voice_lab_state.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
 import 'package:tts_core/tts_core.dart';
 
 void main() {
@@ -80,7 +81,7 @@ void main() {
     expect(find.text('Voice Library'), findsOneWidget);
     expect(find.text('OpenVoice'), findsOneWidget);
     expect(find.text('Generate With Cloned Voice'), findsOneWidget);
-    expect(find.text('Preview With OpenVoice'), findsOneWidget);
+    expect(find.text('Generate Speech'), findsOneWidget);
     expect(find.text('Shared Text Input'), findsNothing);
     expect(find.text('Enter text to speak with this voice...'), findsNothing);
   });
@@ -125,7 +126,7 @@ void main() {
     expect(find.text('Import Voice Sample'), findsNothing);
     expect(find.text('Voice Library'), findsNothing);
     expect(find.text('OpenVoice'), findsOneWidget);
-    expect(find.text('Preview With OpenVoice'), findsOneWidget);
+    expect(find.text('Generate Speech'), findsOneWidget);
   });
 
   testWidgets('OpenVoice section is hidden while OpenVoice toggle is off', (
@@ -144,7 +145,51 @@ void main() {
 
     expect(find.text('Import Voice Sample'), findsOneWidget);
     expect(find.text('Voice Library'), findsOneWidget);
-    expect(find.text('Preview With OpenVoice'), findsNothing);
+    expect(find.text('Generate Speech'), findsNothing);
+  });
+
+  testWidgets('OpenVoice section advertises WAV and MP3 reference audio', (
+    tester,
+  ) async {
+    final state = _FakeVoiceLabState()
+      ..isPocketVoiceCloningEnabledValue = false
+      ..isOpenVoiceEnabledValue = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: VoiceLabPanel(stateOverride: state)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Select Reference Audio'), findsOneWidget);
+    expect(
+      find.textContaining('accepts a WAV or MP3 reference sample'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('No OpenVoice reference audio selected yet.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('VoiceLabPanel uses app-scoped VoiceLabState when provided', (
+    tester,
+  ) async {
+    final state = _FakeVoiceLabState()
+      ..isPocketVoiceCloningEnabledValue = false
+      ..isOpenVoiceEnabledValue = true;
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<VoiceLabState>.value(
+        value: state,
+        child: const MaterialApp(home: Scaffold(body: VoiceLabPanel())),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Generate Speech'), findsOneWidget);
+    expect(find.text('Voice cloning OpenVoice'), findsOneWidget);
   });
 
   test('enabling voice cloning auto-selects Pocket TTS', () async {
@@ -188,7 +233,7 @@ class _FakeVoiceLabState extends VoiceLabState {
       OpenVoiceBackendConnectionState.disconnected;
   String? openVoiceBackendMessageValue;
   String? openVoiceSamplePathValue;
-  bool isOpenVoicePreviewSubmittingValue = false;
+  bool isOpenVoiceGenerationSubmittingValue = false;
 
   @override
   Future<void> initialize() async {}
@@ -228,10 +273,11 @@ class _FakeVoiceLabState extends VoiceLabState {
   String? get openVoiceSamplePath => openVoiceSamplePathValue;
 
   @override
-  bool get isOpenVoicePreviewSubmitting => isOpenVoicePreviewSubmittingValue;
+  bool get isOpenVoiceGenerationSubmitting =>
+      isOpenVoiceGenerationSubmittingValue;
 
   @override
-  bool get canPreviewWithOpenVoice => true;
+  bool get canGenerateWithOpenVoice => true;
 
   @override
   Future<void> setVoiceCloningEnabled(bool enabled) async {
@@ -277,7 +323,7 @@ class _FakeVoiceLabState extends VoiceLabState {
   Future<void> generateWithClonedVoice({required ClonedVoice voice}) async {}
 
   @override
-  Future<void> previewWithOpenVoice() async {}
+  Future<void> generateWithOpenVoice() async {}
 }
 
 class _FakeDesktopAppState extends AppState {

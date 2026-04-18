@@ -430,6 +430,48 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<String> createGeneratedAudioOutputPath({
+    String prefix = 'speech',
+  }) async {
+    final outputDir = await _generatedAudioDirectory();
+    await outputDir.create(recursive: true);
+    return p.join(
+      outputDir.path,
+      '$prefix-${DateTime.now().microsecondsSinceEpoch}.wav',
+    );
+  }
+
+  void registerExternalGeneratedAudio({
+    required String label,
+    required String modelId,
+    required String modelName,
+    required int inputCharacterCount,
+    required double speechSpeed,
+    required String outputPath,
+    DateTime? startedAt,
+    DateTime? finishedAt,
+  }) {
+    final completedTask = LongRunningTask(
+      id: 'task-${DateTime.now().microsecondsSinceEpoch}',
+      type: LongRunningTaskType.synthesizeSpeech,
+      label: label,
+      startedAt: startedAt ?? DateTime.now(),
+      status: LongRunningTaskStatus.completed,
+      inputCharacterCount: inputCharacterCount,
+      speechSpeed: clampSpeechSpeed(speechSpeed),
+      modelId: modelId,
+      modelName: modelName,
+      finishedAt: finishedAt ?? DateTime.now(),
+      outputPath: outputPath,
+    );
+
+    taskManager.restoreTasks([completedTask]);
+    _generatedWavPath = outputPath;
+    _synthesisStatus = SynthesisStatus.done;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   // ---- Playback ----
 
   Future<void> play() async {
