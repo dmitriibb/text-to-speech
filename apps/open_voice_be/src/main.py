@@ -12,7 +12,7 @@ from .storage import StorageManager
 settings = load_settings()
 storage = StorageManager(settings)
 storage.ensure_directories()
-engine = OpenVoiceEngine()
+engine = OpenVoiceEngine(settings)
 job_store = JobStore(storage=storage, engine=engine)
 
 app = FastAPI(title='OpenVoice Backend', version=settings.version)
@@ -21,7 +21,7 @@ app = FastAPI(title='OpenVoice Backend', version=settings.version)
 @app.get('/health', response_model=HealthResponse)
 async def health() -> HealthResponse:
     return HealthResponse(
-        ok=True,
+        ok=engine.is_ready,
         backend=settings.app_name,
         version=settings.version,
         engine='openvoice',
@@ -34,7 +34,7 @@ async def health() -> HealthResponse:
 @app.get('/capabilities', response_model=CapabilitiesResponse)
 async def capabilities() -> CapabilitiesResponse:
     return CapabilitiesResponse(
-        supports_preview=True,
+        supports_preview=engine.is_ready,
         polling_strategy={
             'initial_seconds': 1,
             'increment_seconds': 1,

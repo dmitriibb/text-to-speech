@@ -11,7 +11,9 @@ class Settings:
     host: str
     port: int
     root_dir: Path
+    models_dir: Path
     storage_dir: Path
+    working_dir: Path
     jobs_dir: Path
     reference_audio_dir: Path
     results_dir: Path
@@ -20,6 +22,7 @@ class Settings:
 
 def load_settings() -> Settings:
     root_dir = Path(__file__).resolve().parents[1]
+    models_dir = root_dir / 'models'
     storage_dir = root_dir / 'storage'
     return Settings(
         app_name='open_voice_be',
@@ -27,7 +30,9 @@ def load_settings() -> Settings:
         host='127.0.0.1',
         port=8008,
         root_dir=root_dir,
+        models_dir=models_dir,
         storage_dir=storage_dir,
+        working_dir=storage_dir / 'working',
         jobs_dir=storage_dir / 'jobs',
         reference_audio_dir=storage_dir / 'reference_audio',
         results_dir=storage_dir / 'results',

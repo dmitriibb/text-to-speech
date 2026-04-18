@@ -97,14 +97,23 @@ void main() {
     );
     await tester.pump();
 
-    final tile = tester.widget<SwitchListTile>(find.byType(SwitchListTile));
-    expect(tile.onChanged, isNull);
+    final pocketToggle = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Voice cloning Pocket TTS'),
+    );
+    final openVoiceToggle = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Voice cloning OpenVoice'),
+    );
+
+    expect(pocketToggle.onChanged, isNull);
+    expect(openVoiceToggle.onChanged, isNotNull);
   });
 
-  testWidgets('voice cloning section is hidden while toggle is off', (
+  testWidgets('Pocket section is hidden while Pocket toggle is off', (
     tester,
   ) async {
-    final state = _FakeVoiceLabState()..isVoiceCloningEnabledValue = false;
+    final state = _FakeVoiceLabState()
+      ..isPocketVoiceCloningEnabledValue = false
+      ..isOpenVoiceEnabledValue = true;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -115,6 +124,27 @@ void main() {
 
     expect(find.text('Import Voice Sample'), findsNothing);
     expect(find.text('Voice Library'), findsNothing);
+    expect(find.text('OpenVoice'), findsOneWidget);
+    expect(find.text('Preview With OpenVoice'), findsOneWidget);
+  });
+
+  testWidgets('OpenVoice section is hidden while OpenVoice toggle is off', (
+    tester,
+  ) async {
+    final state = _FakeVoiceLabState()
+      ..isPocketVoiceCloningEnabledValue = true
+      ..isOpenVoiceEnabledValue = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: VoiceLabPanel(stateOverride: state)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Import Voice Sample'), findsOneWidget);
+    expect(find.text('Voice Library'), findsOneWidget);
+    expect(find.text('Preview With OpenVoice'), findsNothing);
   });
 
   test('enabling voice cloning auto-selects Pocket TTS', () async {
@@ -149,7 +179,8 @@ class _FakeVoiceLabState extends VoiceLabState {
   }) : super(appState: _FakeDesktopAppState(installedModelsValue: const []));
 
   final bool hasPocketModelValue;
-  bool isVoiceCloningEnabledValue = true;
+  bool isPocketVoiceCloningEnabledValue = true;
+  bool isOpenVoiceEnabledValue = true;
   final String sharedInputTextValue;
   final List<ClonedVoice> voicesValue;
   String openVoiceBackendUrlValue = OpenVoiceBackendService.defaultBaseUrl;
@@ -175,7 +206,10 @@ class _FakeVoiceLabState extends VoiceLabState {
   bool get hasPocketModel => hasPocketModelValue;
 
   @override
-  bool get isVoiceCloningEnabled => isVoiceCloningEnabledValue;
+  bool get isPocketVoiceCloningEnabled => isPocketVoiceCloningEnabledValue;
+
+  @override
+  bool get isOpenVoiceEnabled => isOpenVoiceEnabledValue;
 
   @override
   bool get hasSharedInputText => sharedInputTextValue.trim().isNotEmpty;
@@ -201,7 +235,13 @@ class _FakeVoiceLabState extends VoiceLabState {
 
   @override
   Future<void> setVoiceCloningEnabled(bool enabled) async {
-    isVoiceCloningEnabledValue = enabled;
+    isPocketVoiceCloningEnabledValue = enabled;
+    notifyListeners();
+  }
+
+  @override
+  Future<void> setOpenVoiceEnabled(bool enabled) async {
+    isOpenVoiceEnabledValue = enabled;
     notifyListeners();
   }
 

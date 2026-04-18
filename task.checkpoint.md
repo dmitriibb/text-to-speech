@@ -101,3 +101,8 @@
 - Added `apps/desktop_app/test/audio_service_test.dart` to cover the Windows resume and seek flows that previously spawned overlapping playback
 - Updated `domain-brain/flows/audio-output.md`, `domain-brain/state-machines/playback-lifecycle.md`, and the archived task record to document the Windows playback-control invariant
 - Fixed the nullable byte-count formatting error in `apps/desktop_app/lib/widgets/model_status_banner.dart` and verified the desktop app with `flutter test test/audio_service_test.dart` plus `flutter analyze`
+
+## Checkpoint 15
+- Marked `apps/open_voice_be/models/` and `apps/open_voice_be/storage/` as local runtime state that must stay out of git history
+- Updated the OpenVoice backend README, the voice-cloning domain flow, and `tasks/task-9-voice-cloning.md` so the first-start download behavior and generated job artifacts are documented as local-only
+- Cleaned the local OpenVoice branch history so downloaded checkpoints and generated preview outputs no longer block pushes to GitHub

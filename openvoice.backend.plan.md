@@ -2,6 +2,23 @@
 
 Updated: 2026-04-12
 
+## Current implementation choice
+
+The current backend implementation uses:
+
+- official `myshell-ai/OpenVoice` Python runtime
+- official `myshell-ai/OpenVoiceV2` checkpoints
+- official `myshell-ai/MeloTTS` Python runtime
+- official `myshell-ai/MeloTTS-English-v2` base speaker checkpoint
+
+The first target is:
+
+- Windows
+- CPU only
+- English only for the first MVP
+
+GPU and Ubuntu support stay for later iterations.
+
 ## Goal
 
 Add a desktop-only advanced voice cloning path based on OpenVoice without disturbing the current embedded `sherpa-onnx` flow used by the existing models.

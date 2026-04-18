@@ -98,6 +98,8 @@ flows:
       - apps/desktop_app/lib/services/voice_library_service.dart
       - apps/desktop_app/lib/services/open_voice_backend_service.dart
       - apps/desktop_app/lib/services/open_voice_preferences_service.dart
+      - apps/open_voice_be/src/bootstrap.py
+      - apps/open_voice_be/src/engine.py
       - apps/open_voice_be/src/main.py
       - apps/open_voice_be/src/job_store.py
       - apps/open_voice_be/src/storage.py

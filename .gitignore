@@ -2,6 +2,8 @@
 .cache/
 artifacts/
 /models/
+/apps/open_voice_be/models/
+/apps/open_voice_be/storage/
 __pycache__/
 *.pyc
 # task.checkpoint.md
@@ -14,4 +16,4 @@ __pycache__/
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/pubspec.lock
-
+*.wav

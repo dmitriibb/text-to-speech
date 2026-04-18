@@ -39,8 +39,10 @@ class VoiceLabState extends ChangeNotifier {
   String? _openVoiceBackendMessage;
   OpenVoiceCapabilities? _openVoiceCapabilities;
   String? _openVoiceSamplePath;
+  bool _isOpenVoiceEnabled = false;
   bool _isOpenVoicePreviewSubmitting = false;
   String? _activeOpenVoiceJobId;
+  Timer? _openVoiceHealthTimer;
 
   // Preview playback
   String? _previewingVoiceId;
@@ -53,20 +55,21 @@ class VoiceLabState extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get previewingVoiceId => _previewingVoiceId;
   bool get isPreviewPlaying => _isPreviewPlaying;
-  bool get isVoiceCloningEnabled => _appState.isVoiceCloningEnabled;
+  bool get isPocketVoiceCloningEnabled => _appState.isVoiceCloningEnabled;
+  bool get isOpenVoiceEnabled => _isOpenVoiceEnabled;
   bool get hasSharedInputText => _appState.inputText.trim().isNotEmpty;
-    String get openVoiceBackendUrl => _openVoiceBackendUrl;
-    OpenVoiceBackendConnectionState get openVoiceConnectionState =>
+  String get openVoiceBackendUrl => _openVoiceBackendUrl;
+  OpenVoiceBackendConnectionState get openVoiceConnectionState =>
       _openVoiceConnectionState;
-    String? get openVoiceBackendMessage => _openVoiceBackendMessage;
-    OpenVoiceCapabilities? get openVoiceCapabilities => _openVoiceCapabilities;
-    String? get openVoiceSamplePath => _openVoiceSamplePath;
-    bool get hasOpenVoiceSample =>
+  String? get openVoiceBackendMessage => _openVoiceBackendMessage;
+  OpenVoiceCapabilities? get openVoiceCapabilities => _openVoiceCapabilities;
+  String? get openVoiceSamplePath => _openVoiceSamplePath;
+  bool get hasOpenVoiceSample =>
       _openVoiceSamplePath != null && _openVoiceSamplePath!.trim().isNotEmpty;
-    bool get isOpenVoicePreviewSubmitting => _isOpenVoicePreviewSubmitting;
-    String? get activeOpenVoiceJobId => _activeOpenVoiceJobId;
-    bool get canPreviewWithOpenVoice =>
-      isVoiceCloningEnabled &&
+  bool get isOpenVoicePreviewSubmitting => _isOpenVoicePreviewSubmitting;
+  String? get activeOpenVoiceJobId => _activeOpenVoiceJobId;
+  bool get canPreviewWithOpenVoice =>
+      _isOpenVoiceEnabled &&
       hasSharedInputText &&
       hasOpenVoiceSample &&
       !_isOpenVoicePreviewSubmitting &&
@@ -107,12 +110,37 @@ class VoiceLabState extends ChangeNotifier {
     return _appState.setVoiceCloningEnabled(enabled);
   }
 
+  Future<void> setOpenVoiceEnabled(bool enabled) async {
+    if (!enabled) {
+      if (_isOpenVoiceEnabled) {
+        _isOpenVoiceEnabled = false;
+        _stopOpenVoiceHealthPolling();
+        notifyListeners();
+      }
+      return;
+    }
+
+    if (_isOpenVoiceEnabled) {
+      return;
+    }
+
+    _isOpenVoiceEnabled = true;
+    _openVoiceBackendMessage = 'Checking backend connection...';
+    _openVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
+    notifyListeners();
+    unawaited(checkOpenVoiceConnection());
+    _startOpenVoiceHealthPolling();
+  }
+
   Future<void> setOpenVoiceBackendUrl(String backendUrl) async {
     _openVoiceBackendUrl = backendUrl;
     _openVoiceConnectionState = OpenVoiceBackendConnectionState.disconnected;
     _openVoiceBackendMessage = null;
     notifyListeners();
     await _openVoicePreferencesService.saveBackendUrl(backendUrl);
+    if (_isOpenVoiceEnabled) {
+      unawaited(checkOpenVoiceConnection());
+    }
   }
 
   void setOpenVoiceSamplePath(String? samplePath) {
@@ -120,8 +148,7 @@ class VoiceLabState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> checkOpenVoiceConnection() async {
-    _errorMessage = null;
+  Future<void> checkOpenVoiceConnection({bool showAsError = false}) async {
     _openVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
     _openVoiceBackendMessage = 'Checking backend connection...';
     notifyListeners();
@@ -133,22 +160,38 @@ class VoiceLabState extends ChangeNotifier {
         baseUri,
       );
       _openVoiceCapabilities = capabilities;
-      _openVoiceConnectionState = OpenVoiceBackendConnectionState.connected;
-      _openVoiceBackendMessage = health.engineReady
-          ? 'Connected to ${health.backend} ${health.version}.'
-          : 'Connected to ${health.backend} ${health.version}, but the OpenVoice engine is not wired yet.';
+      if (health.engineReady && capabilities.supportsPreview) {
+        _openVoiceConnectionState = OpenVoiceBackendConnectionState.connected;
+        _openVoiceBackendMessage =
+            'Backend is healthy at ${_openVoiceBackendUrl.trim()}.';
+        if (showAsError) {
+          _errorMessage = null;
+        }
+      } else {
+        _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+        _openVoiceBackendMessage =
+            'Backend is not healthy at ${_openVoiceBackendUrl.trim()}.';
+        if (showAsError) {
+          _errorMessage =
+              'Connected to ${health.backend} ${health.version}, but preview is not ready yet.';
+        }
+      }
     } on OpenVoiceBackendException catch (error) {
       _openVoiceCapabilities = null;
       _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
       _openVoiceBackendMessage =
-          'OpenVoice backend is not reachable at ${_openVoiceBackendUrl.trim()}.';
-      _errorMessage = error.message;
+          'Backend is down at ${_openVoiceBackendUrl.trim()}.';
+      if (showAsError) {
+        _errorMessage = error.message;
+      }
     } catch (error) {
       _openVoiceCapabilities = null;
       _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
       _openVoiceBackendMessage =
-          'OpenVoice backend is not reachable at ${_openVoiceBackendUrl.trim()}.';
-      _errorMessage = error.toString();
+          'Backend is down at ${_openVoiceBackendUrl.trim()}.';
+      if (showAsError) {
+        _errorMessage = error.toString();
+      }
     }
 
     notifyListeners();
@@ -238,7 +281,7 @@ class VoiceLabState extends ChangeNotifier {
 
     if (_openVoiceConnectionState != OpenVoiceBackendConnectionState.connected ||
         _openVoiceCapabilities == null) {
-      await checkOpenVoiceConnection();
+      await checkOpenVoiceConnection(showAsError: true);
       if (_openVoiceConnectionState !=
               OpenVoiceBackendConnectionState.connected ||
           _openVoiceCapabilities == null) {
@@ -362,10 +405,27 @@ class VoiceLabState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _startOpenVoiceHealthPolling() {
+    _stopOpenVoiceHealthPolling();
+    _openVoiceHealthTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (_isOpenVoiceEnabled &&
+          _openVoiceConnectionState !=
+              OpenVoiceBackendConnectionState.checking) {
+        unawaited(checkOpenVoiceConnection());
+      }
+    });
+  }
+
+  void _stopOpenVoiceHealthPolling() {
+    _openVoiceHealthTimer?.cancel();
+    _openVoiceHealthTimer = null;
+  }
+
   @override
   void dispose() {
     _appState.removeListener(_handleAppStateChanged);
     unawaited(_previewSub?.cancel());
+    _stopOpenVoiceHealthPolling();
     _openVoiceBackendService.dispose();
     _previewAudio.dispose();
     super.dispose();
