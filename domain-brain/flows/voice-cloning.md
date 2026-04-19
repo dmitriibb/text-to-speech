@@ -27,8 +27,13 @@
 - OpenVoice reference selection accepts `.wav` and `.mp3`; when the user picks `.mp3`, the desktop app converts it to a temporary `.wav` before uploading it to the backend.
 - OpenVoice uses a `Generate Speech` action, not a transient preview-only action; once the backend returns a `.wav`, the desktop app stores it as generated audio and surfaces it on the Home screen like other completed speech tasks.
 - The OpenVoice backend stores MVP job state in `apps/open_voice_be/storage/` with `.json` job metadata and `.wav` reference and result audio files.
+- The OpenVoice backend also serves a lightweight browser admin page at `/admin` so local users can inspect backend health, model files, and saved jobs without using the desktop client.
+- The browser admin lists the known OpenVoice base-speaker checkpoints, shows which ones are downloaded locally, and lets the user download, delete, and mark the current backend model.
+- The current backend model is the OpenVoice base-speaker checkpoint that new backend jobs snapshot and use for synthesis.
+- Browser-admin job rows expose the saved job record, reference audio, working directory, and generated result paths when present.
+- Deleting a backend job from the browser admin removes its saved job metadata and job-owned files, and any late-running result is discarded instead of being re-saved.
 - The current OpenVoice implementation uses the official OpenVoice V2 tone-color converter plus official MeloTTS English-v2 as the CPU-only Windows-first base-speaker runtime.
-- The backend downloads required model assets into `apps/open_voice_be/models/` on first startup and needs manual Python environment setup by the user.
+- The backend downloads required model assets into `apps/open_voice_be/models/` on the first admin download action or on the first real job that needs them, and still needs manual Python environment setup by the user.
 - The preferred local backend launch command is `python -m src.main` from `apps/open_voice_be/`.
 - The downloaded files under `apps/open_voice_be/models/` and the generated job artifacts under `apps/open_voice_be/storage/` are local runtime state and must stay out of git history.
 - The current MVP supports English only through the OpenVoice backend path.

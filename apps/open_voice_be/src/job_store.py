@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import UploadFile
 
 from .engine import OpenVoiceEngine
+from .model_manager import BackendModelManager
 from .models import JobRecord, JobResultPayload, JobStatus
 from .storage import StorageManager
 
@@ -19,19 +20,24 @@ def _utc_now() -> datetime:
 
 
 class JobStore:
-    def __init__(self, storage: StorageManager, engine: OpenVoiceEngine) -> None:
+    def __init__(
+        self,
+        storage: StorageManager,
+        engine: OpenVoiceEngine,
+        model_manager: BackendModelManager,
+    ) -> None:
         self._storage = storage
         self._engine = engine
+        self._model_manager = model_manager
         self._lock = asyncio.Lock()
         self._jobs: dict[str, JobRecord] = {}
+        self._deleted_jobs: set[str] = set()
 
     async def count_in_progress(self) -> int:
-        async with self._lock:
-            return sum(
-                1
-                for job in self._jobs.values()
-                if job.status in (JobStatus.queued, JobStatus.running)
-            )
+        jobs = await self.list_jobs()
+        return sum(
+            1 for job in jobs if job.status in (JobStatus.queued, JobStatus.running)
+        )
 
     async def create_job(
         self,
@@ -47,6 +53,7 @@ class JobStore:
             upload=reference_audio,
             destination=reference_audio_path,
         )
+        current_model = self._model_manager.get_current_model()
 
         job = JobRecord(
             job_id=job_id,
@@ -55,6 +62,7 @@ class JobStore:
             text=text,
             language=language,
             speed=speed,
+            model_id=current_model.id,
             reference_audio_path=str(stored_reference_path),
             submitted_at=_utc_now(),
         )
@@ -65,6 +73,8 @@ class JobStore:
 
     async def get_job(self, job_id: str) -> JobRecord | None:
         async with self._lock:
+            if job_id in self._deleted_jobs:
+                return None
             cached = self._jobs.get(job_id)
             if cached is not None:
                 return cached
@@ -76,8 +86,53 @@ class JobStore:
         raw = await asyncio.to_thread(job_path.read_text, encoding='utf-8')
         job = JobRecord.model_validate(json.loads(raw))
         async with self._lock:
+            if job_id in self._deleted_jobs:
+                return None
             self._jobs[job_id] = job
         return job
+
+    async def list_jobs(self) -> list[JobRecord]:
+        disk_jobs = await asyncio.to_thread(self._read_jobs_from_disk)
+        async with self._lock:
+            deleted_jobs = set(self._deleted_jobs)
+            memory_jobs = dict(self._jobs)
+
+        jobs_by_id = {job.job_id: job for job in disk_jobs if job.job_id not in deleted_jobs}
+        for job_id, job in memory_jobs.items():
+            if job_id in deleted_jobs:
+                continue
+            jobs_by_id[job_id] = job
+
+        jobs = list(jobs_by_id.values())
+        jobs.sort(key=lambda job: job.submitted_at, reverse=True)
+        return jobs
+
+    async def has_in_progress_job_for_model(self, model_id: str) -> bool:
+        jobs = await self.list_jobs()
+        return any(
+            job.model_id == model_id
+            and job.status in (JobStatus.queued, JobStatus.running)
+            for job in jobs
+        )
+
+    async def delete_job(self, job_id: str) -> bool:
+        job = await self.get_job(job_id)
+        job_path = self._storage.job_path(job_id)
+        if job is None and not job_path.exists():
+            return False
+
+        async with self._lock:
+            self._deleted_jobs.add(job_id)
+            self._jobs.pop(job_id, None)
+
+        keep_runtime_files = job is not None and job.status == JobStatus.running
+        await asyncio.to_thread(
+            self._cleanup_job_artifacts,
+            job_id,
+            job,
+            keep_runtime_files,
+        )
+        return True
 
     async def _run_job(self, job_id: str) -> None:
         job = await self.get_job(job_id)
@@ -95,9 +150,13 @@ class JobStore:
                 text=job.text,
                 language=job.language,
                 speed=job.speed,
+                model_id=job.model_id,
                 reference_audio_path=Path(job.reference_audio_path),
                 output_path=result_audio_path,
             )
+            if await self._is_deleted(job_id):
+                await asyncio.to_thread(self._cleanup_job_artifacts, job_id, job)
+                return
             job.status = JobStatus.succeeded
             job.result_audio_path = str(result_audio_path)
             job.completed_at = _utc_now()
@@ -114,6 +173,10 @@ class JobStore:
                 audio_ready=False,
                 metadata={'job_type': job.job_type},
             )
+
+        if await self._is_deleted(job_id):
+            await asyncio.to_thread(self._cleanup_job_artifacts, job_id, job)
+            return
 
         await self._write_job(job)
 
@@ -146,9 +209,48 @@ class JobStore:
         payload = job.model_dump(mode='json')
         job_path = self._storage.job_path(job.job_id)
         async with self._lock:
+            if job.job_id in self._deleted_jobs:
+                return
             self._jobs[job.job_id] = job
         await asyncio.to_thread(
             job_path.write_text,
             json.dumps(payload, indent=2),
             encoding='utf-8',
         )
+
+    async def _is_deleted(self, job_id: str) -> bool:
+        async with self._lock:
+            return job_id in self._deleted_jobs
+
+    def _read_jobs_from_disk(self) -> list[JobRecord]:
+        jobs_dir = self._storage.job_path('placeholder').parent
+        if not jobs_dir.exists():
+            return []
+
+        jobs: list[JobRecord] = []
+        for job_path in jobs_dir.glob('*.json'):
+            try:
+                raw = job_path.read_text(encoding='utf-8')
+                jobs.append(JobRecord.model_validate(json.loads(raw)))
+            except Exception:
+                continue
+        return jobs
+
+    def _cleanup_job_artifacts(
+        self,
+        job_id: str,
+        job: JobRecord | None,
+        keep_runtime_files: bool = False,
+    ) -> None:
+        self._storage.delete_file(self._storage.job_path(job_id))
+        if keep_runtime_files:
+            return
+
+        self._storage.delete_file(self._storage.result_audio_path(job_id))
+        reference_path = Path(job.reference_audio_path) if job is not None else self._storage.reference_audio_path(job_id)
+        self._storage.delete_file(reference_path)
+
+        if job is not None and job.result_audio_path:
+            self._storage.delete_file(Path(job.result_audio_path))
+
+        self._model_manager.delete_runtime_working_directory(job_id)

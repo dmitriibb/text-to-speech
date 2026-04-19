@@ -8,6 +8,7 @@ Platform-specific startup steps live in `how-to-run.md`.
 
 - Manual local startup by the user
 - Async speech jobs with job IDs
+- Lightweight browser admin at `/admin`
 - Official OpenVoice V2 tone-color conversion on CPU
 - Official MeloTTS English-v2 as the base speaker model on CPU
 - Desktop-controlled speech speed forwarded through the job API
@@ -43,6 +44,23 @@ The current English-only MVP does not require the large `unidic` dictionary down
 Internally it still starts the FastAPI app through `uvicorn`, which is the ASGI web server used to expose the backend over HTTP.
 
 The first English speech request may also download extra tokenizer and BERT assets used by the MeloTTS text pipeline, so the first successful job can take noticeably longer than later jobs.
+
+## Browser admin
+
+After the backend is running, open:
+
+```text
+http://127.0.0.1:8008/admin
+```
+
+The browser admin shows:
+
+- backend health
+- downloaded and available OpenVoice base-speaker models
+- current backend model selection
+- saved backend jobs, their statuses, and referenced files
+
+Deleting a job from the admin removes the saved job record and its job-owned files.
 
 ## Model layout
 
@@ -86,6 +104,12 @@ Everything under `storage/` is generated local runtime data and should not be co
 ## API
 
 - `GET /health`
+- `GET /api/models`
+- `POST /api/models/{model_id}/download`
+- `PUT /api/models/current`
+- `DELETE /api/models/{model_id}`
+- `GET /api/jobs`
+- `DELETE /api/jobs/{job_id}`
 - `POST /jobs`
 - `GET /jobs/{job_id}`
 - `GET /jobs/{job_id}/result`

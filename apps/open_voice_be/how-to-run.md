@@ -101,10 +101,11 @@ python -m uvicorn src.main:app --app-dir . --host 127.0.0.1 --port 8008
 After startup, the desktop app should be able to reach:
 
 - `GET http://127.0.0.1:8008/health`
+- `GET http://127.0.0.1:8008/admin`
 
 ## 6. First-run behavior
 
-On first startup or first real job, the backend may download:
+On the first admin download action or first real job, the backend may download:
 
 - OpenVoice model assets into `models/`
 - tokenizer and text-processing assets used by MeloTTS
