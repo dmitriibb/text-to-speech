@@ -1,9 +1,12 @@
+export 'src/models/live_tts_chunk.dart';
 export 'src/models/long_running_task.dart';
 export 'src/models/model_install_progress.dart';
 export 'src/models/voice_model.dart';
 export 'src/services/background_task_executor.dart';
 export 'src/services/generated_audio_store.dart';
 export 'src/services/isolate_task_executor.dart';
+export 'src/services/live_text_chunker.dart';
+export 'src/services/live_tts_session.dart';
 export 'src/services/model_archive_extractor.dart';
 export 'src/services/model_download_cancelled_exception.dart';
 export 'src/services/model_file_validator.dart';

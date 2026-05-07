@@ -61,8 +61,10 @@ class HomeScreen extends StatelessWidget {
                     onCancelTask: state.cancelManagedTask,
                     onDismissTask: state.dismissManagedTask,
                   ),
-                  const SizedBox(height: 16),
-                  _GenerateButton(state: state),
+                  if (!state.isLiveTtsEnabled) ...[
+                    const SizedBox(height: 16),
+                    _GenerateButton(state: state),
+                  ],
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 12),
                     ErrorBanner(message: state.errorMessage!),

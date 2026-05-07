@@ -37,8 +37,14 @@ class AppState extends ChangeNotifier {
   String _inputText = '';
   double _speed = speechSpeedDefault;
   int _selectedSpeakerId = 0;
+  int _inputCursorOffset = 0;
   SynthesisStatus _synthesisStatus = SynthesisStatus.idle;
   String? _errorMessage;
+  bool _isLiveTtsEnabled = false;
+  int _liveChunkSizeWords = 10;
+  LiveTtsSession? _liveTtsSession;
+  bool _isStartingLivePlayback = false;
+  bool _isStoppingLiveTts = false;
 
   String? _generatedWavPath;
   PlaybackState _playbackState = PlaybackState.stopped;
@@ -56,8 +62,14 @@ class AppState extends ChangeNotifier {
   String get inputText => _inputText;
   double get speed => _speed;
   int get selectedSpeakerId => _selectedSpeakerId;
+  int get inputCursorOffset => _inputCursorOffset;
   SynthesisStatus get synthesisStatus => _synthesisStatus;
   String? get errorMessage => _errorMessage;
+  bool get isLiveTtsEnabled => _isLiveTtsEnabled;
+  int get liveChunkSizeWords => _liveChunkSizeWords;
+  bool get isLiveTtsStreaming => _liveTtsSession != null;
+  List<LiveTtsChunk> get liveTtsChunks =>
+      _liveTtsSession?.chunks ?? const <LiveTtsChunk>[];
 
   String? get generatedWavPath => _generatedWavPath;
   PlaybackState get playbackState => _playbackState;
@@ -95,7 +107,9 @@ class AppState extends ChangeNotifier {
     taskManager.addListener(_handleTaskManagerChanged);
 
     _audioSubscription = _audioService.onStateChanged.listen((state) {
+      final previousState = _playbackState;
       _playbackState = state;
+      unawaited(_handleLivePlaybackStateChange(previousState, state));
       notifyListeners();
     });
     _audioPositionSubscription = _audioService.onPositionChanged.listen((
@@ -172,6 +186,10 @@ class AppState extends ChangeNotifier {
         model.status != ModelStatus.ready ||
         model.modelDir == null) {
       return;
+    }
+
+    if (isLiveTtsStreaming) {
+      await stopLiveTts();
     }
 
     _selectedModel = model;
@@ -273,15 +291,38 @@ class AppState extends ChangeNotifier {
   }
 
   void setInputText(String text) {
+    if (_inputText == text) {
+      return;
+    }
+
     _inputText = text;
+    if (_inputCursorOffset > text.length) {
+      _inputCursorOffset = text.length;
+    }
     if (_errorMessage != null && TextInputValidator.validate(text) == null) {
       _errorMessage = null;
+    }
+    if (isLiveTtsStreaming) {
+      unawaited(stopLiveTts());
     }
     notifyListeners();
   }
 
+  void setInputCursorOffset(int offset) {
+    final nextOffset = offset < 0
+        ? 0
+        : (offset > _inputText.length ? _inputText.length : offset);
+    if (_inputCursorOffset == nextOffset) {
+      return;
+    }
+    _inputCursorOffset = nextOffset;
+  }
+
   void setSpeed(double speed) {
     _speed = clampSpeechSpeed(speed);
+    if (isLiveTtsStreaming) {
+      unawaited(stopLiveTts());
+    }
     notifyListeners();
   }
 
@@ -295,6 +336,34 @@ class AppState extends ChangeNotifier {
       selectedModel.voice,
       preferredSpeakerId: speakerId,
     );
+    if (isLiveTtsStreaming) {
+      unawaited(stopLiveTts());
+    }
+    notifyListeners();
+  }
+
+  void setLiveTtsEnabled(bool enabled) {
+    if (_isLiveTtsEnabled == enabled) {
+      return;
+    }
+
+    _isLiveTtsEnabled = enabled;
+    if (!enabled) {
+      unawaited(stopLiveTts());
+    }
+    notifyListeners();
+  }
+
+  void setLiveChunkSizeWords(int chunkSizeWords) {
+    final nextValue = chunkSizeWords < 1 ? 1 : chunkSizeWords;
+    if (_liveChunkSizeWords == nextValue) {
+      return;
+    }
+
+    _liveChunkSizeWords = nextValue;
+    if (isLiveTtsStreaming) {
+      unawaited(stopLiveTts());
+    }
     notifyListeners();
   }
 
@@ -304,6 +373,10 @@ class AppState extends ChangeNotifier {
       _errorMessage = inputError;
       notifyListeners();
       return;
+    }
+
+    if (isLiveTtsStreaming) {
+      await stopLiveTts();
     }
 
     if (_selectedModel?.modelDir == null) {
@@ -333,6 +406,73 @@ class AppState extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<void> startLiveTts() async {
+    final inputError = TextInputValidator.validate(_inputText);
+    if (inputError != null) {
+      _errorMessage = inputError;
+      notifyListeners();
+      return;
+    }
+
+    final selectedModel = _selectedModel;
+    if (selectedModel?.status != ModelStatus.ready ||
+        selectedModel?.modelDir == null) {
+      _errorMessage = 'Install and select a model before starting live TTS.';
+      notifyListeners();
+      return;
+    }
+
+    await stopLiveTts();
+    await _audioService.stop();
+
+    final session = LiveTtsSession(
+      executorFactory: () => IsolateTaskExecutor(),
+      modelDir: selectedModel!.modelDir!,
+      voice: selectedModel.voice,
+      text: _inputText,
+      speed: _speed,
+      speakerId: _selectedSpeakerId,
+      chunkSizeWords: _liveChunkSizeWords,
+      outputDirectoryPath: (await _generatedAudioDirectory()).path,
+      startOffset: _inputCursorOffset,
+    );
+    if (session.chunks.isEmpty) {
+      _errorMessage =
+          'Move the text cursor before some text to start live playback there.';
+      notifyListeners();
+      return;
+    }
+    session.addListener(_handleLiveTtsSessionChanged);
+    _liveTtsSession = session;
+    _errorMessage = null;
+    notifyListeners();
+
+    await session.start();
+    await _playNextLiveChunkIfReady();
+  }
+
+  Future<void> stopLiveTts() async {
+    if (_isStoppingLiveTts) {
+      return;
+    }
+
+    _isStoppingLiveTts = true;
+    try {
+      final session = _liveTtsSession;
+      if (session != null) {
+        session.removeListener(_handleLiveTtsSessionChanged);
+        _liveTtsSession = null;
+        await _audioService.stop();
+        await session.stop();
+        session.dispose();
+      }
+      _isStartingLivePlayback = false;
+      notifyListeners();
+    } finally {
+      _isStoppingLiveTts = false;
+    }
   }
 
   Future<String> _resolveOutputPath() async {
@@ -634,6 +774,81 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _handleLiveTtsSessionChanged() {
+    final session = _liveTtsSession;
+    if (session == null) {
+      return;
+    }
+
+    if (session.errorMessage != null) {
+      _errorMessage = session.errorMessage;
+      unawaited(stopLiveTts());
+      notifyListeners();
+      return;
+    }
+
+    unawaited(_playNextLiveChunkIfReady());
+    notifyListeners();
+  }
+
+  Future<void> _handleLivePlaybackStateChange(
+    PlaybackState previousState,
+    PlaybackState nextState,
+  ) async {
+    if (_isStoppingLiveTts ||
+        previousState != PlaybackState.playing ||
+        nextState != PlaybackState.stopped) {
+      return;
+    }
+
+    final session = _liveTtsSession;
+    final playingChunk = session?.playingChunk;
+    if (session == null || playingChunk == null) {
+      return;
+    }
+
+    session.markChunkCompleted(playingChunk.index);
+    if (session.isFinished) {
+      await stopLiveTts();
+      return;
+    }
+
+    await _playNextLiveChunkIfReady();
+  }
+
+  Future<void> _playNextLiveChunkIfReady() async {
+    final session = _liveTtsSession;
+    if (session == null ||
+        _isStoppingLiveTts ||
+        _isStartingLivePlayback ||
+        session.playingChunk != null) {
+      return;
+    }
+
+    final nextChunk = session.nextReadyChunk;
+    final outputPath = nextChunk?.outputPath;
+    if (nextChunk == null || outputPath == null || outputPath.trim().isEmpty) {
+      return;
+    }
+
+    _isStartingLivePlayback = true;
+    session.markChunkPlaying(nextChunk.index);
+    _generatedWavPath = outputPath;
+    _currentTaskId = null;
+    notifyListeners();
+
+    try {
+      await _audioService.play(outputPath);
+      _errorMessage = null;
+    } catch (error) {
+      _errorMessage = 'Live playback failed: $error';
+      await stopLiveTts();
+    } finally {
+      _isStartingLivePlayback = false;
+      notifyListeners();
+    }
+  }
+
   Future<List<LongRunningTask>> _restoreLegacyGeneratedAudioTasks({
     required Set<String> existingOutputPaths,
   }) async {
@@ -765,6 +980,8 @@ class AppState extends ChangeNotifier {
   @override
   void dispose() {
     taskManager.removeListener(_handleTaskManagerChanged);
+    _liveTtsSession?.removeListener(_handleLiveTtsSessionChanged);
+    unawaited(_liveTtsSession?.stop());
     unawaited(_audioSubscription?.cancel());
     unawaited(_audioPositionSubscription?.cancel());
     unawaited(_audioDurationSubscription?.cancel());

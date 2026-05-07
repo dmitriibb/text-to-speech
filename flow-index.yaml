@@ -63,12 +63,17 @@ flows:
       - domain-brain/state-machines/synthesis-lifecycle.md
     paths:
       - packages/tts_core/lib/src/services/tts_service.dart
+      - packages/tts_core/lib/src/services/live_text_chunker.dart
+      - packages/tts_core/lib/src/services/live_tts_session.dart
       - packages/tts_core/lib/src/services/isolate_task_executor.dart
       - packages/tts_core/lib/src/services/text_input_validator.dart
+      - packages/shared_ui/lib/src/widgets/live_text_input_editor.dart
       - packages/shared_ui/lib/src/widgets/voice_settings_controls.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/state/app_state.dart
+      - apps/desktop_app/lib/widgets/text_input_panel.dart
       - apps/android_app/lib/state/app_state.dart
+      - apps/android_app/lib/widgets/text_input_panel.dart
     entities:
       - VoiceModel
       - InstalledModel
@@ -79,10 +84,12 @@ flows:
       - domain-brain/state-machines/playback-lifecycle.md
     paths:
       - packages/tts_core/lib/src/services/generated_audio_store.dart
+      - packages/tts_core/lib/src/services/live_tts_session.dart
       - apps/desktop_app/lib/services/audio_service.dart
       - apps/android_app/lib/services/audio_service.dart
       - apps/desktop_app/lib/state/app_state.dart
       - apps/android_app/lib/state/app_state.dart
+      - packages/shared_ui/lib/src/widgets/live_text_input_editor.dart
       - packages/shared_ui/lib/src/widgets/audio_playback_controls.dart
       - packages/shared_ui/lib/src/widgets/generation_estimate_summary.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart

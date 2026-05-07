@@ -49,8 +49,10 @@ class HomeScreen extends StatelessWidget {
         const TextInputPanel(),
         const SizedBox(height: 16),
         const SettingsPanel(),
-        const SizedBox(height: 16),
-        _buildGenerateButton(context, state),
+        if (!state.isLiveTtsEnabled) ...[
+          const SizedBox(height: 16),
+          _buildGenerateButton(context, state),
+        ],
         if (state.errorMessage != null) ...[
           const SizedBox(height: 12),
           _buildErrorBanner(context, state.errorMessage!),

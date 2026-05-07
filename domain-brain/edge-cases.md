@@ -18,6 +18,18 @@
 - Scenario: A new synthesis starts while audio is already playing.
   Expected handling: playback is stopped before generation continues.
 
+- Scenario: Live mode chunking would end in the middle of a sentence.
+  Expected handling: the chunk extends through the sentence terminator and the next chunk starts with the next sentence.
+
+- Scenario: The user edits the input text, speaker, speed, or model while live playback is active.
+  Expected handling: the live session stops, queued chunk generation is cancelled, and stale chunk highlighting is cleared.
+
+- Scenario: The user starts live mode with the text caret at the very end of the input or after only trailing whitespace.
+  Expected handling: live playback does not start and the app shows a clear message telling the user to place the caret before some text.
+
+- Scenario: The user stops live mode while future chunks are already generated or still generating.
+  Expected handling: active playback stops, background chunk work is cancelled, and temporary chunk `.wav` buffers are deleted.
+
 - Scenario: Model switching or speech generation takes long enough to outlive the current screen frame or app foreground state.
   Expected handling: the work runs in the Android background task service, the UI stays interactive, and the task remains visible in the task list.
 

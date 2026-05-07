@@ -751,6 +751,134 @@ void main() {
     expect(decoded.pocketTokenScoresJson, 'token_scores.json');
   });
 
+  test('live text chunker rounds chunks up to sentence boundaries', () {
+    final chunks = LiveTextChunker.splitText(
+      'One two three. Four five six seven. Eight nine ten.',
+      chunkSizeWords: 5,
+    );
+
+    expect(chunks, hasLength(2));
+    expect(chunks.first.text, 'One two three. Four five six seven. ');
+    expect(chunks.first.wordCount, 7);
+    expect(chunks.last.text, 'Eight nine ten.');
+    expect(chunks.last.wordCount, 3);
+  });
+
+  test('live text chunker can start from a later cursor offset', () {
+    const text = 'Intro words. And then I continue here. Final sentence.';
+    final startOffset = text.indexOf('And then I');
+    final chunks = LiveTextChunker.splitText(
+      text,
+      chunkSizeWords: 3,
+      startOffset: startOffset,
+    );
+
+    expect(chunks, hasLength(2));
+    expect(chunks.first.text, 'And then I continue here. ');
+    expect(chunks.first.startOffset, startOffset);
+    expect(chunks.last.text, 'Final sentence.');
+  });
+
+  test(
+    'live tts session keeps a ready chunk with two future generations',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp('live-tts-test');
+      addTearDown(() => tempDir.delete(recursive: true));
+
+      final factory = _RecordingExecutorFactory();
+      final session = LiveTtsSession(
+        executorFactory: factory.create,
+        modelDir: '/tmp/demo-model',
+        voice: _demoVoiceModel,
+        text: 'One two. Three four. Five six. Seven eight.',
+        speed: 1,
+        speakerId: 0,
+        chunkSizeWords: 2,
+        outputDirectoryPath: tempDir.path,
+      );
+      addTearDown(session.dispose);
+
+      await session.start();
+
+      expect(factory.createdExecutors, hasLength(2));
+      expect(
+        factory.createdExecutors
+            .map(
+              (executor) => executor.submittedRequests.single.payload['text'],
+            )
+            .toList(growable: false),
+        ['One two.', 'Three four.'],
+      );
+
+      final firstExecutor = factory.createdExecutors[0];
+      final secondExecutor = factory.createdExecutors[1];
+      final firstTaskId = firstExecutor.submittedRequests.single.taskId;
+      final secondTaskId = secondExecutor.submittedRequests.single.taskId;
+
+      firstExecutor.completeTask(
+        firstTaskId,
+        LongRunningTaskType.synthesizeSpeech,
+        outputPath: '${tempDir.path}/chunk-1.wav',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      session.markChunkPlaying(0);
+      expect(firstExecutor.submittedRequests.last.payload['text'], 'Five six.');
+
+      secondExecutor.completeTask(
+        secondTaskId,
+        LongRunningTaskType.synthesizeSpeech,
+        outputPath: '${tempDir.path}/chunk-2.wav',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        secondExecutor.submittedRequests.last.payload['text'],
+        'Seven eight.',
+      );
+      expect(
+        session.chunks.map((chunk) => chunk.status).toList(growable: false),
+        [
+          LiveTtsChunkStatus.playing,
+          LiveTtsChunkStatus.ready,
+          LiveTtsChunkStatus.generating,
+          LiveTtsChunkStatus.generating,
+        ],
+      );
+    },
+  );
+
+  test('live tts session submits only text after the caret offset', () async {
+    final tempDir = await Directory.systemTemp.createTemp('live-tts-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final factory = _RecordingExecutorFactory();
+    const text = 'Intro words. And then I continue here. Final sentence.';
+    final session = LiveTtsSession(
+      executorFactory: factory.create,
+      modelDir: '/tmp/demo-model',
+      voice: _demoVoiceModel,
+      text: text,
+      speed: 1,
+      speakerId: 0,
+      chunkSizeWords: 3,
+      outputDirectoryPath: tempDir.path,
+      startOffset: text.indexOf('And then I'),
+    );
+    addTearDown(session.dispose);
+
+    await session.start();
+
+    expect(factory.createdExecutors, hasLength(2));
+    expect(
+      factory.createdExecutors
+          .map((executor) => executor.submittedRequests.single.payload['text'])
+          .toList(growable: false),
+      ['And then I continue here.', 'Final sentence.'],
+    );
+    expect(session.chunks.first.startOffset, text.indexOf('And then I'));
+  });
+
   test('extracts tar.bz2 archives with nested model files', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
     addTearDown(() => tempDir.delete(recursive: true));
@@ -828,12 +956,17 @@ class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {
   @override
   void requestCancel(String taskId) {}
 
-  void completeTask(String taskId, LongRunningTaskType type) {
+  void completeTask(
+    String taskId,
+    LongRunningTaskType type, {
+    String? outputPath,
+  }) {
     _controller.add(
       TaskResult(
         taskId: taskId,
         type: type,
         status: TaskResultStatus.completed,
+        outputPath: outputPath,
       ),
     );
   }
@@ -841,6 +974,17 @@ class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {
   @override
   void dispose() {
     _controller.close();
+  }
+}
+
+class _RecordingExecutorFactory {
+  final List<_FakeBackgroundTaskExecutor> createdExecutors =
+      <_FakeBackgroundTaskExecutor>[];
+
+  BackgroundTaskExecutor create() {
+    final executor = _FakeBackgroundTaskExecutor();
+    createdExecutors.add(executor);
+    return executor;
   }
 }
 
