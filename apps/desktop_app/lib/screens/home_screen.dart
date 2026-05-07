@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_ui/shared_ui.dart';
 
-import '../state/app_state.dart';
 import '../services/audio_service.dart';
-import '../widgets/model_status_banner.dart';
-import '../widgets/text_input_panel.dart';
+import '../state/app_state.dart';
+import '../widgets/app_navigation_drawer.dart';
 import '../widgets/settings_panel.dart';
+import '../widgets/text_input_panel.dart';
+import 'models_screen.dart';
 import 'voice_lab_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -15,76 +16,25 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Text to Speech'),
-        centerTitle: false,
-        actions: [
-          Consumer<AppState>(
-            builder: (context, state, _) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Tooltip(
-                  message: 'Advanced Functionality',
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.science_outlined, size: 16),
-                      SizedBox(
-                        width: 34,
-                        height: 18,
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Switch(
-                            value: state.isAdvancedLabEnabled,
-                            onChanged: state.setAdvancedLabEnabled,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
+      drawer: AppNavigationDrawer(
+        selectedDestination: AppDestination.home,
+        onDestinationSelected: (destination) =>
+            _navigateToDestination(context, destination),
       ),
+      appBar: AppBar(title: const Text('Text to Speech'), centerTitle: false),
       body: Consumer<AppState>(
         builder: (context, state, _) {
           if (state.isLoadingModels) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (!state.isAdvancedLabEnabled) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 800),
-                  child: _buildBasicPane(context, state),
-                ),
-              ),
-            );
-          }
-
-          return Padding(
+          return SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: _buildBasicPane(context, state),
-                  ),
-                ),
-                const SizedBox(width: 24),
-                const Expanded(
-                  child: Card(
-                    clipBehavior: Clip.antiAlias,
-                    child: VoiceLabPanel(),
-                  ),
-                ),
-              ],
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: _buildBasicPane(context, state),
+              ),
             ),
           );
         },
@@ -96,8 +46,6 @@ class HomeScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const ModelStatusBanner(),
-        const SizedBox(height: 16),
         const TextInputPanel(),
         const SizedBox(height: 16),
         const SettingsPanel(),
@@ -165,5 +113,25 @@ class HomeScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _navigateToDestination(
+    BuildContext context,
+    AppDestination destination,
+  ) {
+    Navigator.of(context).pop();
+
+    switch (destination) {
+      case AppDestination.home:
+        break;
+      case AppDestination.models:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),
+        );
+      case AppDestination.voiceLab:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const VoiceLabScreen()),
+        );
+    }
   }
 }

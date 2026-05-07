@@ -2,24 +2,29 @@
 
 ## Goal
 
-Keep the Android home screen focused on model, synthesis, and playback actions while routing descriptive product information to a secondary About screen.
+Keep the main generation flow focused on text, voice settings, and playback while routing model management and secondary screens through explicit navigation menus.
 
 ## Steps
 
-1. User opens the Android app and lands on the home screen.
-2. Home shows model status, text input, synthesis controls, errors, and playback actions.
-3. User opens the app-bar overflow menu and selects `About`.
-4. App pushes the About screen without disturbing current synthesis or playback state.
-5. User returns to the home screen and continues the local generation flow.
+1. User opens either app and lands on the Home screen.
+2. Home shows generation status, text input, voice settings, task list, and playback actions.
+3. User opens the platform navigation menu.
+4. User selects `Models` to view the approved catalog and start install or repair work on a dedicated screen.
+5. On Android, the user may also select `About`; on desktop, the user may also select `Voice Lab`.
+6. App switches screens without disturbing current selected model, text input, generated audio, background task state, or desktop Voice Lab state.
+7. User returns to Home and continues the local generation flow.
 
 ## Invariants
 
-- Home remains the primary action surface for generation and model management.
-- About is reachable from the standard app-bar overflow menu.
-- Navigation to About must not reset selected model, text input, or generated audio state.
+- Home remains the primary action surface for generation.
+- Model catalog browsing and install actions live on the dedicated Models screen instead of Home.
+- Android navigation exposes Home, Models, and About.
+- Desktop navigation exposes Home, Models, and Voice Lab.
+- Navigation between destinations must not reset selected model, text input, generated audio state, running tasks, or the current Voice Lab configuration and OpenVoice job progress.
 
 ## Failure Modes
 
-- overflow action missing or mislabeled
-- About route fails to open
+- navigation menu missing or mislabeled
+- Models route fails to open
+- About or Voice Lab route fails to open
 - navigation rebuild unexpectedly resets shared app state

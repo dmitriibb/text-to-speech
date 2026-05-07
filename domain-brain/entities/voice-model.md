@@ -10,6 +10,9 @@ A single approved model entry that describes how a voice should be downloaded, i
 - `displayName: string`
 - `family: string`
 - `runtime: string`
+- `sizeMb: double`
+- `supportedLanguages: List<string>`
+- `description: string`
 - `archiveUrl: string`
 - `archiveFormat: string`
 - `installDirName: string`
@@ -33,6 +36,7 @@ A single approved model entry that describes how a voice should be downloaded, i
 ## Notes
 
 - `installDirName` defines the expected extracted directory name.
+- `sizeMb`, `supportedLanguages`, and `description` provide the user-facing metadata shown on the dedicated Models screen.
 - `modelFile`, `tokensFile`, optional `lexiconFile` or `dataDir`, and any family-specific runtime assets define the readiness check.
 - Pocket TTS entries may declare `pocketDefaultReferenceAudio` so regular synthesis can fall back to a bundled default voice when cloning is not enabled.
 - A `VoiceModel` may be usable for local development even when redistribution is still blocked.

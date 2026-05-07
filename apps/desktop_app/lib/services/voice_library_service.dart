@@ -73,22 +73,10 @@ class VoiceLibraryService {
     // Normalize all imported reference audio to WAV so preview and cloning
     // can keep using the existing WAV-based pipeline.
     final destPath = p.join(dir, '$id.wav');
-    final format = await _detectAudioFormat(sourceAudioPath);
-    switch (format) {
-      case _ImportedAudioFormat.wav:
-        await sourceFile.copy(destPath);
-        break;
-      case _ImportedAudioFormat.mp3:
-        await _convertMp3ToWav(
-          sourceAudioPath: sourceAudioPath,
-          destinationWavPath: destPath,
-        );
-        break;
-      case _ImportedAudioFormat.unsupported:
-        throw UnsupportedError(
-          'Unsupported voice sample format. Choose a WAV or MP3 file.',
-        );
-    }
+    await normalizeAudioToWav(
+      sourceAudioPath: sourceAudioPath,
+      destinationWavPath: destPath,
+    );
 
     final voice = ClonedVoice(
       id: id,
@@ -102,6 +90,40 @@ class VoiceLibraryService {
     await _saveIndex(dir, voices);
 
     return voice;
+  }
+
+  /// Normalizes an imported voice sample to a WAV file.
+  ///
+  /// WAV files are copied as-is. MP3 files are converted to mono 16-bit PCM
+  /// WAV via ffmpeg so both Pocket TTS and OpenVoice can reuse the same
+  /// normalized sample format.
+  Future<void> normalizeAudioToWav({
+    required String sourceAudioPath,
+    required String destinationWavPath,
+  }) async {
+    final sourceFile = File(sourceAudioPath);
+    if (!await sourceFile.exists()) {
+      throw StateError('Voice sample file not found: $sourceAudioPath');
+    }
+
+    await File(destinationWavPath).parent.create(recursive: true);
+
+    final format = await _detectAudioFormat(sourceAudioPath);
+    switch (format) {
+      case _ImportedAudioFormat.wav:
+        await sourceFile.copy(destinationWavPath);
+        break;
+      case _ImportedAudioFormat.mp3:
+        await _convertMp3ToWav(
+          sourceAudioPath: sourceAudioPath,
+          destinationWavPath: destinationWavPath,
+        );
+        break;
+      case _ImportedAudioFormat.unsupported:
+        throw UnsupportedError(
+          'Unsupported voice sample format. Choose a WAV or MP3 file.',
+        );
+    }
   }
 
   /// Removes a cloned voice from the library.

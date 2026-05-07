@@ -3,14 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_ui/shared_ui.dart';
 
 import 'about_screen.dart';
+import 'models_screen.dart';
 import '../services/audio_service.dart';
 import '../state/app_state.dart';
+import '../widgets/app_navigation_drawer.dart';
 import '../widgets/error_banner.dart';
-import '../widgets/model_status_card.dart';
 import '../widgets/settings_panel.dart';
 import '../widgets/text_input_panel.dart';
-
-enum _HomeMenuAction { about }
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -18,29 +17,12 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Text to Speech'),
-        actions: [
-          PopupMenuButton<_HomeMenuAction>(
-            onSelected: (action) {
-              switch (action) {
-                case _HomeMenuAction.about:
-                  Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const AboutScreen(),
-                    ),
-                  );
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem<_HomeMenuAction>(
-                value: _HomeMenuAction.about,
-                child: Text('About'),
-              ),
-            ],
-          ),
-        ],
+      drawer: AppNavigationDrawer(
+        selectedDestination: AppDestination.home,
+        onDestinationSelected: (destination) =>
+            _navigateToDestination(context, destination),
       ),
+      appBar: AppBar(title: const Text('Text to Speech')),
       body: DecoratedBox(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -60,8 +42,6 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const ModelStatusCard(),
-                  const SizedBox(height: 16),
                   const TextInputPanel(),
                   const SizedBox(height: 16),
                   const SettingsPanel(),
@@ -94,6 +74,26 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  void _navigateToDestination(
+    BuildContext context,
+    AppDestination destination,
+  ) {
+    Navigator.of(context).pop();
+
+    switch (destination) {
+      case AppDestination.home:
+        break;
+      case AppDestination.models:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),
+        );
+      case AppDestination.about:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const AboutScreen()),
+        );
+    }
   }
 }
 

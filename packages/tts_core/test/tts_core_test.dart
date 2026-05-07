@@ -20,6 +20,9 @@ void main() {
       "display_name": "Demo Model",
       "family": "vits",
       "runtime": "sherpa-onnx",
+      "size_mb": 64,
+      "supported_languages": ["English"],
+      "description": "Demo description",
       "status": {
         "approved_for_distribution": false
       },
@@ -55,6 +58,9 @@ void main() {
     expect(catalog.models, hasLength(1));
     expect(catalog.models.single.installDirName, 'demo-model');
     expect(catalog.models.single.lexiconFile, 'lexicon.txt');
+    expect(catalog.models.single.sizeMb, 64);
+    expect(catalog.models.single.supportedLanguages, ['English']);
+    expect(catalog.models.single.description, 'Demo description');
     expect(catalog.models.single.pocketDefaultReferenceAudio, isEmpty);
   });
 

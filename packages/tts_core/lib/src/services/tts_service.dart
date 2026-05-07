@@ -42,11 +42,20 @@ class TtsService {
     final tokensPath = model.tokensFile.isNotEmpty
         ? p.join(modelDir, model.tokensFile)
         : '';
-    final lexiconPath = model.lexiconFile.isNotEmpty
-        ? p.join(modelDir, model.lexiconFile)
-        : '';
+    final lexiconPath = model.allLexiconFiles
+        .map((entry) => p.join(modelDir, entry))
+        .join(',');
+    final ruleFstsPath = model.ruleFsts
+        .map((entry) => p.join(modelDir, entry))
+        .join(',');
+    final ruleFarsPath = model.ruleFars
+        .map((entry) => p.join(modelDir, entry))
+        .join(',');
     final dataDirPath = model.dataDir.isNotEmpty
         ? p.join(modelDir, model.dataDir)
+        : '';
+    final dictDirPath = model.dictDir.isNotEmpty
+        ? p.join(modelDir, model.dictDir)
         : '';
 
     final sherpa.OfflineTtsModelConfig modelConfig;
@@ -61,10 +70,28 @@ class TtsService {
           voices: voicesPath,
           tokens: tokensPath,
           dataDir: dataDirPath,
+          dictDir: dictDirPath,
           lexicon: lexiconPath,
         );
         modelConfig = sherpa.OfflineTtsModelConfig(
           kokoro: kokoroConfig,
+          numThreads: model.numThreads,
+          debug: false,
+          provider: model.provider,
+        );
+        break;
+      case 'kitten':
+        final voicesPath = model.voicesFile.isNotEmpty
+            ? p.join(modelDir, model.voicesFile)
+            : '';
+        final kittenConfig = sherpa.OfflineTtsKittenModelConfig(
+          model: modelPath,
+          voices: voicesPath,
+          tokens: tokensPath,
+          dataDir: dataDirPath,
+        );
+        modelConfig = sherpa.OfflineTtsModelConfig(
+          kitten: kittenConfig,
           numThreads: model.numThreads,
           debug: false,
           provider: model.provider,
@@ -87,12 +114,13 @@ class TtsService {
           provider: model.provider,
         );
         break;
-      default: // 'vits' and any other family
+      default:
         final vitsConfig = sherpa.OfflineTtsVitsModelConfig(
           model: modelPath,
           lexicon: lexiconPath,
           tokens: tokensPath,
           dataDir: dataDirPath,
+          dictDir: dictDirPath,
         );
         modelConfig = sherpa.OfflineTtsModelConfig(
           vits: vitsConfig,
@@ -105,6 +133,8 @@ class TtsService {
     final ttsConfig = sherpa.OfflineTtsConfig(
       model: modelConfig,
       maxNumSenetences: model.maxNumSentences,
+      ruleFsts: ruleFstsPath,
+      ruleFars: ruleFarsPath,
     );
 
     _tts = sherpa.OfflineTts(ttsConfig);

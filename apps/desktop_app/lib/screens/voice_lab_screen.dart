@@ -6,8 +6,11 @@ import 'package:path/path.dart' as p;
 import 'package:provider/provider.dart';
 
 import '../models/cloned_voice.dart';
-import '../state/app_state.dart';
+import '../services/open_voice_backend_service.dart';
 import '../state/voice_lab_state.dart';
+import '../widgets/app_navigation_drawer.dart';
+import 'home_screen.dart';
+import 'models_screen.dart';
 
 typedef OpenVoiceSampleFile = Future<String?> Function();
 
@@ -135,12 +138,37 @@ class VoiceLabScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: AppNavigationDrawer(
+        selectedDestination: AppDestination.voiceLab,
+        onDestinationSelected: (destination) =>
+            _navigateToDestination(context, destination),
+      ),
       appBar: AppBar(title: const Text('Voice Lab'), centerTitle: false),
       body: VoiceLabPanel(
         openVoiceSampleFile: openVoiceSampleFile,
         stateOverride: stateOverride,
       ),
     );
+  }
+
+  void _navigateToDestination(
+    BuildContext context,
+    AppDestination destination,
+  ) {
+    Navigator.of(context).pop();
+
+    switch (destination) {
+      case AppDestination.home:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const HomeScreen()),
+        );
+      case AppDestination.models:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),
+        );
+      case AppDestination.voiceLab:
+        break;
+    }
   }
 }
 
@@ -160,23 +188,20 @@ class VoiceLabPanel extends StatefulWidget {
 
 class _VoiceLabPanelState extends State<VoiceLabPanel> {
   late final VoiceLabState _state;
-  late final bool _ownsState;
+  late final TextEditingController _openVoiceUrlController;
 
   @override
   void initState() {
     super.initState();
-    _ownsState = widget.stateOverride == null;
-    _state =
-        widget.stateOverride ??
-        VoiceLabState(appState: context.read<AppState>());
-    _state.initialize();
+    _state = widget.stateOverride ?? context.read<VoiceLabState>();
+    _openVoiceUrlController = TextEditingController(
+      text: _state.openVoiceBackendUrl,
+    );
   }
 
   @override
   void dispose() {
-    if (_ownsState) {
-      _state.dispose();
-    }
+    _openVoiceUrlController.dispose();
     super.dispose();
   }
 
@@ -186,6 +211,15 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
       value: _state,
       child: Consumer<VoiceLabState>(
         builder: (context, state, _) {
+          if (_openVoiceUrlController.text != state.openVoiceBackendUrl) {
+            _openVoiceUrlController.value = TextEditingValue(
+              text: state.openVoiceBackendUrl,
+              selection: TextSelection.collapsed(
+                offset: state.openVoiceBackendUrl.length,
+              ),
+            );
+          }
+
           if (state.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -197,14 +231,12 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
               children: [
                 _buildHeader(context),
                 const SizedBox(height: 16),
-                _buildVoiceCloningToggle(context, state),
-                if (state.isVoiceCloningEnabled) ...[
-                  const SizedBox(height: 16),
-                  _buildVoiceCloningSection(context, state),
-                  if (state.errorMessage != null) ...[
-                    const SizedBox(height: 12),
-                    _buildErrorBanner(context, state.errorMessage!),
-                  ],
+                _buildPocketTtsCard(context, state),
+                const SizedBox(height: 16),
+                _buildOpenVoiceCard(context, state),
+                if (state.errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  _buildErrorBanner(context, state.errorMessage!),
                 ],
               ],
             ),
@@ -231,7 +263,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               Text(
-                'Extended tools stay beside the Basic panel.',
+                'Desktop-only voice cloning offers both the built-in Pocket path and the external OpenVoice backend path.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -241,36 +273,74 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
     );
   }
 
-  Widget _buildVoiceCloningToggle(BuildContext context, VoiceLabState state) {
-    final enabled = state.hasPocketModel;
-    final subtitle = !enabled
-        ? 'Install Pocket TTS from the model catalog to enable voice cloning.'
-        : state.isVoiceCloningEnabled
-        ? 'Voice cloning is active and uses Pocket TTS in the main model selector.'
-        : 'Enable to switch the main model selector to Pocket TTS automatically.';
-
+  Widget _buildPocketTtsCard(BuildContext context, VoiceLabState state) {
     return Card(
-      child: SwitchListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        value: enabled && state.isVoiceCloningEnabled,
-        onChanged: enabled ? state.setVoiceCloningEnabled : null,
-        secondary: const Icon(Icons.toggle_on_outlined),
-        title: const Text('Voice Cloning'),
-        subtitle: Text(subtitle),
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              value: state.hasPocketModel && state.isPocketVoiceCloningEnabled,
+              onChanged: state.hasPocketModel
+                  ? state.setVoiceCloningEnabled
+                  : null,
+              secondary: const Icon(Icons.record_voice_over_outlined),
+              title: const Text('Voice cloning Pocket TTS'),
+            ),
+            if (state.isPocketVoiceCloningEnabled) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildModelStatus(context, state),
+                    const SizedBox(height: 16),
+                    _buildImportSection(context, state),
+                    const SizedBox(height: 16),
+                    _buildVoiceLibrary(context, state),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildVoiceCloningSection(BuildContext context, VoiceLabState state) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildModelStatus(context, state),
-        const SizedBox(height: 24),
-        _buildImportSection(context, state),
-        const SizedBox(height: 24),
-        _buildVoiceLibrary(context, state),
-      ],
+  Widget _buildOpenVoiceCard(BuildContext context, VoiceLabState state) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              value: state.isOpenVoiceEnabled,
+              onChanged: state.setOpenVoiceEnabled,
+              secondary: const Icon(Icons.graphic_eq_outlined),
+              title: const Text('Voice cloning OpenVoice'),
+            ),
+            if (state.isOpenVoiceEnabled) ...[
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: _buildOpenVoiceSection(context, state),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -394,6 +464,143 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
     );
   }
 
+  Widget _buildOpenVoiceSection(BuildContext context, VoiceLabState state) {
+    final (statusEmoji, statusText, statusColor) = switch (
+      state.openVoiceConnectionState
+    ) {
+      OpenVoiceBackendConnectionState.connected => (
+        '✅',
+        'Backend OK',
+        Theme.of(context).colorScheme.primary,
+      ),
+      OpenVoiceBackendConnectionState.checking => (
+        '⏳',
+        'Checking',
+        Theme.of(context).colorScheme.tertiary,
+      ),
+      OpenVoiceBackendConnectionState.error => (
+        '❌',
+        'Backend Down',
+        Theme.of(context).colorScheme.error,
+      ),
+      OpenVoiceBackendConnectionState.disconnected => (
+        '⚪',
+        'Not Checked',
+        Theme.of(context).colorScheme.outline,
+      ),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Advanced path through a manually started local backend. This MVP accepts a WAV or MP3 reference sample, converts MP3 to WAV automatically, and uses async job polling.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Text(statusEmoji, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Text(
+              statusText,
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(color: statusColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                state.openVoiceBackendMessage ??
+                    'Check the backend connection before generating speech.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _openVoiceUrlController,
+          onChanged: (value) {
+            state.setOpenVoiceBackendUrl(value);
+          },
+          decoration: const InputDecoration(
+            labelText: 'Backend URL',
+            hintText: 'http://127.0.0.1:8008',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            FilledButton.tonalIcon(
+              onPressed: state.openVoiceConnectionState ==
+                      OpenVoiceBackendConnectionState.checking
+                  ? null
+                  : () => state.checkOpenVoiceConnection(showAsError: true),
+              icon: const Icon(Icons.health_and_safety_outlined),
+              label: const Text('Check Connection'),
+            ),
+            OutlinedButton.icon(
+              onPressed: () => _selectOpenVoiceSample(state),
+              icon: const Icon(Icons.audio_file_outlined),
+              label: const Text('Select Reference Audio'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Text(
+          state.openVoiceSamplePath ??
+              'No OpenVoice reference audio selected yet.',
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.outline,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          state.hasSharedInputText
+              ? 'Speech generation uses the text currently entered in the Basic panel.'
+              : 'Add text in the Basic panel before generating OpenVoice speech.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.icon(
+            onPressed: state.canGenerateWithOpenVoice
+                ? state.generateWithOpenVoice
+                : null,
+            icon: Icon(
+              state.isOpenVoiceGenerationSubmitting
+                  ? Icons.sync
+                  : Icons.graphic_eq,
+            ),
+            label: Text(
+              state.isOpenVoiceGenerationSubmitting
+                  ? 'Generating...'
+                  : 'Generate Speech',
+            ),
+          ),
+        ),
+        if (state.activeOpenVoiceJobId case final jobId?) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Latest OpenVoice job: $jobId',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _buildVoiceCard(
     BuildContext context,
     VoiceLabState state,
@@ -457,7 +664,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
               child: FilledButton.icon(
                 onPressed:
                     state.hasPocketModel &&
-                        state.isVoiceCloningEnabled &&
+                        state.isPocketVoiceCloningEnabled &&
                         state.hasSharedInputText
                     ? () => state.generateWithClonedVoice(voice: voice)
                     : null,
@@ -522,6 +729,35 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
       confirmButtonText: 'Select voice sample',
     );
     return selectedFile?.path;
+  }
+
+  Future<String?> _pickOpenVoiceSampleFile() async {
+    if (widget.openVoiceSampleFile case final openVoiceSampleFile?) {
+      return openVoiceSampleFile();
+    }
+
+    const audioTypeGroup = XTypeGroup(
+      label: 'Audio samples',
+      extensions: ['wav', 'mp3'],
+      mimeTypes: ['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp3'],
+    );
+    final selectedFile = await openFile(
+      acceptedTypeGroups: const [audioTypeGroup],
+      confirmButtonText: 'Select OpenVoice reference audio',
+    );
+    return selectedFile?.path;
+  }
+
+  Future<void> _selectOpenVoiceSample(VoiceLabState state) async {
+    final path = await _pickOpenVoiceSampleFile();
+    if (path == null) {
+      return;
+    }
+    if (!File(path).existsSync()) {
+      state.setError('File not found: $path');
+      return;
+    }
+    state.setOpenVoiceSamplePath(path);
   }
 
   Future<void> _confirmDelete(

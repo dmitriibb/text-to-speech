@@ -74,6 +74,35 @@ void main() {
     },
   );
 
+  test('normalizes MP3 inputs to a standalone WAV file', () async {
+    final sourceFile = File(p.join(tempDir.path, 'openvoice-sample.mp3'));
+    await sourceFile.writeAsBytes(_mp3HeaderBytes());
+
+    String? executable;
+    List<String>? arguments;
+    final service = VoiceLibraryService(
+      libraryRootPath: tempDir.path,
+      processRunner: (processExecutable, processArguments) async {
+        executable = processExecutable;
+        arguments = processArguments;
+        await File(processArguments.last).writeAsBytes(_wavHeaderBytes());
+        return ProcessResult(0, 0, '', '');
+      },
+    );
+
+    final outputPath = p.join(tempDir.path, 'normalized', 'sample.wav');
+    await service.normalizeAudioToWav(
+      sourceAudioPath: sourceFile.path,
+      destinationWavPath: outputPath,
+    );
+
+    expect(executable, 'ffmpeg');
+    expect(arguments, isNotNull);
+    expect(arguments, containsAllInOrder(['-i', sourceFile.path]));
+    expect(arguments!.last, outputPath);
+    expect(await File(outputPath).exists(), isTrue);
+  });
+
   test('rejects unsupported import formats', () async {
     final sourceFile = File(p.join(tempDir.path, 'sample-audio'));
     await sourceFile.writeAsBytes(Uint8List.fromList([0x01, 0x02, 0x03, 0x04]));

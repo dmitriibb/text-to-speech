@@ -1,11 +1,13 @@
 .venv/
 .cache/
 artifacts/
-models/
+/models/
+/apps/open_voice_be/models/
+/apps/open_voice_be/storage/
 __pycache__/
 *.pyc
-task.checkpoint.md
-task.notes.md
+# task.checkpoint.md
+# task.notes.md
 
 # Flutter
 **/build/
@@ -14,4 +16,4 @@ task.notes.md
 **/.flutter-plugins
 **/.flutter-plugins-dependencies
 **/pubspec.lock
-
+*.wav

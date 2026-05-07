@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:tts_core/tts_core.dart';
 
 void main() {
-  testWidgets('keeps install actions visible when one model is already ready', (
+  testWidgets('shows compact summary and points users to the models screen', (
     tester,
   ) async {
     final state = _FakeAppState(
@@ -42,9 +42,10 @@ void main() {
 
     expect(find.text('1 model ready'), findsOneWidget);
     expect(
-      find.text('Install Pocket TTS English (Voice Cloning)'),
+      find.textContaining('Open Models from the navigation menu'),
       findsOneWidget,
     );
+    expect(find.text('Install'), findsNothing);
   });
 }
 

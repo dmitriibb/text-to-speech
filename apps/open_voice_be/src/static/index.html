@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpenVoice Backend Admin</title>
+  <link rel="stylesheet" href="/admin/static/styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <div>
+        <p class="eyebrow">OpenVoice Backend</p>
+        <h1>Admin</h1>
+        <p class="lede">
+          Lightweight browser admin for backend models and jobs.
+        </p>
+      </div>
+      <div class="actions">
+        <button id="refresh-all" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Health</h2>
+          <p id="health-summary" class="muted">Loading backend status...</p>
+        </div>
+      </div>
+      <div id="health-grid" class="stat-grid"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Models</h2>
+          <p class="muted">
+            This backend currently switches between OpenVoice base speaker checkpoints.
+          </p>
+        </div>
+      </div>
+      <div id="model-runtime" class="runtime-list"></div>
+      <div id="models-table" class="table-wrap"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div>
+          <h2>Tasks</h2>
+          <p class="muted">
+            Deleting a task removes its saved job record and job-owned files.
+          </p>
+        </div>
+      </div>
+      <div id="jobs-table" class="table-wrap"></div>
+    </section>
+  </main>
+
+  <template id="empty-state-template">
+    <div class="empty-state"></div>
+  </template>
+
+  <script src="/admin/static/app.js" defer></script>
+</body>
+</html>

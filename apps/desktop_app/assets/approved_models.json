@@ -1,213 +1,628 @@
 {
-  "catalog_version": 1,
-  "updated_on": "2026-04-03",
-  "default_model_id": "vits-piper-en_US-lessac-medium",
-  "models": [
-    {
-      "id": "vits-piper-en_US-lessac-medium",
-      "display_name": "Piper English Lessac Medium",
-      "family": "vits",
-      "runtime": "sherpa-onnx",
-      "phase0_default": true,
-      "status": {
-        "approved_for_local_validation": true,
-        "approved_for_distribution": false,
-        "distribution_decision": "Unknown",
-        "needed_to_decide_distribution": [
-          "Confirm the redistribution terms for the lessac_blizzard2013 training dataset",
-          "Capture an explicit release-level license statement for the exported model artifact"
-        ]
-      },
-      "source": {
-        "homepage": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
-        "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-lessac-medium.tar.bz2",
-        "archive_sha256": "Unknown",
-        "first_verified_local_sha256": "9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e",
-        "first_verified_local_sha256_date": "2026-04-03",
-        "needed_to_decide_archive_sha256": [
-          "Pin the checksum from the upstream release asset or",
-          "download once and store a verified local checksum in project metadata"
-        ]
-      },
-      "licensing": {
-        "runtime_license": "Apache-2.0",
-        "model_license": "Unknown",
-        "dataset_license": "Unknown",
-        "dataset_name": "lessac_blizzard2013"
-      },
-      "install": {
-        "install_dir_name": "vits-piper-en_US-lessac-medium",
-        "archive_format": "tar.bz2"
-      },
-      "files": {
-        "model": "en_US-lessac-medium.onnx",
-        "tokens": "tokens.txt",
-        "data_dir": "espeak-ng-data"
-      },
-      "defaults": {
-        "provider": "cpu",
-        "num_threads": 1,
-        "speed": 1.0,
-        "speaker_id": 0,
-        "max_num_sentences": 1
-      }
-    },
-    {
-      "id": "vits-ljs",
-      "display_name": "VITS LJSpeech",
-      "family": "vits",
-      "runtime": "sherpa-onnx",
-      "phase0_default": false,
-      "status": {
-        "approved_for_local_validation": true,
-        "approved_for_distribution": false,
-        "distribution_decision": "Unknown",
-        "needed_to_decide_distribution": [
-          "Capture an explicit release-level license statement for the exported model artifact"
-        ]
-      },
-      "source": {
-        "homepage": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
-        "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-ljs.tar.bz2",
-        "archive_sha256": "Unknown",
-        "needed_to_decide_archive_sha256": [
-          "Pin the checksum from the upstream release asset or",
-          "download once and store a verified local checksum in project metadata"
-        ]
-      },
-      "licensing": {
-        "runtime_license": "Apache-2.0",
-        "model_license": "Unknown",
-        "dataset_license": "Public Domain",
-        "dataset_name": "LJ Speech"
-      },
-      "install": {
-        "install_dir_name": "vits-ljs",
-        "archive_format": "tar.bz2"
-      },
-      "files": {
-        "model": "vits-ljs.onnx",
-        "tokens": "tokens.txt",
-        "lexicon": "lexicon.txt"
-      },
-      "defaults": {
-        "provider": "cpu",
-        "num_threads": 1,
-        "speed": 1.0,
-        "speaker_id": 0,
-        "max_num_sentences": 1
-      }
-    },
-    {
-      "id": "kokoro-en-v0_19",
-      "display_name": "Kokoro English (11 speakers)",
-      "family": "kokoro",
-      "runtime": "sherpa-onnx",
-      "phase0_default": false,
-      "status": {
-        "approved_for_local_validation": true,
-        "approved_for_distribution": false,
-        "distribution_decision": "Unknown",
-        "needed_to_decide_distribution": [
-          "Confirm redistribution terms for the Kokoro model weights"
-        ]
-      },
-      "source": {
-        "homepage": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html",
-        "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2",
-        "archive_sha256": "Unknown",
-        "needed_to_decide_archive_sha256": [
-          "Download once and store a verified local checksum in project metadata"
-        ]
-      },
-      "licensing": {
-        "runtime_license": "Apache-2.0",
-        "model_license": "Apache-2.0",
-        "dataset_license": "Unknown",
-        "dataset_name": "Unknown"
-      },
-      "install": {
-        "install_dir_name": "kokoro-en-v0_19",
-        "archive_format": "tar.bz2"
-      },
-      "files": {
-        "model": "model.onnx",
-        "tokens": "tokens.txt",
-        "voices": "voices.bin",
-        "data_dir": "espeak-ng-data"
-      },
-      "defaults": {
-        "provider": "cpu",
-        "num_threads": 2,
-        "speed": 1.0,
-        "speaker_id": 0,
-        "max_num_sentences": 1
-      },
-      "speakers": [
-        {"id": 0, "name": "AF (default)"},
-        {"id": 1, "name": "AF Bella"},
-        {"id": 2, "name": "AF Nicole"},
-        {"id": 3, "name": "AF Sarah"},
-        {"id": 4, "name": "AF Sky"},
-        {"id": 5, "name": "AM Adam"},
-        {"id": 6, "name": "AM Michael"},
-        {"id": 7, "name": "BF Emma"},
-        {"id": 8, "name": "BF Isabella"},
-        {"id": 9, "name": "BM George"},
-        {"id": 10, "name": "BM Lewis"}
-      ]
-    },
-    {
-      "id": "pocket-tts-en",
-      "display_name": "Pocket TTS English (Voice Cloning)",
-      "family": "pocket",
-      "runtime": "sherpa-onnx",
-      "phase0_default": false,
-      "status": {
-        "approved_for_local_validation": true,
-        "approved_for_distribution": false,
-        "distribution_decision": "Unknown",
-        "needed_to_decide_distribution": [
-          "Confirm redistribution terms for Pocket TTS model weights"
-        ]
-      },
-      "source": {
-        "homepage": "https://k2-fsa.github.io/sherpa/onnx/tts/pocket.html",
-        "archive_url": "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-pocket-tts-int8-2026-01-26.tar.bz2",
-        "archive_sha256": "Unknown",
-        "needed_to_decide_archive_sha256": [
-          "Download once and store a verified local checksum in project metadata"
-        ]
-      },
-      "licensing": {
-        "runtime_license": "Apache-2.0",
-        "model_license": "Unknown",
-        "dataset_license": "Unknown",
-        "dataset_name": "Unknown"
-      },
-      "install": {
-        "install_dir_name": "sherpa-onnx-pocket-tts-int8-2026-01-26",
-        "archive_format": "tar.bz2"
-      },
-      "files": {
-        "model": "lm_flow.int8.onnx",
-        "tokens": "",
-        "pocket_lm_main": "lm_main.int8.onnx",
-        "pocket_encoder": "encoder.onnx",
-        "pocket_decoder": "decoder.int8.onnx",
-        "pocket_text_conditioner": "text_conditioner.onnx",
-        "pocket_vocab_json": "vocab.json",
-        "pocket_token_scores_json": "token_scores.json",
-        "pocket_default_reference_audio": "test_wavs/bria.wav"
-      },
-      "defaults": {
-        "provider": "cpu",
-        "num_threads": 1,
-        "speed": 1.0,
-        "speaker_id": 0,
-        "max_num_sentences": 1
-      },
-      "voice_cloning": true
-    }
-  ]
+    "catalog_version":  1,
+    "updated_on":  "2026-04-11",
+    "default_model_id":  "vits-piper-en_US-lessac-medium",
+    "models":  [
+                   {
+                       "id":  "vits-piper-en_US-lessac-medium",
+                       "display_name":  "Piper English Lessac Medium",
+                       "family":  "vits",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  64.0,
+                       "supported_languages":  [
+                                                   "English"
+                                               ],
+                       "description":  "Balanced single-speaker English voice for everyday offline speech. Small footprint and fast CPU generation.",
+                       "phase0_default":  true,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Confirm the redistribution terms for the lessac_blizzard2013 training dataset",
+                                                                            "Capture an explicit release-level license statement for the exported model artifact"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-lessac-medium.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "first_verified_local_sha256":  "9e3febfacf0abf4270172d2958bcec246032b7e88efc2720840cc80c93de334e",
+                                      "first_verified_local_sha256_date":  "2026-04-03",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Pin the checksum from the upstream release asset or",
+                                                                              "download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Unknown",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "lessac_blizzard2013"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "vits-piper-en_US-lessac-medium",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "en_US-lessac-medium.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "data_dir":  "espeak-ng-data"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  1,
+                                        "speed":  1.0,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    }
+                   },
+                   {
+                       "id":  "vits-ljs",
+                       "display_name":  "VITS LJSpeech",
+                       "family":  "vits",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  122.0,
+                       "supported_languages":  [
+                                                   "English"
+                                               ],
+                       "description":  "Single-speaker English narration model based on LJ Speech. Clear voice with a larger footprint than Piper Lessac.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Capture an explicit release-level license statement for the exported model artifact"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-ljs.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Pin the checksum from the upstream release asset or",
+                                                                              "download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Unknown",
+                                         "dataset_license":  "Public Domain",
+                                         "dataset_name":  "LJ Speech"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "vits-ljs",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "vits-ljs.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "lexicon":  "lexicon.txt"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  1,
+                                        "speed":  1.0,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    }
+                   },
+                   {
+                       "id":  "kokoro-en-v0_19",
+                       "display_name":  "Kokoro English (11 speakers)",
+                       "family":  "kokoro",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  369.0,
+                       "supported_languages":  [
+                                                   "English"
+                                               ],
+                       "description":  "Higher-quality English multi-speaker model with 11 built-in voices. Supports speaker switching for voice selection.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Confirm redistribution terms for the Kokoro model weights"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Apache-2.0",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "Unknown"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "kokoro-en-v0_19",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "model.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "voices":  "voices.bin",
+                                     "data_dir":  "espeak-ng-data"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  2,
+                                        "speed":  1.0,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    },
+                       "speakers":  [
+                                        {
+                                            "id":  0,
+                                            "name":  "AF (default)"
+                                        },
+                                        {
+                                            "id":  1,
+                                            "name":  "AF Bella"
+                                        },
+                                        {
+                                            "id":  2,
+                                            "name":  "AF Nicole"
+                                        },
+                                        {
+                                            "id":  3,
+                                            "name":  "AF Sarah"
+                                        },
+                                        {
+                                            "id":  4,
+                                            "name":  "AF Sky"
+                                        },
+                                        {
+                                            "id":  5,
+                                            "name":  "AM Adam"
+                                        },
+                                        {
+                                            "id":  6,
+                                            "name":  "AM Michael"
+                                        },
+                                        {
+                                            "id":  7,
+                                            "name":  "BF Emma"
+                                        },
+                                        {
+                                            "id":  8,
+                                            "name":  "BF Isabella"
+                                        },
+                                        {
+                                            "id":  9,
+                                            "name":  "BM George"
+                                        },
+                                        {
+                                            "id":  10,
+                                            "name":  "BM Lewis"
+                                        }
+                                    ]
+                   },
+                   {
+                       "id":  "kokoro-multi-lang-v1_0",
+                       "display_name":  "Kokoro Multilingual v1.0 (English + Chinese)",
+                       "family":  "kokoro",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  350,
+                       "supported_languages":  [
+                                                   "English",
+                                                   "Chinese"
+                                               ],
+                       "description":  "Multilingual Kokoro model with 53 speakers across English and Chinese. Supports speaker switching and bundled Chinese normalization assets.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Confirm redistribution terms for the Kokoro model weights",
+                                                                            "Verify redistribution terms for the multilingual speaker assets bundled by the sherpa-onnx release"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_0.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Apache-2.0",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "Unknown"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "kokoro-multi-lang-v1_0",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "model.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "lexicon":  "lexicon-us-en.txt",
+                                     "extra_lexicons":  [
+                                                            "lexicon-zh.txt"
+                                                        ],
+                                     "rule_fsts":  [
+                                                       "phone-zh.fst",
+                                                       "date-zh.fst",
+                                                       "number-zh.fst"
+                                                   ],
+                                     "voices":  "voices.bin",
+                                     "data_dir":  "espeak-ng-data",
+                                     "dict_dir":  "dict"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  2,
+                                        "speed":  1,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    },
+                       "speakers":  [
+                                        {
+                                            "id":  0,
+                                            "name":  "af_alloy"
+                                        },
+                                        {
+                                            "id":  1,
+                                            "name":  "af_aoede"
+                                        },
+                                        {
+                                            "id":  2,
+                                            "name":  "af_bella"
+                                        },
+                                        {
+                                            "id":  3,
+                                            "name":  "af_heart"
+                                        },
+                                        {
+                                            "id":  4,
+                                            "name":  "af_jessica"
+                                        },
+                                        {
+                                            "id":  5,
+                                            "name":  "af_kore"
+                                        },
+                                        {
+                                            "id":  6,
+                                            "name":  "af_nicole"
+                                        },
+                                        {
+                                            "id":  7,
+                                            "name":  "af_nova"
+                                        },
+                                        {
+                                            "id":  8,
+                                            "name":  "af_river"
+                                        },
+                                        {
+                                            "id":  9,
+                                            "name":  "af_sarah"
+                                        },
+                                        {
+                                            "id":  10,
+                                            "name":  "af_sky"
+                                        },
+                                        {
+                                            "id":  11,
+                                            "name":  "am_adam"
+                                        },
+                                        {
+                                            "id":  12,
+                                            "name":  "am_echo"
+                                        },
+                                        {
+                                            "id":  13,
+                                            "name":  "am_eric"
+                                        },
+                                        {
+                                            "id":  14,
+                                            "name":  "am_fenrir"
+                                        },
+                                        {
+                                            "id":  15,
+                                            "name":  "am_liam"
+                                        },
+                                        {
+                                            "id":  16,
+                                            "name":  "am_michael"
+                                        },
+                                        {
+                                            "id":  17,
+                                            "name":  "am_onyx"
+                                        },
+                                        {
+                                            "id":  18,
+                                            "name":  "am_puck"
+                                        },
+                                        {
+                                            "id":  19,
+                                            "name":  "am_santa"
+                                        },
+                                        {
+                                            "id":  20,
+                                            "name":  "bf_alice"
+                                        },
+                                        {
+                                            "id":  21,
+                                            "name":  "bf_emma"
+                                        },
+                                        {
+                                            "id":  22,
+                                            "name":  "bf_isabella"
+                                        },
+                                        {
+                                            "id":  23,
+                                            "name":  "bf_lily"
+                                        },
+                                        {
+                                            "id":  24,
+                                            "name":  "bm_daniel"
+                                        },
+                                        {
+                                            "id":  25,
+                                            "name":  "bm_fable"
+                                        },
+                                        {
+                                            "id":  26,
+                                            "name":  "bm_george"
+                                        },
+                                        {
+                                            "id":  27,
+                                            "name":  "bm_lewis"
+                                        },
+                                        {
+                                            "id":  28,
+                                            "name":  "ef_dora"
+                                        },
+                                        {
+                                            "id":  29,
+                                            "name":  "em_alex"
+                                        },
+                                        {
+                                            "id":  30,
+                                            "name":  "ff_siwis"
+                                        },
+                                        {
+                                            "id":  31,
+                                            "name":  "hf_alpha"
+                                        },
+                                        {
+                                            "id":  32,
+                                            "name":  "hf_beta"
+                                        },
+                                        {
+                                            "id":  33,
+                                            "name":  "hm_omega"
+                                        },
+                                        {
+                                            "id":  34,
+                                            "name":  "hm_psi"
+                                        },
+                                        {
+                                            "id":  35,
+                                            "name":  "if_sara"
+                                        },
+                                        {
+                                            "id":  36,
+                                            "name":  "im_nicola"
+                                        },
+                                        {
+                                            "id":  37,
+                                            "name":  "jf_alpha"
+                                        },
+                                        {
+                                            "id":  38,
+                                            "name":  "jf_gongitsune"
+                                        },
+                                        {
+                                            "id":  39,
+                                            "name":  "jf_nezumi"
+                                        },
+                                        {
+                                            "id":  40,
+                                            "name":  "jf_tebukuro"
+                                        },
+                                        {
+                                            "id":  41,
+                                            "name":  "jm_kumo"
+                                        },
+                                        {
+                                            "id":  42,
+                                            "name":  "pf_dora"
+                                        },
+                                        {
+                                            "id":  43,
+                                            "name":  "pm_alex"
+                                        },
+                                        {
+                                            "id":  44,
+                                            "name":  "pm_santa"
+                                        },
+                                        {
+                                            "id":  45,
+                                            "name":  "zf_xiaobei"
+                                        },
+                                        {
+                                            "id":  46,
+                                            "name":  "zf_xiaoni"
+                                        },
+                                        {
+                                            "id":  47,
+                                            "name":  "zf_xiaoxiao"
+                                        },
+                                        {
+                                            "id":  48,
+                                            "name":  "zf_xiaoyi"
+                                        },
+                                        {
+                                            "id":  49,
+                                            "name":  "zm_yunjian"
+                                        },
+                                        {
+                                            "id":  50,
+                                            "name":  "zm_yunxi"
+                                        },
+                                        {
+                                            "id":  51,
+                                            "name":  "zm_yunxia"
+                                        },
+                                        {
+                                            "id":  52,
+                                            "name":  "zm_yunyang"
+                                        }
+                                    ]
+                   },
+                   {
+                       "id":  "pocket-tts-en",
+                       "display_name":  "Pocket TTS English (Voice Cloning)",
+                       "family":  "pocket",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  203.0,
+                       "supported_languages":  [
+                                                   "English"
+                                               ],
+                       "description":  "English zero-shot voice cloning model. Uses a reference audio clip to imitate voice identity during synthesis.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Confirm redistribution terms for Pocket TTS model weights"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/pocket.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-pocket-tts-int8-2026-01-26.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Unknown",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "Unknown"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "sherpa-onnx-pocket-tts-int8-2026-01-26",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "lm_flow.int8.onnx",
+                                     "tokens":  "",
+                                     "pocket_lm_main":  "lm_main.int8.onnx",
+                                     "pocket_encoder":  "encoder.onnx",
+                                     "pocket_decoder":  "decoder.int8.onnx",
+                                     "pocket_text_conditioner":  "text_conditioner.onnx",
+                                     "pocket_vocab_json":  "vocab.json",
+                                     "pocket_token_scores_json":  "token_scores.json",
+                                     "pocket_default_reference_audio":  "test_wavs/bria.wav"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  1,
+                                        "speed":  1.0,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    },
+                       "voice_cloning":  true
+                   },
+                   {
+                       "id":  "kitten-mini-en-v0_1-fp16",
+                       "display_name":  "KittenTTS Mini English",
+                       "family":  "kitten",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  166,
+                       "supported_languages":  [
+                                                   "English"
+                                               ],
+                       "description":  "Compact high-quality English TTS model with 8 expressive voices. CPU-friendly and suitable for richer desktop-only voice options.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Capture an explicit release-level license statement for the sherpa-onnx converted KittenTTS archive"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kitten.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kitten-mini-en-v0_1-fp16.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Apache-2.0",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "Unknown"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "kitten-mini-en-v0_1-fp16",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "model.fp16.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "voices":  "voices.bin",
+                                     "data_dir":  "espeak-ng-data"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  2,
+                                        "speed":  1,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    },
+                       "speakers":  [
+                                        {
+                                            "id":  0,
+                                            "name":  "expr-voice-2-m"
+                                        },
+                                        {
+                                            "id":  1,
+                                            "name":  "expr-voice-2-f"
+                                        },
+                                        {
+                                            "id":  2,
+                                            "name":  "expr-voice-3-m"
+                                        },
+                                        {
+                                            "id":  3,
+                                            "name":  "expr-voice-3-f"
+                                        },
+                                        {
+                                            "id":  4,
+                                            "name":  "expr-voice-4-m"
+                                        },
+                                        {
+                                            "id":  5,
+                                            "name":  "expr-voice-4-f"
+                                        },
+                                        {
+                                            "id":  6,
+                                            "name":  "expr-voice-5-m"
+                                        },
+                                        {
+                                            "id":  7,
+                                            "name":  "expr-voice-5-f"
+                                        }
+                                    ]
+                   }
+               ]
 }
