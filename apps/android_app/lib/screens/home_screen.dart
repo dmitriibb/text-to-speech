@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:shared_ui/shared_ui.dart';
 
 import 'about_screen.dart';
+import 'live_tts_screen.dart';
 import 'models_screen.dart';
+import 'settings_screen.dart';
 import '../services/audio_service.dart';
 import '../state/app_state.dart';
 import '../widgets/app_navigation_drawer.dart';
@@ -61,10 +63,8 @@ class HomeScreen extends StatelessWidget {
                     onCancelTask: state.cancelManagedTask,
                     onDismissTask: state.dismissManagedTask,
                   ),
-                  if (!state.isLiveTtsEnabled) ...[
-                    const SizedBox(height: 16),
-                    _GenerateButton(state: state),
-                  ],
+                  const SizedBox(height: 16),
+                  _GenerateButton(state: state),
                   if (state.errorMessage != null) ...[
                     const SizedBox(height: 12),
                     ErrorBanner(message: state.errorMessage!),
@@ -87,9 +87,17 @@ class HomeScreen extends StatelessWidget {
     switch (destination) {
       case AppDestination.home:
         break;
+      case AppDestination.liveTts:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const LiveTtsScreen()),
+        );
       case AppDestination.models:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),
+        );
+      case AppDestination.settings:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const SettingsScreen()),
         );
       case AppDestination.about:
         Navigator.of(context).pushReplacement(

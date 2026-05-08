@@ -137,7 +137,15 @@ class TtsService {
       ruleFars: ruleFarsPath,
     );
 
-    _tts = sherpa.OfflineTts(ttsConfig);
+    try {
+      _tts = sherpa.OfflineTts(ttsConfig);
+    } catch (_) {
+      if (model.provider == 'cpu') {
+        rethrow;
+      }
+
+      loadModel(modelDir, _withProvider(model, 'cpu'));
+    }
   }
 
   SynthesisResult synthesize(
@@ -256,6 +264,14 @@ class TtsService {
     }
 
     return referencePath;
+  }
+
+  VoiceModel _withProvider(VoiceModel model, String provider) {
+    final json = model.toJson();
+    final defaults = Map<String, Object?>.from(json['defaults']! as Map);
+    defaults['provider'] = provider;
+    json['defaults'] = defaults;
+    return VoiceModel.fromJson(json);
   }
 
   SynthesisResult _toSynthesisResult(

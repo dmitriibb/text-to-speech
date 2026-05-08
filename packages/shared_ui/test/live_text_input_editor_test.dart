@@ -32,11 +32,12 @@ void main() {
                   scrollController: scrollController,
                   liveModeEnabled: true,
                   isStreaming: false,
+                  isPlaying: false,
                   chunkSizeWords: 10,
                   onLiveModeChanged: (_) {},
                   onChunkSizeChanged: (_) {},
                   onClearPressed: controller.clear,
-                  onPlayPressed: () {
+                  onPlayPausePressed: () {
                     playPressed = true;
                   },
                 );
@@ -49,6 +50,7 @@ void main() {
       expect(find.text('Live'), findsOneWidget);
       expect(find.text('Chunk words'), findsOneWidget);
       expect(find.text('Play'), findsOneWidget);
+      expect(find.text('Stop'), findsOneWidget);
 
       await tester.tap(find.text('Play'));
       await tester.pump();

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum AppDestination { home, models, about }
+enum AppDestination { home, liveTts, models, settings, about }
 
 class AppNavigationDrawer extends StatelessWidget {
   const AppNavigationDrawer({
@@ -34,11 +34,25 @@ class AppNavigationDrawer extends StatelessWidget {
               onTap: () => onDestinationSelected(AppDestination.home),
             ),
             _DestinationTile(
+              icon: Icons.graphic_eq_outlined,
+              selectedIcon: Icons.graphic_eq,
+              label: 'Live TTS',
+              selected: selectedDestination == AppDestination.liveTts,
+              onTap: () => onDestinationSelected(AppDestination.liveTts),
+            ),
+            _DestinationTile(
               icon: Icons.library_books_outlined,
               selectedIcon: Icons.library_books,
               label: 'Models',
               selected: selectedDestination == AppDestination.models,
               onTap: () => onDestinationSelected(AppDestination.models),
+            ),
+            _DestinationTile(
+              icon: Icons.settings_outlined,
+              selectedIcon: Icons.settings,
+              label: 'Settings',
+              selected: selectedDestination == AppDestination.settings,
+              onTap: () => onDestinationSelected(AppDestination.settings),
             ),
             _DestinationTile(
               icon: Icons.info_outline,

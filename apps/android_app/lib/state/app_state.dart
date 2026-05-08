@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -12,6 +13,15 @@ import '../services/model_service.dart';
 enum SynthesisStatus { idle, generating, done, error }
 
 class AppState extends ChangeNotifier {
+  static const String cpuProvider = 'cpu';
+  static const String nnapiProvider = 'nnapi';
+  static const List<String> androidInferenceProviders = <String>[
+    cpuProvider,
+    nnapiProvider,
+  ];
+  static const String _settingsFileName = 'app_settings.json';
+  static const String _inferenceProviderKey = 'inferenceProvider';
+
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
   final TaskManager taskManager = TaskManager(executor: IsolateTaskExecutor());
@@ -45,6 +55,7 @@ class AppState extends ChangeNotifier {
   LiveTtsSession? _liveTtsSession;
   bool _isStartingLivePlayback = false;
   bool _isStoppingLiveTts = false;
+  String _selectedInferenceProvider = cpuProvider;
 
   String? _generatedWavPath;
   PlaybackState _playbackState = PlaybackState.stopped;
@@ -68,6 +79,17 @@ class AppState extends ChangeNotifier {
   bool get isLiveTtsEnabled => _isLiveTtsEnabled;
   int get liveChunkSizeWords => _liveChunkSizeWords;
   bool get isLiveTtsStreaming => _liveTtsSession != null;
+  VoidCallback? get livePlayPauseAction {
+    if (!isLiveTtsStreaming) {
+      return canGenerate ? startLiveTts : null;
+    }
+    return _playbackState == PlaybackState.playing
+        ? pauseLiveTts
+        : resumeLiveTts;
+  }
+
+  String get selectedInferenceProvider => _selectedInferenceProvider;
+  List<String> get availableInferenceProviders => androidInferenceProviders;
   List<LiveTtsChunk> get liveTtsChunks =>
       _liveTtsSession?.chunks ?? const <LiveTtsChunk>[];
 
@@ -129,6 +151,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     });
     _modelsDirectory = await _modelService.getModelsDirectory();
+    _selectedInferenceProvider = await _loadInferenceProviderPreference();
     _generatedAudioStore = await _createGeneratedAudioStore();
     await _generatedAudioStore!.ensureInitialized();
     await _reloadGeneratedAudioStatistics();
@@ -367,6 +390,34 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setInferenceProvider(String provider) async {
+    if (!androidInferenceProviders.contains(provider) ||
+        provider == _selectedInferenceProvider) {
+      return;
+    }
+
+    if (isLiveTtsStreaming) {
+      await stopLiveTts();
+    }
+
+    _selectedInferenceProvider = provider;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _saveInferenceProviderPreference(provider);
+    } catch (error) {
+      _errorMessage = 'Failed to save settings: $error';
+      notifyListeners();
+    }
+
+    final selectedModel = _selectedModel;
+    if (selectedModel?.status == ModelStatus.ready &&
+        selectedModel?.modelDir != null) {
+      unawaited(_queueModelPreload(selectedModel!));
+    }
+  }
+
   Future<void> generate() async {
     final inputError = TextInputValidator.validate(_inputText);
     if (inputError != null) {
@@ -399,6 +450,7 @@ class AppState extends ChangeNotifier {
         speed: speed,
         speakerId: _selectedSpeakerId,
         outputPath: await _resolveOutputPath(),
+        providerOverride: _selectedInferenceProvider,
       );
       _errorMessage = null;
     } catch (error) {
@@ -437,6 +489,7 @@ class AppState extends ChangeNotifier {
       chunkSizeWords: _liveChunkSizeWords,
       outputDirectoryPath: (await _generatedAudioDirectory()).path,
       startOffset: _inputCursorOffset,
+      providerOverride: _selectedInferenceProvider,
     );
     if (session.chunks.isEmpty) {
       _errorMessage =
@@ -473,6 +526,43 @@ class AppState extends ChangeNotifier {
     } finally {
       _isStoppingLiveTts = false;
     }
+  }
+
+  Future<void> pauseLiveTts() async {
+    if (!isLiveTtsStreaming || _playbackState != PlaybackState.playing) {
+      return;
+    }
+    await pausePlayback();
+  }
+
+  Future<void> resumeLiveTts() async {
+    final session = _liveTtsSession;
+    if (session == null || _isStoppingLiveTts) {
+      return;
+    }
+
+    final playingChunk = session.playingChunk;
+    if (playingChunk != null) {
+      final outputPath = playingChunk.outputPath;
+      if (outputPath == null || outputPath.trim().isEmpty) {
+        return;
+      }
+
+      try {
+        _generatedWavPath = outputPath;
+        _currentTaskId = null;
+        notifyListeners();
+        await _audioService.play(outputPath);
+        _errorMessage = null;
+        notifyListeners();
+      } catch (error) {
+        _errorMessage = 'Live playback failed: $error';
+        notifyListeners();
+      }
+      return;
+    }
+
+    await _playNextLiveChunkIfReady();
   }
 
   Future<String> _resolveOutputPath() async {
@@ -748,6 +838,7 @@ class AppState extends ChangeNotifier {
       await taskManager.submitModelPreload(
         modelDir: model.modelDir!,
         voice: model.voice,
+        providerOverride: _selectedInferenceProvider,
       );
       _errorMessage = null;
       notifyListeners();
@@ -956,6 +1047,45 @@ class AppState extends ChangeNotifier {
 
     return Duration(
       microseconds: (seconds * Duration.microsecondsPerSecond).round(),
+    );
+  }
+
+  Future<File> _settingsFile() async {
+    final modelsDirectory =
+        _modelsDirectory ?? await _modelService.getModelsDirectory();
+    return File(
+      p.join(Directory(modelsDirectory).parent.path, _settingsFileName),
+    );
+  }
+
+  Future<String> _loadInferenceProviderPreference() async {
+    try {
+      final file = await _settingsFile();
+      if (!await file.exists()) {
+        return cpuProvider;
+      }
+
+      final decoded = jsonDecode(await file.readAsString());
+      if (decoded is! Map) {
+        return cpuProvider;
+      }
+
+      final provider = decoded[_inferenceProviderKey] as String?;
+      if (provider != null && androidInferenceProviders.contains(provider)) {
+        return provider;
+      }
+    } catch (_) {
+      return cpuProvider;
+    }
+
+    return cpuProvider;
+  }
+
+  Future<void> _saveInferenceProviderPreference(String provider) async {
+    final file = await _settingsFile();
+    await file.parent.create(recursive: true);
+    await file.writeAsString(
+      jsonEncode(<String, Object?>{_inferenceProviderKey: provider}),
     );
   }
 

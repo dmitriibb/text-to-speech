@@ -10,6 +10,7 @@ import '../services/open_voice_backend_service.dart';
 import '../state/voice_lab_state.dart';
 import '../widgets/app_navigation_drawer.dart';
 import 'home_screen.dart';
+import 'live_tts_screen.dart';
 import 'models_screen.dart';
 
 typedef OpenVoiceSampleFile = Future<String?> Function();
@@ -161,6 +162,10 @@ class VoiceLabScreen extends StatelessWidget {
       case AppDestination.home:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const HomeScreen()),
+        );
+      case AppDestination.liveTts:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const LiveTtsScreen()),
         );
       case AppDestination.models:
         Navigator.of(context).pushReplacement(
@@ -465,9 +470,11 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
   }
 
   Widget _buildOpenVoiceSection(BuildContext context, VoiceLabState state) {
-    final (statusEmoji, statusText, statusColor) = switch (
-      state.openVoiceConnectionState
-    ) {
+    final (
+      statusEmoji,
+      statusText,
+      statusColor,
+    ) = switch (state.openVoiceConnectionState) {
       OpenVoiceBackendConnectionState.connected => (
         '✅',
         'Backend OK',
@@ -536,7 +543,8 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
           runSpacing: 12,
           children: [
             FilledButton.tonalIcon(
-              onPressed: state.openVoiceConnectionState ==
+              onPressed:
+                  state.openVoiceConnectionState ==
                       OpenVoiceBackendConnectionState.checking
                   ? null
                   : () => state.checkOpenVoiceConnection(showAsError: true),
@@ -554,9 +562,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
         Text(
           state.openVoiceSamplePath ??
               'No OpenVoice reference audio selected yet.',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: Theme.of(context).colorScheme.outline,
           ),
         ),
@@ -590,9 +596,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
           const SizedBox(height: 8),
           Text(
             'Latest OpenVoice job: $jobId',
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Theme.of(context).colorScheme.outline,
             ),
           ),

@@ -100,7 +100,7 @@ class _DownloadingCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               progress?.totalBytes != null
-                  ? '${_formatMegabytes(progress!.downloadedBytes)} / ${_formatMegabytes(progress.totalBytes!)}'
+                  ? '${_formatMegabytes(progress!.downloadedBytes ?? 0)} / ${_formatMegabytes(progress.totalBytes!)}'
                   : progress?.progress != null
                   ? '${(progress!.progress! * 100).toStringAsFixed(0)}%'
                   : statusText,

@@ -14,6 +14,9 @@ import 'voice_model_task_payload.dart';
 
 typedef BackgroundTaskExecutorFactory = BackgroundTaskExecutor Function();
 
+const int liveTtsReadyBufferMin = 2;
+const int liveTtsReadyBufferMax = 4;
+
 class LiveTtsSession extends ChangeNotifier {
   LiveTtsSession({
     required BackgroundTaskExecutorFactory executorFactory,
@@ -90,6 +93,11 @@ class LiveTtsSession extends ChangeNotifier {
         chunk.status == LiveTtsChunkStatus.ready ||
         chunk.status == LiveTtsChunkStatus.playing,
   );
+
+  int get readyChunkCount => _chunks.where(_isReadyChunk).length;
+
+  int get generatingChunkCount =>
+      _workers.where((worker) => worker.isBusy).length;
 
   Future<void> start() async {
     if (_started || _stopped || _chunks.isEmpty) {
@@ -180,8 +188,12 @@ class LiveTtsSession extends ChangeNotifier {
       return;
     }
 
+    if (readyChunkCount > liveTtsReadyBufferMin) {
+      return;
+    }
+
     for (final worker in _workers) {
-      if (worker.isBusy) {
+      if (worker.isBusy || generatingChunkCount >= maxConcurrentGenerations) {
         continue;
       }
 
@@ -308,6 +320,10 @@ class LiveTtsSession extends ChangeNotifier {
         await file.delete();
       }
     } catch (_) {}
+  }
+
+  bool _isReadyChunk(LiveTtsChunk chunk) {
+    return chunk.status == LiveTtsChunkStatus.ready;
   }
 }
 

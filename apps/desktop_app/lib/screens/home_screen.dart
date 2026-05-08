@@ -7,6 +7,7 @@ import '../state/app_state.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/settings_panel.dart';
 import '../widgets/text_input_panel.dart';
+import 'live_tts_screen.dart';
 import 'models_screen.dart';
 import 'voice_lab_screen.dart';
 
@@ -49,10 +50,8 @@ class HomeScreen extends StatelessWidget {
         const TextInputPanel(),
         const SizedBox(height: 16),
         const SettingsPanel(),
-        if (!state.isLiveTtsEnabled) ...[
-          const SizedBox(height: 16),
-          _buildGenerateButton(context, state),
-        ],
+        const SizedBox(height: 16),
+        _buildGenerateButton(context, state),
         if (state.errorMessage != null) ...[
           const SizedBox(height: 12),
           _buildErrorBanner(context, state.errorMessage!),
@@ -126,6 +125,10 @@ class HomeScreen extends StatelessWidget {
     switch (destination) {
       case AppDestination.home:
         break;
+      case AppDestination.liveTts:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const LiveTtsScreen()),
+        );
       case AppDestination.models:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),

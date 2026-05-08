@@ -76,6 +76,15 @@ class AppState extends ChangeNotifier {
   bool get isLiveTtsEnabled => _isLiveTtsEnabled;
   int get liveChunkSizeWords => _liveChunkSizeWords;
   bool get isLiveTtsStreaming => _liveTtsSession != null;
+  VoidCallback? get livePlayPauseAction {
+    if (!isLiveTtsStreaming) {
+      return canGenerate ? startLiveTts : null;
+    }
+    return _playbackState == PlaybackState.playing
+        ? pauseLiveTts
+        : resumeLiveTts;
+  }
+
   List<LiveTtsChunk> get liveTtsChunks =>
       _liveTtsSession?.chunks ?? const <LiveTtsChunk>[];
 
@@ -584,6 +593,43 @@ class AppState extends ChangeNotifier {
     } finally {
       _isStoppingLiveTts = false;
     }
+  }
+
+  Future<void> pauseLiveTts() async {
+    if (!isLiveTtsStreaming || _playbackState != PlaybackState.playing) {
+      return;
+    }
+    await pausePlayback();
+  }
+
+  Future<void> resumeLiveTts() async {
+    final session = _liveTtsSession;
+    if (session == null || _isStoppingLiveTts) {
+      return;
+    }
+
+    final playingChunk = session.playingChunk;
+    if (playingChunk != null) {
+      final outputPath = playingChunk.outputPath;
+      if (outputPath == null || outputPath.trim().isEmpty) {
+        return;
+      }
+
+      try {
+        _generatedWavPath = outputPath;
+        _currentTaskId = null;
+        notifyListeners();
+        await _audioService.play(outputPath);
+        _errorMessage = null;
+        notifyListeners();
+      } catch (e) {
+        _errorMessage = 'Live playback failed: $e';
+        notifyListeners();
+      }
+      return;
+    }
+
+    await _playNextLiveChunkIfReady();
   }
 
   void registerExternalGeneratedAudio({

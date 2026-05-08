@@ -26,6 +26,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Live TTS'), findsOneWidget);
     expect(find.text('Models'), findsOneWidget);
     expect(find.text('About'), findsOneWidget);
 

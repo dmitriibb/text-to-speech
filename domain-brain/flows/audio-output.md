@@ -14,11 +14,12 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 6. User expands a completed synthesis task and sees the audio name, generation time, and model used alongside shared playback controls.
 7. The app plays exactly one generated audio at a time and exposes progress plus seeking.
 8. Live mode plays one generated chunk at a time in order, promotes the next ready chunk immediately when playback finishes, and may keep later chunks generating in the background.
-9. Live-mode chunk `.wav` files are temporary playback buffers only; they are not restored into the persistent generated-audio task list.
-10. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
-11. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
-12. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
-13. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
+9. Live mode exposes play or pause for the current chunk and a separate stop action that halts playback, cancels further generation, and clears temporary chunk buffers.
+10. Live-mode chunk `.wav` files are temporary playback buffers only; they are not restored into the persistent generated-audio task list.
+11. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
+12. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
+13. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
+14. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
 
 ## Invariants
 

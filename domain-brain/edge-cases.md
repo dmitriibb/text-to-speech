@@ -30,6 +30,9 @@
 - Scenario: The user stops live mode while future chunks are already generated or still generating.
   Expected handling: active playback stops, background chunk work is cancelled, and temporary chunk `.wav` buffers are deleted.
 
+- Scenario: The user pauses live mode while background generation is still running.
+  Expected handling: current playback pauses in place, already in-flight chunk generation may finish, and buffering stops growing once 4 ready chunks are waiting.
+
 - Scenario: Model switching or speech generation takes long enough to outlive the current screen frame or app foreground state.
   Expected handling: the work runs in the Android background task service, the UI stays interactive, and the task remains visible in the task list.
 

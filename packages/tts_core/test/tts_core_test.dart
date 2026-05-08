@@ -879,6 +879,73 @@ void main() {
     expect(session.chunks.first.startOffset, text.indexOf('And then I'));
   });
 
+  test('live tts session caps the ready buffer at four chunks', () async {
+    final tempDir = await Directory.systemTemp.createTemp('live-tts-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    final factory = _RecordingExecutorFactory();
+    final session = LiveTtsSession(
+      executorFactory: factory.create,
+      modelDir: '/tmp/demo-model',
+      voice: _demoVoiceModel,
+      text:
+          'One two. Three four. Five six. Seven eight. Nine ten. Eleven twelve.',
+      speed: 1,
+      speakerId: 0,
+      chunkSizeWords: 2,
+      outputDirectoryPath: tempDir.path,
+    );
+    addTearDown(session.dispose);
+
+    await session.start();
+
+    final firstExecutor = factory.createdExecutors[0];
+    final secondExecutor = factory.createdExecutors[1];
+
+    firstExecutor.completeTask(
+      firstExecutor.submittedRequests[0].taskId,
+      LongRunningTaskType.synthesizeSpeech,
+      outputPath: '${tempDir.path}/chunk-1.wav',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    secondExecutor.completeTask(
+      secondExecutor.submittedRequests[0].taskId,
+      LongRunningTaskType.synthesizeSpeech,
+      outputPath: '${tempDir.path}/chunk-2.wav',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    firstExecutor.completeTask(
+      firstExecutor.submittedRequests[1].taskId,
+      LongRunningTaskType.synthesizeSpeech,
+      outputPath: '${tempDir.path}/chunk-3.wav',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    secondExecutor.completeTask(
+      secondExecutor.submittedRequests[1].taskId,
+      LongRunningTaskType.synthesizeSpeech,
+      outputPath: '${tempDir.path}/chunk-4.wav',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      firstExecutor.submittedRequests
+          .map((request) => request.payload['text'])
+          .toList(growable: false),
+      ['One two.', 'Five six.'],
+    );
+    expect(
+      secondExecutor.submittedRequests
+          .map((request) => request.payload['text'])
+          .toList(growable: false),
+      ['Three four.', 'Seven eight.'],
+    );
+    expect(session.readyChunkCount, liveTtsReadyBufferMax);
+    expect(session.generatingChunkCount, 0);
+  });
+
   test('extracts tar.bz2 archives with nested model files', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
     addTearDown(() => tempDir.delete(recursive: true));

@@ -21,10 +21,13 @@ flows:
       - domain-brain/flows/app-navigation.md
     paths:
       - apps/android_app/lib/screens/home_screen.dart
+      - apps/android_app/lib/screens/live_tts_screen.dart
       - apps/android_app/lib/screens/about_screen.dart
       - apps/android_app/lib/screens/models_screen.dart
+      - apps/android_app/lib/screens/settings_screen.dart
       - apps/android_app/lib/widgets/app_navigation_drawer.dart
       - apps/desktop_app/lib/screens/home_screen.dart
+      - apps/desktop_app/lib/screens/live_tts_screen.dart
       - apps/desktop_app/lib/screens/models_screen.dart
       - apps/desktop_app/lib/screens/voice_lab_screen.dart
       - apps/desktop_app/lib/widgets/app_navigation_drawer.dart
@@ -71,8 +74,13 @@ flows:
       - packages/shared_ui/lib/src/widgets/voice_settings_controls.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/state/app_state.dart
+      - apps/desktop_app/lib/screens/live_tts_screen.dart
+      - apps/desktop_app/lib/widgets/live_tts_panel.dart
       - apps/desktop_app/lib/widgets/text_input_panel.dart
       - apps/android_app/lib/state/app_state.dart
+      - apps/android_app/lib/screens/live_tts_screen.dart
+      - apps/android_app/lib/screens/settings_screen.dart
+      - apps/android_app/lib/widgets/live_tts_panel.dart
       - apps/android_app/lib/widgets/text_input_panel.dart
     entities:
       - VoiceModel

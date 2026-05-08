@@ -118,15 +118,18 @@ class LiveTextInputEditor extends StatefulWidget {
     required this.scrollController,
     required this.liveModeEnabled,
     required this.isStreaming,
+    required this.isPlaying,
     required this.chunkSizeWords,
     required this.onLiveModeChanged,
     required this.onChunkSizeChanged,
     required this.onClearPressed,
-    this.onPlayPressed,
+    this.onPlayPausePressed,
     this.onStopPressed,
     this.footer,
     this.title = 'Text',
     this.hintText = 'Type or paste English text here...',
+    this.showHeader = true,
+    this.expandEditor = false,
     this.normalMinLines = 5,
     this.normalMaxLines = 7,
     this.liveMinLines = 10,
@@ -137,15 +140,18 @@ class LiveTextInputEditor extends StatefulWidget {
   final ScrollController scrollController;
   final bool liveModeEnabled;
   final bool isStreaming;
+  final bool isPlaying;
   final int chunkSizeWords;
   final ValueChanged<bool> onLiveModeChanged;
   final ValueChanged<int> onChunkSizeChanged;
   final VoidCallback onClearPressed;
-  final VoidCallback? onPlayPressed;
+  final VoidCallback? onPlayPausePressed;
   final VoidCallback? onStopPressed;
   final Widget? footer;
   final String title;
   final String hintText;
+  final bool showHeader;
+  final bool expandEditor;
   final int normalMinLines;
   final int normalMaxLines;
   final int liveMinLines;
@@ -188,24 +194,55 @@ class _LiveTextInputEditorState extends State<LiveTextInputEditor> {
   Widget build(BuildContext context) {
     final showClearButton = widget.controller.text.isNotEmpty;
     final isLiveModeEnabled = widget.liveModeEnabled;
+    final editor = Scrollbar(
+      controller: widget.scrollController,
+      thumbVisibility: isLiveModeEnabled,
+      child: TextField(
+        controller: widget.controller,
+        scrollController: widget.scrollController,
+        maxLines: isLiveModeEnabled
+            ? widget.liveMaxLines
+            : widget.normalMaxLines,
+        minLines: isLiveModeEnabled
+            ? widget.liveMinLines
+            : widget.normalMinLines,
+        textInputAction: TextInputAction.newline,
+        decoration: InputDecoration(
+          hintText: widget.hintText,
+          border: const OutlineInputBorder(),
+          alignLabelWithHint: true,
+          suffixIcon: showClearButton
+              ? IconButton(
+                  onPressed: widget.onClearPressed,
+                  icon: const Icon(Icons.clear),
+                  tooltip: 'Clear text',
+                )
+              : null,
+        ),
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(widget.title, style: Theme.of(context).textTheme.titleMedium),
-            const Spacer(),
-            const Text('Live'),
-            const SizedBox(width: 8),
-            Switch.adaptive(
-              value: isLiveModeEnabled,
-              onChanged: widget.onLiveModeChanged,
-            ),
-          ],
-        ),
+        if (widget.showHeader)
+          Row(
+            children: [
+              Text(
+                widget.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const Spacer(),
+              const Text('Live'),
+              const SizedBox(width: 8),
+              Switch.adaptive(
+                value: isLiveModeEnabled,
+                onChanged: widget.onLiveModeChanged,
+              ),
+            ],
+          ),
         if (isLiveModeEnabled) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: widget.showHeader ? 8 : 0),
           Row(
             children: [
               SizedBox(
@@ -232,48 +269,31 @@ class _LiveTextInputEditorState extends State<LiveTextInputEditor> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: FilledButton.icon(
-                    onPressed: widget.isStreaming
-                        ? widget.onStopPressed
-                        : widget.onPlayPressed,
+                    onPressed: widget.onPlayPausePressed,
                     icon: Icon(
-                      widget.isStreaming ? Icons.stop : Icons.play_arrow,
+                      widget.isPlaying ? Icons.pause : Icons.play_arrow,
                     ),
-                    label: Text(widget.isStreaming ? 'Stop' : 'Play'),
+                    label: Text(widget.isPlaying ? 'Pause' : 'Play'),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: widget.onStopPressed,
+                    icon: const Icon(Icons.stop),
+                    label: const Text('Stop'),
                   ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-        ] else
+        ] else if (widget.showHeader)
           const SizedBox(height: 8),
-        Scrollbar(
-          controller: widget.scrollController,
-          thumbVisibility: isLiveModeEnabled,
-          child: TextField(
-            controller: widget.controller,
-            scrollController: widget.scrollController,
-            maxLines: isLiveModeEnabled
-                ? widget.liveMaxLines
-                : widget.normalMaxLines,
-            minLines: isLiveModeEnabled
-                ? widget.liveMinLines
-                : widget.normalMinLines,
-            textInputAction: TextInputAction.newline,
-            decoration: InputDecoration(
-              hintText: widget.hintText,
-              border: const OutlineInputBorder(),
-              alignLabelWithHint: true,
-              suffixIcon: showClearButton
-                  ? IconButton(
-                      onPressed: widget.onClearPressed,
-                      icon: const Icon(Icons.clear),
-                      tooltip: 'Clear text',
-                    )
-                  : null,
-            ),
-          ),
-        ),
+        if (widget.expandEditor) Expanded(child: editor) else editor,
         if (widget.footer != null) widget.footer!,
       ],
     );

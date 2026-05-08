@@ -5,7 +5,9 @@ import 'package:tts_core/tts_core.dart';
 import '../state/app_state.dart';
 import '../widgets/app_navigation_drawer.dart';
 import 'home_screen.dart';
+import 'live_tts_screen.dart';
 import 'models_screen.dart';
+import 'settings_screen.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -116,9 +118,17 @@ class AboutScreen extends StatelessWidget {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const HomeScreen()),
         );
+      case AppDestination.liveTts:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const LiveTtsScreen()),
+        );
       case AppDestination.models:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const ModelsScreen()),
+        );
+      case AppDestination.settings:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const SettingsScreen()),
         );
       case AppDestination.about:
         break;

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_ui/shared_ui.dart';
-import 'package:tts_core/tts_core.dart';
 
 import '../state/app_state.dart';
+import 'package:shared_ui/shared_ui.dart';
 
 /// Multi-line text input area for the text to synthesize.
 class TextInputPanel extends StatefulWidget {
@@ -14,101 +13,66 @@ class TextInputPanel extends StatefulWidget {
 }
 
 class _TextInputPanelState extends State<TextInputPanel> {
-  late final HighlightedTextEditingController _controller;
-  late final ScrollController _scrollController;
+  late final TextEditingController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = HighlightedTextEditingController();
-    _scrollController = ScrollController();
+    _controller = TextEditingController();
     _controller.addListener(() {
-      final state = context.read<AppState>();
-      state.setInputText(_controller.text);
-      state.setInputCursorOffset(_controller.selection.baseOffset);
+      context.read<AppState>().setInputText(_controller.text);
     });
   }
 
   @override
   void dispose() {
     _controller.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    _syncControllerText(state);
-    _controller.setHighlights(_buildHighlights(context, state.liveTtsChunks));
+    _syncControllerText(state.inputText);
 
-    return LiveTextInputEditor(
-      controller: _controller,
-      scrollController: _scrollController,
-      liveModeEnabled: state.isLiveTtsEnabled,
-      isStreaming: state.isLiveTtsStreaming,
-      chunkSizeWords: state.liveChunkSizeWords,
-      onLiveModeChanged: state.setLiveTtsEnabled,
-      onChunkSizeChanged: state.setLiveChunkSizeWords,
-      onPlayPressed: state.canGenerate ? () => state.startLiveTts() : null,
-      onStopPressed: state.stopLiveTts,
-      onClearPressed: _controller.clear,
-      normalMinLines: 4,
-      normalMaxLines: 8,
-      liveMinLines: 10,
-      liveMaxLines: 16,
-      footer: GenerationEstimateSummary(
-        expectedGenerationDuration: state.expectedGenerationDuration,
-        expectedOutputDuration: state.expectedOutputDuration,
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _controller,
+          maxLines: 8,
+          minLines: 4,
+          textInputAction: TextInputAction.newline,
+          decoration: InputDecoration(
+            hintText: 'Type or paste English text here...',
+            border: const OutlineInputBorder(),
+            alignLabelWithHint: true,
+            labelText: 'Text',
+            suffixIcon: _controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: _controller.clear,
+                    tooltip: 'Clear text',
+                  )
+                : null,
+          ),
+        ),
+        GenerationEstimateSummary(
+          expectedGenerationDuration: state.expectedGenerationDuration,
+          expectedOutputDuration: state.expectedOutputDuration,
+        ),
+      ],
     );
   }
 
-  void _syncControllerText(AppState state) {
-    final nextText = state.inputText;
+  void _syncControllerText(String nextText) {
     if (_controller.text == nextText) {
       return;
     }
 
-    final preferredOffset = state.inputCursorOffset.clamp(0, nextText.length);
     _controller.value = TextEditingValue(
       text: nextText,
-      selection: TextSelection.collapsed(offset: preferredOffset),
+      selection: TextSelection.collapsed(offset: nextText.length),
     );
-  }
-
-  List<TextHighlightRange> _buildHighlights(
-    BuildContext context,
-    List<LiveTtsChunk> chunks,
-  ) {
-    final theme = Theme.of(context);
-    final nextReadyIndex = chunks.indexWhere(
-      (chunk) => chunk.status == LiveTtsChunkStatus.ready,
-    );
-    final highlights = <TextHighlightRange>[];
-
-    for (final chunk in chunks) {
-      Color? backgroundColor;
-      if (chunk.status == LiveTtsChunkStatus.playing) {
-        backgroundColor = theme.colorScheme.tertiary.withValues(alpha: 0.28);
-      } else if (chunk.status == LiveTtsChunkStatus.generating) {
-        backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.14);
-      } else if (chunk.status == LiveTtsChunkStatus.ready &&
-          chunk.index == nextReadyIndex) {
-        backgroundColor = theme.colorScheme.primary.withValues(alpha: 0.24);
-      }
-
-      if (backgroundColor != null) {
-        highlights.add(
-          TextHighlightRange(
-            start: chunk.startOffset,
-            end: chunk.endOffset,
-            backgroundColor: backgroundColor,
-          ),
-        );
-      }
-    }
-
-    return highlights;
   }
 }
