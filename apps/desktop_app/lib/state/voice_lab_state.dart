@@ -12,6 +12,19 @@ import '../services/open_voice_preferences_service.dart';
 import '../services/voice_library_service.dart';
 import 'app_state.dart';
 
+const List<ExternalBackendVoice> _fallbackOmniVoiceVoices = [
+  ExternalBackendVoice(
+    id: 'clone-reference',
+    displayName: 'Clone From Reference Audio',
+    description:
+        'Use a short reference clip to clone that speaker in the target language.',
+    mode: ExternalBackendVoiceMode.clone,
+    requiresReferenceAudio: true,
+    supportsInstructionEditing: false,
+    presetInstruction: null,
+  ),
+];
+
 class VoiceLabState extends ChangeNotifier {
   VoiceLabState({
     required AppState appState,
@@ -43,6 +56,15 @@ class VoiceLabState extends ChangeNotifier {
   String? _omniVoiceBackendMessage;
   String? _openVoiceSamplePath;
   String? _omniVoiceSamplePath;
+  List<ExternalBackendVoice> _omniVoiceVoices = _fallbackOmniVoiceVoices;
+  List<String> _omniVoiceFeatures = const <String>[];
+  String? _omniVoiceEngineDisplayName;
+  String _selectedOmniVoiceId = _fallbackOmniVoiceVoices.first.id;
+  String _omniVoiceLanguage = 'en';
+  String _omniVoiceReferenceText = '';
+  String _omniVoiceInstruction = '';
+  String _omniVoiceDurationSeconds = '';
+  String _omniVoiceNumStep = '';
   bool _isOpenVoiceEnabled = false;
   bool _isOmniVoiceEnabled = false;
   bool _isOpenVoiceGenerationSubmitting = false;
@@ -77,6 +99,45 @@ class VoiceLabState extends ChangeNotifier {
   String? get omniVoiceBackendMessage => _omniVoiceBackendMessage;
   String? get openVoiceSamplePath => _openVoiceSamplePath;
   String? get omniVoiceSamplePath => _omniVoiceSamplePath;
+  List<ExternalBackendVoice> get omniVoiceVoices => _omniVoiceVoices;
+  List<String> get omniVoiceFeatures => _omniVoiceFeatures;
+  String? get omniVoiceEngineDisplayName => _omniVoiceEngineDisplayName;
+  String get selectedOmniVoiceId => _selectedOmniVoiceId;
+  String get omniVoiceLanguage => _omniVoiceLanguage;
+  String get omniVoiceReferenceText => _omniVoiceReferenceText;
+  String get omniVoiceInstruction => _omniVoiceInstruction;
+  String get omniVoiceDurationSeconds => _omniVoiceDurationSeconds;
+  String get omniVoiceNumStep => _omniVoiceNumStep;
+  ExternalBackendVoice get selectedOmniVoice {
+    return _omniVoiceVoices
+            .where((voice) => voice.id == _selectedOmniVoiceId)
+            .firstOrNull ??
+        _omniVoiceVoices.first;
+  }
+
+  bool get omniVoiceRequiresReferenceAudio =>
+      selectedOmniVoice.requiresReferenceAudio;
+  bool get omniVoiceSupportsReferenceText =>
+      omniVoiceRequiresReferenceAudio &&
+      _omniVoiceFeatures.contains('reference_transcript');
+  bool get omniVoiceSupportsInstruction =>
+      selectedOmniVoice.supportsInstruction;
+  bool get omniVoiceSupportsDuration =>
+      _omniVoiceFeatures.contains('duration_control');
+  bool get omniVoiceSupportsNumStep =>
+      _omniVoiceFeatures.contains('num_step_control');
+  bool get omniVoiceSupportsNonVerbalTokens =>
+      _omniVoiceFeatures.contains('non_verbal_tokens');
+  bool get omniVoiceSupportsPronunciationControl =>
+      _omniVoiceFeatures.contains('pronunciation_control');
+  String get omniVoiceEffectiveInstruction {
+    final customInstruction = _omniVoiceInstruction.trim();
+    if (customInstruction.isNotEmpty) {
+      return customInstruction;
+    }
+    return selectedOmniVoice.presetInstruction?.trim() ?? '';
+  }
+
   bool get hasOpenVoiceSample =>
       _openVoiceSamplePath != null && _openVoiceSamplePath!.trim().isNotEmpty;
   bool get hasOmniVoiceSample =>
@@ -94,9 +155,11 @@ class VoiceLabState extends ChangeNotifier {
   bool get canGenerateWithOmniVoice =>
       _isOmniVoiceEnabled &&
       hasSharedInputText &&
-      hasOmniVoiceSample &&
       !_isOmniVoiceGenerationSubmitting &&
-      _omniVoiceConnectionState == OpenVoiceBackendConnectionState.connected;
+      _omniVoiceConnectionState == OpenVoiceBackendConnectionState.connected &&
+      (!omniVoiceRequiresReferenceAudio || hasOmniVoiceSample) &&
+      (selectedOmniVoice.mode != ExternalBackendVoiceMode.design ||
+          omniVoiceEffectiveInstruction.isNotEmpty);
 
   void setError(String message) {
     _errorMessage = message;
@@ -207,13 +270,60 @@ class VoiceLabState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSelectedOmniVoiceId(String? voiceId) {
+    if (voiceId == null || voiceId.trim().isEmpty) {
+      return;
+    }
+    final selectedVoice = _omniVoiceVoices
+        .where((voice) => voice.id == voiceId)
+        .firstOrNull;
+    if (selectedVoice == null) {
+      return;
+    }
+
+    final changed = _selectedOmniVoiceId != selectedVoice.id;
+    _selectedOmniVoiceId = selectedVoice.id;
+    if (selectedVoice.mode == ExternalBackendVoiceMode.design &&
+        (changed || _omniVoiceInstruction.trim().isEmpty)) {
+      _omniVoiceInstruction = selectedVoice.presetInstruction ?? '';
+    }
+    notifyListeners();
+  }
+
+  void setOmniVoiceLanguage(String language) {
+    _omniVoiceLanguage = language;
+    notifyListeners();
+  }
+
+  void setOmniVoiceReferenceText(String referenceText) {
+    _omniVoiceReferenceText = referenceText;
+    notifyListeners();
+  }
+
+  void setOmniVoiceInstruction(String instruction) {
+    _omniVoiceInstruction = instruction;
+    notifyListeners();
+  }
+
+  void setOmniVoiceDurationSeconds(String durationSeconds) {
+    _omniVoiceDurationSeconds = durationSeconds;
+    notifyListeners();
+  }
+
+  void setOmniVoiceNumStep(String numStep) {
+    _omniVoiceNumStep = numStep;
+    notifyListeners();
+  }
+
   Future<void> checkOpenVoiceConnection({bool showAsError = false}) async {
     _openVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
     _openVoiceBackendMessage = 'Checking backend connection...';
     notifyListeners();
 
     try {
-      final baseUri = _openVoiceBackendService.parseBaseUri(_openVoiceBackendUrl);
+      final baseUri = _openVoiceBackendService.parseBaseUri(
+        _openVoiceBackendUrl,
+      );
       final health = await _openVoiceBackendService.fetchHealth(baseUri);
       if (health.engineReady) {
         _openVoiceConnectionState = OpenVoiceBackendConnectionState.connected;
@@ -256,12 +366,35 @@ class VoiceLabState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final baseUri = _openVoiceBackendService.parseBaseUri(_omniVoiceBackendUrl);
+      final baseUri = _openVoiceBackendService.parseBaseUri(
+        _omniVoiceBackendUrl,
+      );
       final health = await _openVoiceBackendService.fetchHealth(baseUri);
       if (health.engineReady) {
+        _omniVoiceFeatures = health.features;
+        _omniVoiceEngineDisplayName =
+            health.engineDisplayName?.trim().isNotEmpty == true
+            ? health.engineDisplayName
+            : health.backend;
+        var usingFallbackVoices = false;
+        try {
+          final fetchedVoices = await _openVoiceBackendService.fetchVoices(
+            baseUri,
+          );
+          if (fetchedVoices.isNotEmpty) {
+            _replaceOmniVoiceVoices(fetchedVoices);
+          } else {
+            usingFallbackVoices = true;
+            _replaceOmniVoiceVoices(_fallbackOmniVoiceVoices);
+          }
+        } on OpenVoiceBackendException {
+          usingFallbackVoices = true;
+          _replaceOmniVoiceVoices(_fallbackOmniVoiceVoices);
+        }
         _omniVoiceConnectionState = OpenVoiceBackendConnectionState.connected;
-        _omniVoiceBackendMessage =
-            'Backend is healthy at ${_omniVoiceBackendUrl.trim()}.';
+        _omniVoiceBackendMessage = usingFallbackVoices
+            ? '${_omniVoiceEngineDisplayName ?? 'Backend'} is healthy at ${_omniVoiceBackendUrl.trim()}, but only clone mode metadata is available.'
+            : '${_omniVoiceEngineDisplayName ?? 'Backend'} is healthy at ${_omniVoiceBackendUrl.trim()} with ${_omniVoiceVoices.length} voice options.';
         if (showAsError) {
           _errorMessage = null;
         }
@@ -276,6 +409,7 @@ class VoiceLabState extends ChangeNotifier {
       }
     } on OpenVoiceBackendException catch (error) {
       _omniVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+      _omniVoiceFeatures = const <String>[];
       _omniVoiceBackendMessage =
           'Backend is down at ${_omniVoiceBackendUrl.trim()}.';
       if (showAsError) {
@@ -283,6 +417,7 @@ class VoiceLabState extends ChangeNotifier {
       }
     } catch (error) {
       _omniVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+      _omniVoiceFeatures = const <String>[];
       _omniVoiceBackendMessage =
           'Backend is down at ${_omniVoiceBackendUrl.trim()}.';
       if (showAsError) {
@@ -376,7 +511,8 @@ class VoiceLabState extends ChangeNotifier {
       return;
     }
 
-    if (_openVoiceConnectionState != OpenVoiceBackendConnectionState.connected) {
+    if (_openVoiceConnectionState !=
+        OpenVoiceBackendConnectionState.connected) {
       await checkOpenVoiceConnection(showAsError: true);
       if (_openVoiceConnectionState !=
           OpenVoiceBackendConnectionState.connected) {
@@ -390,7 +526,9 @@ class VoiceLabState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final baseUri = _openVoiceBackendService.parseBaseUri(_openVoiceBackendUrl);
+      final baseUri = _openVoiceBackendService.parseBaseUri(
+        _openVoiceBackendUrl,
+      );
       final normalizedSamplePath = await _normalizeOpenVoiceSample(samplePath);
       final startedAt = DateTime.now();
       final submission = await _openVoiceBackendService.submitJob(
@@ -483,6 +621,7 @@ class VoiceLabState extends ChangeNotifier {
   }
 
   Future<void> generateWithOmniVoice() async {
+    final selectedVoice = selectedOmniVoice;
     final sharedText = _appState.inputText.trim();
     if (sharedText.isEmpty) {
       _errorMessage =
@@ -492,14 +631,47 @@ class VoiceLabState extends ChangeNotifier {
     }
 
     final samplePath = _omniVoiceSamplePath;
-    if (samplePath == null || samplePath.trim().isEmpty) {
+    if (selectedVoice.requiresReferenceAudio &&
+        (samplePath == null || samplePath.trim().isEmpty)) {
       _errorMessage =
           'Select a reference WAV or MP3 file for OmniVoice speech generation.';
       notifyListeners();
       return;
     }
 
-    if (_omniVoiceConnectionState != OpenVoiceBackendConnectionState.connected) {
+    final language = _omniVoiceLanguage.trim().isEmpty
+        ? 'en'
+        : _omniVoiceLanguage.trim();
+    final referenceText = _omniVoiceReferenceText.trim();
+    final effectiveInstruction = omniVoiceEffectiveInstruction;
+    if (selectedVoice.mode == ExternalBackendVoiceMode.design &&
+        effectiveInstruction.isEmpty) {
+      _errorMessage =
+          'Enter a voice design prompt or pick an OmniVoice preset voice.';
+      notifyListeners();
+      return;
+    }
+
+    final durationText = _omniVoiceDurationSeconds.trim();
+    final duration = durationText.isEmpty
+        ? null
+        : double.tryParse(durationText);
+    if (durationText.isNotEmpty && duration == null) {
+      _errorMessage = 'Enter a valid OmniVoice duration in seconds.';
+      notifyListeners();
+      return;
+    }
+
+    final numStepText = _omniVoiceNumStep.trim();
+    final numStep = numStepText.isEmpty ? null : int.tryParse(numStepText);
+    if (numStepText.isNotEmpty && numStep == null) {
+      _errorMessage = 'Enter a valid OmniVoice step count.';
+      notifyListeners();
+      return;
+    }
+
+    if (_omniVoiceConnectionState !=
+        OpenVoiceBackendConnectionState.connected) {
       await checkOmniVoiceConnection(showAsError: true);
       if (_omniVoiceConnectionState !=
           OpenVoiceBackendConnectionState.connected) {
@@ -513,14 +685,26 @@ class VoiceLabState extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final baseUri = _openVoiceBackendService.parseBaseUri(_omniVoiceBackendUrl);
-      final normalizedSamplePath = await _normalizeOmniVoiceSample(samplePath);
+      final baseUri = _openVoiceBackendService.parseBaseUri(
+        _omniVoiceBackendUrl,
+      );
+      final normalizedSamplePath = selectedVoice.requiresReferenceAudio
+          ? await _normalizeOmniVoiceSample(samplePath!)
+          : null;
       final startedAt = DateTime.now();
       final submission = await _openVoiceBackendService.submitJob(
         baseUri: baseUri,
         text: sharedText,
+        voiceId: selectedVoice.id,
         referenceAudioPath: normalizedSamplePath,
+        referenceText: referenceText.isEmpty ? null : referenceText,
+        instruct: selectedVoice.mode == ExternalBackendVoiceMode.design
+            ? effectiveInstruction
+            : null,
+        language: language,
         speed: _appState.speed,
+        duration: duration,
+        numStep: numStep,
       );
       _activeOmniVoiceJobId = submission.jobId;
       _omniVoiceBackendMessage =
@@ -548,9 +732,9 @@ class VoiceLabState extends ChangeNotifier {
       );
 
       _appState.registerExternalGeneratedAudio(
-        label: 'omnivoice-${submission.jobId}',
+        label: 'omnivoice-${selectedVoice.id}-${submission.jobId}',
         modelId: 'omnivoice',
-        modelName: 'OmniVoice',
+        modelName: 'OmniVoice ${selectedVoice.displayName}',
         inputCharacterCount: sharedText.length,
         speechSpeed: _appState.speed,
         outputPath: outputFile.path,
@@ -657,6 +841,23 @@ class VoiceLabState extends ChangeNotifier {
   void _stopOmniVoiceHealthPolling() {
     _omniVoiceHealthTimer?.cancel();
     _omniVoiceHealthTimer = null;
+  }
+
+  void _replaceOmniVoiceVoices(List<ExternalBackendVoice> voices) {
+    final nextVoices = voices.isEmpty ? _fallbackOmniVoiceVoices : voices;
+    final previousSelectionId = _selectedOmniVoiceId;
+    _omniVoiceVoices = nextVoices;
+    final selectedVoice =
+        _omniVoiceVoices
+            .where((voice) => voice.id == previousSelectionId)
+            .firstOrNull ??
+        _omniVoiceVoices.first;
+    final selectionChanged = selectedVoice.id != previousSelectionId;
+    _selectedOmniVoiceId = selectedVoice.id;
+    if (selectedVoice.mode == ExternalBackendVoiceMode.design &&
+        (selectionChanged || _omniVoiceInstruction.trim().isEmpty)) {
+      _omniVoiceInstruction = selectedVoice.presetInstruction ?? '';
+    }
   }
 
   @override

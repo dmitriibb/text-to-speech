@@ -195,6 +195,11 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
   late final VoiceLabState _state;
   late final TextEditingController _openVoiceUrlController;
   late final TextEditingController _omniVoiceUrlController;
+  late final TextEditingController _omniVoiceLanguageController;
+  late final TextEditingController _omniVoiceReferenceTextController;
+  late final TextEditingController _omniVoiceInstructionController;
+  late final TextEditingController _omniVoiceDurationController;
+  late final TextEditingController _omniVoiceNumStepController;
 
   @override
   void initState() {
@@ -206,12 +211,32 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
     _omniVoiceUrlController = TextEditingController(
       text: _state.omniVoiceBackendUrl,
     );
+    _omniVoiceLanguageController = TextEditingController(
+      text: _state.omniVoiceLanguage,
+    );
+    _omniVoiceReferenceTextController = TextEditingController(
+      text: _state.omniVoiceReferenceText,
+    );
+    _omniVoiceInstructionController = TextEditingController(
+      text: _state.omniVoiceInstruction,
+    );
+    _omniVoiceDurationController = TextEditingController(
+      text: _state.omniVoiceDurationSeconds,
+    );
+    _omniVoiceNumStepController = TextEditingController(
+      text: _state.omniVoiceNumStep,
+    );
   }
 
   @override
   void dispose() {
     _openVoiceUrlController.dispose();
     _omniVoiceUrlController.dispose();
+    _omniVoiceLanguageController.dispose();
+    _omniVoiceReferenceTextController.dispose();
+    _omniVoiceInstructionController.dispose();
+    _omniVoiceDurationController.dispose();
+    _omniVoiceNumStepController.dispose();
     super.dispose();
   }
 
@@ -237,6 +262,26 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
               ),
             );
           }
+          _syncTextController(
+            _omniVoiceLanguageController,
+            state.omniVoiceLanguage,
+          );
+          _syncTextController(
+            _omniVoiceReferenceTextController,
+            state.omniVoiceReferenceText,
+          );
+          _syncTextController(
+            _omniVoiceInstructionController,
+            state.omniVoiceInstruction,
+          );
+          _syncTextController(
+            _omniVoiceDurationController,
+            state.omniVoiceDurationSeconds,
+          );
+          _syncTextController(
+            _omniVoiceNumStepController,
+            state.omniVoiceNumStep,
+          );
 
           if (state.isLoading) {
             return const Center(child: CircularProgressIndicator());
@@ -283,7 +328,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               Text(
-                'Desktop-only voice cloning offers the built-in Pocket path plus separate OpenVoice and OmniVoice backend paths.',
+                'Desktop-only voice lab offers the built-in Pocket path, the OpenVoice cloning backend, and a broader OmniVoice multilingual backend with clone, preset, and auto-voice modes.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -362,9 +407,8 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
                   backendMessage: state.openVoiceBackendMessage,
                   backendUrlController: _openVoiceUrlController,
                   backendUrlChanged: state.setOpenVoiceBackendUrl,
-                  checkConnection: () => state.checkOpenVoiceConnection(
-                    showAsError: true,
-                  ),
+                  checkConnection: () =>
+                      state.checkOpenVoiceConnection(showAsError: true),
                   selectSample: () => _selectOpenVoiceSample(state),
                   samplePath: state.openVoiceSamplePath,
                   hasSharedInputText: state.hasSharedInputText,
@@ -400,7 +444,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
               value: state.isOmniVoiceEnabled,
               onChanged: state.setOmniVoiceEnabled,
               secondary: const Icon(Icons.multitrack_audio_outlined),
-              title: const Text('Voice cloning OmniVoice'),
+              title: const Text('OmniVoice Multilingual TTS'),
             ),
             if (state.isOmniVoiceEnabled) ...[
               const Divider(height: 1),
@@ -413,10 +457,14 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
                   backendMessage: state.omniVoiceBackendMessage,
                   backendUrlController: _omniVoiceUrlController,
                   backendUrlChanged: state.setOmniVoiceBackendUrl,
-                  checkConnection: () => state.checkOmniVoiceConnection(
-                    showAsError: true,
-                  ),
+                  checkConnection: () =>
+                      state.checkOmniVoiceConnection(showAsError: true),
+                  descriptionText:
+                      'Advanced multilingual OmniVoice backend with clone-from-reference, preset voice design, and auto voice generation modes.',
+                  extraContent: _buildOmniVoiceExtraControls(context, state),
+                  showSamplePicker: state.omniVoiceRequiresReferenceAudio,
                   selectSample: () => _selectOmniVoiceSample(state),
+                  selectSampleLabel: 'Select Reference Audio',
                   samplePath: state.omniVoiceSamplePath,
                   hasSharedInputText: state.hasSharedInputText,
                   canGenerate: state.canGenerateWithOmniVoice,
@@ -564,22 +612,23 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
     required TextEditingController backendUrlController,
     required ValueChanged<String> backendUrlChanged,
     required VoidCallback checkConnection,
-    required VoidCallback selectSample,
-    required String? samplePath,
+    String descriptionText =
+        'Advanced path through a manually started local backend. This MVP accepts a WAV or MP3 reference sample, converts MP3 to WAV automatically, and uses async job polling.',
+    Widget? extraContent,
+    bool showSamplePicker = true,
+    VoidCallback? selectSample,
+    String selectSampleLabel = 'Select Reference Audio',
+    String? samplePath,
     required bool hasSharedInputText,
     required bool canGenerate,
     required Future<void> Function() generate,
     required bool isGenerating,
     required String? activeJobId,
-    required String emptySampleText,
+    String emptySampleText = '',
     required String emptyTextHint,
     required String latestJobLabel,
   }) {
-    final (
-      statusEmoji,
-      statusText,
-      statusColor,
-    ) = switch (connectionState) {
+    final (statusEmoji, statusText, statusColor) = switch (connectionState) {
       OpenVoiceBackendConnectionState.connected => (
         '✅',
         'Backend OK',
@@ -605,10 +654,7 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Advanced path through a manually started local backend. This MVP accepts a WAV or MP3 reference sample, converts MP3 to WAV automatically, and uses async job polling.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(descriptionText, style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -655,20 +701,24 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
               icon: const Icon(Icons.health_and_safety_outlined),
               label: const Text('Check Connection'),
             ),
-            OutlinedButton.icon(
-              onPressed: selectSample,
-              icon: const Icon(Icons.audio_file_outlined),
-              label: const Text('Select Reference Audio'),
-            ),
+            if (showSamplePicker && selectSample != null)
+              OutlinedButton.icon(
+                onPressed: selectSample,
+                icon: const Icon(Icons.audio_file_outlined),
+                label: Text(selectSampleLabel),
+              ),
           ],
         ),
-        const SizedBox(height: 12),
-        Text(
-          samplePath ?? emptySampleText,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Theme.of(context).colorScheme.outline,
+        if (extraContent != null) ...[const SizedBox(height: 16), extraContent],
+        if (showSamplePicker) ...[
+          const SizedBox(height: 12),
+          Text(
+            samplePath ?? emptySampleText,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.outline,
+            ),
           ),
-        ),
+        ],
         const SizedBox(height: 12),
         Text(
           hasSharedInputText
@@ -680,19 +730,9 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: canGenerate
-                ? generate
-                : null,
-            icon: Icon(
-              isGenerating
-                  ? Icons.sync
-                  : Icons.graphic_eq,
-            ),
-            label: Text(
-              isGenerating
-                  ? 'Generating...'
-                  : 'Generate Speech',
-            ),
+            onPressed: canGenerate ? generate : null,
+            icon: Icon(isGenerating ? Icons.sync : Icons.graphic_eq),
+            label: Text(isGenerating ? 'Generating...' : 'Generate Speech'),
           ),
         ),
         if (activeJobId case final jobId?) ...[
@@ -705,6 +745,160 @@ class _VoiceLabPanelState extends State<VoiceLabPanel> {
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildOmniVoiceExtraControls(
+    BuildContext context,
+    VoiceLabState state,
+  ) {
+    final selectedVoice = state.selectedOmniVoice;
+    final featureLabels = <String>[
+      if (state.omniVoiceSupportsNonVerbalTokens) 'Non-verbal tags',
+      if (state.omniVoiceSupportsPronunciationControl) 'Pronunciation control',
+      if (state.omniVoiceSupportsReferenceText) 'Reference transcript',
+      if (state.omniVoiceSupportsDuration) 'Duration override',
+      if (state.omniVoiceSupportsNumStep) 'Diffusion steps',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (state.omniVoiceEngineDisplayName != null) ...[
+          Text(
+            state.omniVoiceEngineDisplayName!,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+          const SizedBox(height: 8),
+        ],
+        DropdownButtonFormField<String>(
+          value: state.selectedOmniVoiceId,
+          decoration: const InputDecoration(
+            labelText: 'OmniVoice voice',
+            border: OutlineInputBorder(),
+          ),
+          items: state.omniVoiceVoices
+              .map(
+                (voice) => DropdownMenuItem<String>(
+                  value: voice.id,
+                  child: Text(voice.displayName),
+                ),
+              )
+              .toList(growable: false),
+          onChanged: state.setSelectedOmniVoiceId,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          selectedVoice.description,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _omniVoiceLanguageController,
+          onChanged: state.setOmniVoiceLanguage,
+          decoration: const InputDecoration(
+            labelText: 'Target language',
+            hintText: 'en, fr, uk, ja, ar...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        if (state.omniVoiceSupportsInstruction) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: _omniVoiceInstructionController,
+            onChanged: state.setOmniVoiceInstruction,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Voice instruction',
+              hintText: 'female, low pitch, british accent',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+        if (state.omniVoiceSupportsReferenceText) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: _omniVoiceReferenceTextController,
+            onChanged: state.setOmniVoiceReferenceText,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Reference transcript (optional)',
+              hintText:
+                  'Leave blank to let OmniVoice transcribe automatically.',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+        if (state.omniVoiceSupportsDuration ||
+            state.omniVoiceSupportsNumStep) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (state.omniVoiceSupportsDuration)
+                Expanded(
+                  child: TextField(
+                    controller: _omniVoiceDurationController,
+                    onChanged: state.setOmniVoiceDurationSeconds,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Duration (seconds)',
+                      hintText: 'Optional',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              if (state.omniVoiceSupportsDuration &&
+                  state.omniVoiceSupportsNumStep)
+                const SizedBox(width: 12),
+              if (state.omniVoiceSupportsNumStep)
+                Expanded(
+                  child: TextField(
+                    controller: _omniVoiceNumStepController,
+                    onChanged: state.setOmniVoiceNumStep,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Diffusion steps',
+                      hintText: 'Optional',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+        if (featureLabels.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: featureLabels
+                .map((label) => Chip(label: Text(label)))
+                .toList(growable: false),
+          ),
+        ],
+        if (state.omniVoiceSupportsNonVerbalTokens ||
+            state.omniVoiceSupportsPronunciationControl) ...[
+          const SizedBox(height: 12),
+          Text(
+            'OmniVoice can also follow inline controls in the shared Basic text, such as `[laughter]` tags and pronunciation hints.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ],
+    );
+  }
+
+  void _syncTextController(TextEditingController controller, String value) {
+    if (controller.text == value) {
+      return;
+    }
+    controller.value = TextEditingValue(
+      text: value,
+      selection: TextSelection.collapsed(offset: value.length),
     );
   }
 

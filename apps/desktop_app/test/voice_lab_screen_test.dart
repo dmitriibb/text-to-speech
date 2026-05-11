@@ -80,7 +80,7 @@ void main() {
 
     expect(find.text('Voice Library'), findsOneWidget);
     expect(find.text('Voice cloning OpenVoice'), findsOneWidget);
-    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
+    expect(find.text('OmniVoice Multilingual TTS'), findsOneWidget);
     expect(find.text('Generate With Cloned Voice'), findsOneWidget);
     expect(find.text('Generate Speech'), findsOneWidget);
     expect(find.text('Shared Text Input'), findsNothing);
@@ -127,7 +127,7 @@ void main() {
     expect(find.text('Import Voice Sample'), findsNothing);
     expect(find.text('Voice Library'), findsNothing);
     expect(find.text('Voice cloning OpenVoice'), findsOneWidget);
-    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
+    expect(find.text('OmniVoice Multilingual TTS'), findsOneWidget);
     expect(find.text('Generate Speech'), findsOneWidget);
   });
 
@@ -189,9 +189,33 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
+    expect(find.text('OmniVoice Multilingual TTS'), findsOneWidget);
+    expect(find.text('OmniVoice voice'), findsOneWidget);
     expect(find.text('Select Reference Audio'), findsOneWidget);
-    expect(find.text('No OmniVoice reference audio selected yet.'), findsOneWidget);
+    expect(
+      find.text('No OmniVoice reference audio selected yet.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('OmniVoice design mode hides reference audio picker', (
+    tester,
+  ) async {
+    final state = _FakeVoiceLabState()
+      ..isPocketVoiceCloningEnabledValue = false
+      ..isOpenVoiceEnabledValue = false
+      ..isOmniVoiceEnabledValue = true
+      ..selectedOmniVoiceIdValue = 'narrator-female';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: VoiceLabPanel(stateOverride: state)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Voice instruction'), findsOneWidget);
+    expect(find.text('Select Reference Audio'), findsNothing);
   });
 
   testWidgets('VoiceLabPanel uses app-scoped VoiceLabState when provided', (
@@ -211,7 +235,7 @@ void main() {
 
     expect(find.text('Generate Speech'), findsOneWidget);
     expect(find.text('Voice cloning OpenVoice'), findsOneWidget);
-    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
+    expect(find.text('OmniVoice Multilingual TTS'), findsOneWidget);
   });
 
   test('enabling voice cloning auto-selects Pocket TTS', () async {
@@ -261,6 +285,41 @@ class _FakeVoiceLabState extends VoiceLabState {
   String? omniVoiceBackendMessageValue;
   String? openVoiceSamplePathValue;
   String? omniVoiceSamplePathValue;
+  List<ExternalBackendVoice> omniVoiceVoicesValue = const [
+    ExternalBackendVoice(
+      id: 'clone-reference',
+      displayName: 'Clone From Reference Audio',
+      description: 'Clone mode',
+      mode: ExternalBackendVoiceMode.clone,
+      requiresReferenceAudio: true,
+      supportsInstructionEditing: false,
+      presetInstruction: null,
+    ),
+    ExternalBackendVoice(
+      id: 'narrator-female',
+      displayName: 'Narrator Female',
+      description: 'Design preset',
+      mode: ExternalBackendVoiceMode.design,
+      requiresReferenceAudio: false,
+      supportsInstructionEditing: true,
+      presetInstruction: 'female, calm narrator',
+    ),
+  ];
+  List<String> omniVoiceFeaturesValue = const [
+    'voice_design',
+    'reference_transcript',
+    'duration_control',
+    'num_step_control',
+    'non_verbal_tokens',
+    'pronunciation_control',
+  ];
+  String? omniVoiceEngineDisplayNameValue = 'OmniVoice Multilingual';
+  String selectedOmniVoiceIdValue = 'clone-reference';
+  String omniVoiceLanguageValue = 'en';
+  String omniVoiceReferenceTextValue = '';
+  String omniVoiceInstructionValue = '';
+  String omniVoiceDurationSecondsValue = '';
+  String omniVoiceNumStepValue = '';
   bool isOpenVoiceGenerationSubmittingValue = false;
   bool isOmniVoiceGenerationSubmittingValue = false;
 
@@ -318,6 +377,66 @@ class _FakeVoiceLabState extends VoiceLabState {
   String? get omniVoiceSamplePath => omniVoiceSamplePathValue;
 
   @override
+  List<ExternalBackendVoice> get omniVoiceVoices => omniVoiceVoicesValue;
+
+  @override
+  List<String> get omniVoiceFeatures => omniVoiceFeaturesValue;
+
+  @override
+  String? get omniVoiceEngineDisplayName => omniVoiceEngineDisplayNameValue;
+
+  @override
+  String get selectedOmniVoiceId => selectedOmniVoiceIdValue;
+
+  @override
+  String get omniVoiceLanguage => omniVoiceLanguageValue;
+
+  @override
+  String get omniVoiceReferenceText => omniVoiceReferenceTextValue;
+
+  @override
+  String get omniVoiceInstruction => omniVoiceInstructionValue;
+
+  @override
+  String get omniVoiceDurationSeconds => omniVoiceDurationSecondsValue;
+
+  @override
+  String get omniVoiceNumStep => omniVoiceNumStepValue;
+
+  @override
+  ExternalBackendVoice get selectedOmniVoice => omniVoiceVoicesValue
+      .where((voice) => voice.id == selectedOmniVoiceIdValue)
+      .first;
+
+  @override
+  bool get omniVoiceRequiresReferenceAudio =>
+      selectedOmniVoice.requiresReferenceAudio;
+
+  @override
+  bool get omniVoiceSupportsReferenceText =>
+      omniVoiceFeaturesValue.contains('reference_transcript');
+
+  @override
+  bool get omniVoiceSupportsInstruction =>
+      selectedOmniVoice.supportsInstruction;
+
+  @override
+  bool get omniVoiceSupportsDuration =>
+      omniVoiceFeaturesValue.contains('duration_control');
+
+  @override
+  bool get omniVoiceSupportsNumStep =>
+      omniVoiceFeaturesValue.contains('num_step_control');
+
+  @override
+  bool get omniVoiceSupportsNonVerbalTokens =>
+      omniVoiceFeaturesValue.contains('non_verbal_tokens');
+
+  @override
+  bool get omniVoiceSupportsPronunciationControl =>
+      omniVoiceFeaturesValue.contains('pronunciation_control');
+
+  @override
   bool get isOpenVoiceGenerationSubmitting =>
       isOpenVoiceGenerationSubmittingValue;
 
@@ -367,6 +486,39 @@ class _FakeVoiceLabState extends VoiceLabState {
   @override
   void setOmniVoiceSamplePath(String? samplePath) {
     omniVoiceSamplePathValue = samplePath;
+  }
+
+  @override
+  void setSelectedOmniVoiceId(String? voiceId) {
+    if (voiceId != null) {
+      selectedOmniVoiceIdValue = voiceId;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void setOmniVoiceLanguage(String language) {
+    omniVoiceLanguageValue = language;
+  }
+
+  @override
+  void setOmniVoiceReferenceText(String referenceText) {
+    omniVoiceReferenceTextValue = referenceText;
+  }
+
+  @override
+  void setOmniVoiceInstruction(String instruction) {
+    omniVoiceInstructionValue = instruction;
+  }
+
+  @override
+  void setOmniVoiceDurationSeconds(String durationSeconds) {
+    omniVoiceDurationSecondsValue = durationSeconds;
+  }
+
+  @override
+  void setOmniVoiceNumStep(String numStep) {
+    omniVoiceNumStepValue = numStep;
   }
 
   @override

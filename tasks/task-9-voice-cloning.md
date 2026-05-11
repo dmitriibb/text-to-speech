@@ -16,6 +16,8 @@ That shared-environment approach hit a real dependency conflict: OpenVoice's Mel
 
 The backend has also been tested end to end on Windows using a real reference WAV supplied in the repo root. Health checks succeed, speech jobs are accepted, jobs move through `queued -> running -> succeeded`, and the result endpoint returns a generated WAV. Windows setup needed two concrete fixes during validation: replacing the Python 3.11-only `StrEnum` usage with a Python 3.10-compatible enum, and avoiding the optional `faster-whisper`/`av` dependency chain by installing OpenVoice with `--no-deps` and extracting the speaker embedding directly from the uploaded WAV.
 
+The OmniVoice path is now treated as a broader multilingual TTS backend instead of clone-only plumbing. The backend advertises supported features in `GET /health`, exposes backend-defined OmniVoice voice options through `GET /voices`, and accepts richer job fields for voice choice, optional reference transcript, optional voice-design instruction, optional duration override, and optional diffusion-step count. The desktop Voice Lab OmniVoice card now shows those backend voice options and lets the user switch between clone-from-reference, preset voice design, and auto-voice generation without pretending OmniVoice has a fixed upstream speaker roster.
+
 The OpenVoice backend runtime assets under `apps/open_voice_be/models/` and generated job data under `apps/open_voice_be/storage/` are local-only state. They must stay out of git and be recreated by backend startup or by rerunning local speech jobs.
 
 A Windows-clone repository integrity issue was also found: the shared `src/models/` sources and desktop `lib/models/cloned_voice.dart` were missing from git because `.gitignore` used a recursive `models/` rule. The ignore rule now targets only the repo-root `/models/` directory so source-model files can be committed normally.
@@ -79,7 +81,8 @@ The research phase (steps 1–3) should be completed before committing to the fu
 
 ## Next Steps
 
-1. Verify the full OpenVoice backend startup and speech-generation flow on a real Windows Python environment with the official dependencies installed.
-2. Verify the browser admin against a real backend runtime, including model download, model switching, and backend-job deletion while work is running.
-3. Decide whether OpenVoice presets stay backend-only or need desktop-side save and browse flows in this milestone.
-4. Add end-to-end result export and preset persistence once speech generation succeeds consistently.
+1. Verify the new OmniVoice preset and auto-voice paths against a real local runtime, especially resource usage and output quality for non-English languages.
+2. Verify the full OpenVoice backend startup and speech-generation flow on a real Windows Python environment with the official dependencies installed.
+3. Verify the browser admin against a real backend runtime, including model download, model switching, and backend-job deletion while work is running.
+4. Decide whether OpenVoice presets stay backend-only or need desktop-side save and browse flows in this milestone.
+5. Add end-to-end result export and preset persistence once speech generation succeeds consistently.

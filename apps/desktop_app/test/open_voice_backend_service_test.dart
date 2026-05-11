@@ -16,8 +16,13 @@ void main() {
           'ok': true,
           'backend': 'open_voice_be',
           'version': '0.1.0-mvp',
+          'engine': 'openvoice',
+          'engine_display_name': 'OpenVoice V2',
           'engine_ready': false,
           'models_loaded': false,
+          'features': ['voice_cloning'],
+          'supported_job_modes': ['clone'],
+          'voices_endpoint': '/voices',
         }),
         200,
         headers: {'content-type': 'application/json'},
@@ -30,7 +35,52 @@ void main() {
     final health = await service.fetchHealth(baseUri);
 
     expect(health.backend, 'open_voice_be');
+    expect(health.engine, 'openvoice');
+    expect(health.engineDisplayName, 'OpenVoice V2');
     expect(health.engineReady, isFalse);
+    expect(health.features, ['voice_cloning']);
+    expect(health.supportedJobModes, [ExternalBackendVoiceMode.clone]);
+    expect(health.voicesEndpoint, '/voices');
+  });
+
+  test('fetches external backend voices', () async {
+    final client = MockClient((request) async {
+      return http.Response(
+        jsonEncode([
+          {
+            'id': 'clone-reference',
+            'display_name': 'Clone From Reference Audio',
+            'description': 'Clone mode',
+            'mode': 'clone',
+            'requires_reference_audio': true,
+            'supports_instruction_editing': false,
+          },
+          {
+            'id': 'narrator-female',
+            'display_name': 'Narrator Female',
+            'description': 'Design preset',
+            'mode': 'design',
+            'requires_reference_audio': false,
+            'supports_instruction_editing': true,
+            'preset_instruction': 'female, calm narrator',
+          },
+        ]),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    });
+
+    final service = OpenVoiceBackendService(client: client);
+
+    final voices = await service.fetchVoices(
+      service.parseBaseUri('http://127.0.0.1:8010'),
+    );
+
+    expect(voices, hasLength(2));
+    expect(voices.first.id, 'clone-reference');
+    expect(voices.first.mode, ExternalBackendVoiceMode.clone);
+    expect(voices.last.mode, ExternalBackendVoiceMode.design);
+    expect(voices.last.presetInstruction, 'female, calm narrator');
   });
 
   test('polls job status with increasing intervals until completion', () async {
@@ -98,6 +148,58 @@ void main() {
     expect(request.fields['language'], 'en');
     expect(request.fields['speed'], '1.5');
   });
+
+  test('submits optional OmniVoice fields when provided', () async {
+    final client = _RecordingClient();
+    final service = OpenVoiceBackendService(client: client);
+    final tempDir = await Directory.systemTemp.createTemp('omnivoice-service-');
+    addTearDown(() async {
+      if (await tempDir.exists()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final referenceFile = File(p.join(tempDir.path, 'reference.wav'));
+    await referenceFile.writeAsBytes(_wavHeaderBytes());
+
+    await service.submitJob(
+      baseUri: service.parseBaseUri('http://127.0.0.1:8010'),
+      text: 'hello there',
+      voiceId: 'narrator-female',
+      referenceAudioPath: referenceFile.path,
+      referenceText: 'hello from reference',
+      instruct: 'female, calm narrator',
+      language: 'fr',
+      speed: 0.9,
+      duration: 8.5,
+      numStep: 24,
+    );
+
+    final request = client.lastRequest! as http.MultipartRequest;
+    expect(request.fields['voice_id'], 'narrator-female');
+    expect(request.fields['reference_text'], 'hello from reference');
+    expect(request.fields['instruct'], 'female, calm narrator');
+    expect(request.fields['language'], 'fr');
+    expect(request.fields['speed'], '0.9');
+    expect(request.fields['duration'], '8.5');
+    expect(request.fields['num_step'], '24');
+  });
+
+  test('allows jobs without reference audio for auto voice backends', () async {
+    final client = _RecordingClient();
+    final service = OpenVoiceBackendService(client: client);
+
+    await service.submitJob(
+      baseUri: service.parseBaseUri('http://127.0.0.1:8010'),
+      text: 'hello there',
+      voiceId: 'auto-random',
+      language: 'en',
+    );
+
+    final request = client.lastRequest! as http.MultipartRequest;
+    expect(request.files, isEmpty);
+    expect(request.fields['voice_id'], 'auto-random');
+  });
 }
 
 class _RecordingClient extends http.BaseClient {
@@ -105,9 +207,7 @@ class _RecordingClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     lastRequest = request;
     return http.StreamedResponse(
-      Stream<List<int>>.value(
-        utf8.encode(jsonEncode({'job_id': 'job-123'})),
-      ),
+      Stream<List<int>>.value(utf8.encode(jsonEncode({'job_id': 'job-123'}))),
       202,
       headers: {'content-type': 'application/json'},
     );

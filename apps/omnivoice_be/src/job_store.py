@@ -42,24 +42,38 @@ class JobStore:
         text: str,
         language: str,
         speed: float,
-        reference_audio: UploadFile,
+        voice_id: str,
+        voice_label: str,
+        reference_text: str | None,
+        instruct: str | None,
+        duration: float | None,
+        num_step: int | None,
+        reference_audio: UploadFile | None,
     ) -> JobRecord:
         job_id = f'job-{uuid.uuid4()}'
-        reference_audio_path = self._storage.reference_audio_path(job_id)
         stored_reference_path = await self._save_upload_as_wav(
             upload=reference_audio,
-            destination=reference_audio_path,
+            destination=self._storage.reference_audio_path(job_id),
         )
+        selected_voice = self._engine.get_voice_definition(voice_id)
 
         job = JobRecord(
             job_id=job_id,
-            job_type='clone',
+            job_type=selected_voice.mode.value,
             status=JobStatus.queued,
             text=text,
             language=language,
             speed=speed,
             model_id='omnivoice-multilingual',
-            reference_audio_path=str(stored_reference_path),
+            voice_id=voice_id,
+            voice_label=voice_label,
+            reference_audio_path=(
+                str(stored_reference_path) if stored_reference_path is not None else None
+            ),
+            reference_text=reference_text,
+            instruct=instruct,
+            duration=duration,
+            num_step=num_step,
             submitted_at=_utc_now(),
         )
         await self._write_job(job)
@@ -116,9 +130,18 @@ class JobStore:
             await asyncio.to_thread(
                 self._engine.generate_preview,
                 text=job.text,
+                voice_id=job.voice_id,
                 language=job.language,
                 speed=job.speed,
-                reference_audio_path=Path(job.reference_audio_path),
+                reference_audio_path=(
+                    Path(job.reference_audio_path)
+                    if job.reference_audio_path is not None
+                    else None
+                ),
+                reference_text=job.reference_text,
+                instruct=job.instruct,
+                duration=job.duration,
+                num_step=job.num_step,
                 output_path=result_audio_path,
             )
             job.status = JobStatus.succeeded
@@ -127,7 +150,11 @@ class JobStore:
             job.result = JobResultPayload(
                 audio_ready=True,
                 download_path=f'/jobs/{job_id}/result',
-                metadata={'job_type': job.job_type},
+                metadata={
+                    'job_type': job.job_type,
+                    'voice_id': job.voice_id,
+                    'voice_label': job.voice_label,
+                },
             )
         except Exception as error:
             job.status = JobStatus.failed
@@ -135,7 +162,11 @@ class JobStore:
             job.error = str(error)
             job.result = JobResultPayload(
                 audio_ready=False,
-                metadata={'job_type': job.job_type},
+                metadata={
+                    'job_type': job.job_type,
+                    'voice_id': job.voice_id,
+                    'voice_label': job.voice_label,
+                },
             )
 
         await self._write_job(job)
@@ -143,9 +174,12 @@ class JobStore:
     async def _save_upload_as_wav(
         self,
         *,
-        upload: UploadFile,
+        upload: UploadFile | None,
         destination: Path,
-    ) -> Path:
+    ) -> Path | None:
+        if upload is None:
+            return None
+
         suffix = Path(upload.filename or 'reference.wav').suffix or '.wav'
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
             temp_path = Path(temp_file.name)

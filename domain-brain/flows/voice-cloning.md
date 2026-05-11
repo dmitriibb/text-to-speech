@@ -2,7 +2,7 @@
 
 - Voice cloning is an Extended desktop-only flow exposed inline in the desktop home screen when the Advanced Functionality toggle is enabled.
 - The Basic panel stays on the left and the Advanced Voice Lab panel stays on the right with shared text state.
-- The Advanced panel always shows three toggles: `Voice cloning Pocket TTS`, `Voice cloning OpenVoice`, and `Voice cloning OmniVoice`.
+- The Advanced panel always shows three toggles: `Voice cloning Pocket TTS`, `Voice cloning OpenVoice`, and `OmniVoice Multilingual TTS`.
 - Each cloning section stays hidden until its own toggle is enabled.
 - Each toggle unfolds its controls inline inside the same Voice Lab card instead of opening a separate section elsewhere on the page.
 - Voice Lab does not own a separate synthesis text field; cloned synthesis always uses the text entered in the Basic panel.
@@ -24,13 +24,14 @@
 - Voice Lab state is app-scoped on desktop, so leaving Voice Lab and returning must not reset backend-toggle state, selected reference audio, active job id, or in-progress generation status.
 - While the backend toggle is on, the desktop app checks backend health immediately and then every 10 seconds in the background.
 - The desktop app uses `GET /health` to determine backend readiness and submits new backend speech work through `POST /jobs`.
+- The OmniVoice backend may additionally expose `GET /voices`; when available, the desktop app uses it to list the available OmniVoice voice options and presets.
 - Backend speech generation uses the shared Home-screen speed value; desktop submits that speed with the job request and the selected backend model applies it during synthesis.
 - The desktop app polls backend jobs at 1s, 2s, 3s, and so on up to a 10s maximum interval.
 - Backend reference selection accepts `.wav` and `.mp3`; when the user picks `.mp3`, the desktop app converts it to a temporary `.wav` before uploading it to the backend.
 - The backend path uses a `Generate Speech` action, not a transient preview-only action; once the backend returns a `.wav`, the desktop app stores it as generated audio and surfaces it on the Home screen like other completed speech tasks.
 - The desktop voice backend stores MVP job state in `apps/open_voice_be/storage/` with `.json` job metadata and `.wav` reference and result audio files.
 - The desktop voice backend also serves a lightweight browser admin page at `/admin` so local users can inspect backend health, model files, and saved jobs without using the desktop client.
-- The separate OmniVoice-only backend is intentionally simpler and currently exposes the same health and job endpoints without a browser admin.
+- The separate OmniVoice-only backend is intentionally simpler than OpenVoice: it exposes health, voices, and job endpoints without a browser admin.
 - The browser admin lists the known backend models, shows which ones are downloaded locally when applicable, and lets the user download, delete, and mark the current backend model.
 - The current backend model is the backend runtime/model choice that new backend jobs snapshot and use for synthesis.
 - Browser-admin job rows expose the saved job record, reference audio, working directory, and generated result paths when present.
@@ -40,6 +41,9 @@
 - The preferred local backend launch command is `python -m src.main` from `apps/open_voice_be/`.
 - The downloaded files under `apps/open_voice_be/models/` and the generated job artifacts under `apps/open_voice_be/storage/` are local runtime state and must stay out of git history.
 - The OpenVoice backend path currently supports English only.
-- The OmniVoice backend path accepts the submitted `language` value and is intended for multilingual cloning, but real quality and resource usage still need local validation.
+- The OmniVoice backend path accepts the submitted `language` value and now supports three desktop-visible modes: clone from reference audio, preset or custom voice design via instruction text, and auto voice with no reference clip.
+- OmniVoice preset voices in the desktop app are backend-defined presets for voice design prompts, not fixed upstream speaker IDs.
+- OmniVoice design mode may expose optional reference transcript, duration override, and diffusion-step controls when the backend advertises those capabilities in `GET /health`.
+- OmniVoice also supports inline text-level controls such as non-verbal tags and pronunciation hints inside the shared Basic text field; the desktop app surfaces that capability as guidance rather than separate per-token widgets.
 - The OpenVoice backend and OmniVoice backend are allowed to live in separate Python environments to avoid dependency conflicts between their upstream stacks.
 - The current MVP extracts the target speaker embedding directly from the uploaded reference WAV instead of using the optional OpenVoice VAD splitting helpers.

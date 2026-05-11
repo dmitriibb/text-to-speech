@@ -9,7 +9,13 @@ import uvicorn
 from .config import Settings, load_settings
 from .engine import OmniVoiceEngine
 from .job_store import JobStore
-from .models import CreateJobResponse, HealthResponse, JobStatus
+from .models import (
+    CreateJobResponse,
+    HealthResponse,
+    JobStatus,
+    VoiceMode,
+    VoiceOptionResponse,
+)
 from .storage import StorageManager
 
 
@@ -39,6 +45,7 @@ def create_app(
             backend=settings.app_name,
             version=settings.version,
             engine='omnivoice',
+            engine_display_name=engine.engine_display_name,
             engine_ready=engine.is_ready,
             models_loaded=True,
             jobs_in_progress=await job_store.count_in_progress(),
@@ -46,24 +53,97 @@ def create_app(
             current_model_name='OmniVoice Multilingual',
             runtime_assets_ready=True,
             initialization_error=engine.initialization_error,
+            features=[
+                'voice_cloning',
+                'voice_design',
+                'auto_voice',
+                'multilingual',
+                'non_verbal_tokens',
+                'pronunciation_control',
+                'reference_transcript',
+                'duration_control',
+                'num_step_control',
+            ],
+            supported_job_modes=[VoiceMode.clone, VoiceMode.design, VoiceMode.auto],
+            voices_endpoint='/voices',
         )
+
+    @app.get('/voices', response_model=list[VoiceOptionResponse])
+    async def voices() -> list[VoiceOptionResponse]:
+        return [
+            VoiceOptionResponse(
+                id=voice.id,
+                display_name=voice.display_name,
+                description=voice.description,
+                mode=voice.mode,
+                requires_reference_audio=voice.requires_reference_audio,
+                supports_instruction_editing=voice.supports_instruction_editing,
+                preset_instruction=voice.preset_instruction,
+            )
+            for voice in engine.list_voice_definitions()
+        ]
 
     @app.post('/jobs', response_model=CreateJobResponse, status_code=202)
     async def create_job(
         text: str = Form(...),
+        voice_id: str | None = Form(None),
         language: str = Form('en'),
         speed: float = Form(1.0),
-        reference_audio: UploadFile = File(...),
+        reference_text: str | None = Form(None),
+        instruct: str | None = Form(None),
+        duration: float | None = Form(None),
+        num_step: int | None = Form(None),
+        reference_audio: UploadFile | None = File(None),
     ) -> CreateJobResponse:
         if not text.strip():
             raise HTTPException(status_code=400, detail='Text is required.')
         if speed < 0.5 or speed > 2.0:
             raise HTTPException(status_code=400, detail='Speed must be between 0.5 and 2.0.')
+        if duration is not None and duration <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail='Duration must be greater than 0 seconds.',
+            )
+        if num_step is not None and (num_step < 1 or num_step > 64):
+            raise HTTPException(
+                status_code=400,
+                detail='Num steps must be between 1 and 64.',
+            )
+
+        try:
+            selected_voice = engine.get_voice_definition(voice_id)
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+
+        if selected_voice.requires_reference_audio and reference_audio is None:
+            raise HTTPException(
+                status_code=400,
+                detail='Reference audio is required for the selected OmniVoice voice.',
+            )
+
+        cleaned_instruct = instruct.strip() if instruct is not None else ''
+        if selected_voice.mode == VoiceMode.design:
+            effective_instruct = cleaned_instruct or (selected_voice.preset_instruction or '')
+            if not effective_instruct.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail='Voice design requires a prompt or preset voice instruction.',
+                )
+        else:
+            effective_instruct = None
 
         job = await job_store.create_job(
             text=text.strip(),
             language=language.strip() or 'en',
             speed=speed,
+            voice_id=selected_voice.id,
+            voice_label=selected_voice.display_name,
+            reference_text=(reference_text.strip() or None)
+            if reference_text is not None
+            else None,
+            instruct=effective_instruct.strip() if effective_instruct else None,
+            duration=duration,
+            num_step=num_step,
             reference_audio=reference_audio,
         )
         return CreateJobResponse(
