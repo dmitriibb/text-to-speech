@@ -4,7 +4,10 @@ version: 1
 # Keep this file in sync with domain-brain and application structure.
 
 conventions:
-  runtime: sherpa-onnx
+  shared_runtime: sherpa-onnx
+  desktop_voice_backend_runtime:
+    - openvoice
+    - omnivoice
   ui_apps:
     - apps/desktop_app
     - apps/android_app
@@ -122,6 +125,10 @@ flows:
       - apps/open_voice_be/src/static/index.html
       - apps/open_voice_be/src/static/app.js
       - apps/open_voice_be/src/static/styles.css
+      - apps/omnivoice_be/src/engine.py
+      - apps/omnivoice_be/src/main.py
+      - apps/omnivoice_be/src/job_store.py
+      - apps/omnivoice_be/src/storage.py
   benchmark_validation:
     docs:
       - domain-brain/flows/benchmark-validation.md

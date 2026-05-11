@@ -1,6 +1,6 @@
-# OpenVoice Backend
+# Desktop Voice Backend
 
-Local FastAPI backend for the desktop app's OpenVoice integration.
+Local FastAPI backend for the desktop app's advanced voice-cloning integration.
 
 Platform-specific startup steps live in `how-to-run.md`.
 
@@ -10,7 +10,8 @@ Platform-specific startup steps live in `how-to-run.md`.
 - Async speech jobs with job IDs
 - Lightweight browser admin at `/admin`
 - Official OpenVoice V2 tone-color conversion on CPU
-- Official MeloTTS English-v2 as the base speaker model on CPU
+- Official MeloTTS English-v2 as the OpenVoice base speaker model on CPU
+- OmniVoice multilingual voice cloning through the same job API
 - Desktop-controlled speech speed forwarded through the job API
 - Disk-backed job metadata in `storage/jobs/*.json`
 - Reference audio stored in `storage/reference_audio/*.wav`
@@ -19,9 +20,9 @@ Platform-specific startup steps live in `how-to-run.md`.
 
 ## Current limitations
 
-- English only for the first MVP
 - Manual local startup only
 - First startup may take time because the backend downloads model assets into `models/`
+- OmniVoice startup may also pull large Hugging Face model assets into the local cache on first use
 
 ## Run locally
 
@@ -31,14 +32,22 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-.\.venv\Scripts\python -m pip install --no-deps git+https://github.com/myshell-ai/OpenVoice.git
 python -m src.main
+```
+
+That installs the backend core plus OmniVoice support.
+
+If you also want the optional OpenVoice runtime, install its extra dependencies afterward:
+
+```powershell
+pip install -r requirements-openvoice.txt
+.\.venv\Scripts\python -m pip install --no-deps git+https://github.com/myshell-ai/OpenVoice.git
 ```
 
 The separate `--no-deps` install for OpenVoice is intentional on Windows.
 It avoids the optional `faster-whisper` and `av` dependency chain, which is not needed for the current backend path because this MVP extracts speaker embeddings directly from the reference WAV instead of running OpenVoice VAD splitting.
 
-The current English-only MVP does not require the large `unidic` dictionary download step.
+The current OpenVoice MVP does not require the large `unidic` dictionary download step.
 
 `python -m src.main` is the preferred local entrypoint.
 Internally it still starts the FastAPI app through `uvicorn`, which is the ASGI web server used to expose the backend over HTTP.
@@ -56,7 +65,7 @@ http://127.0.0.1:8008/admin
 The browser admin shows:
 
 - backend health
-- downloaded and available OpenVoice base-speaker models
+- downloaded and available backend models
 - current backend model selection
 - saved backend jobs, their statuses, and referenced files
 
@@ -85,6 +94,9 @@ models/
       checkpoint.pth
       config.json
 ```
+
+OmniVoice uses its own Hugging Face cache outside this `models/` directory.
+Those downloaded model files are also local runtime state.
 
 ## Storage layout
 
@@ -119,3 +131,5 @@ Everything under `storage/` is generated local runtime data and should not be co
 - `language`
 - `speed` in the `0.5` to `2.0` range
 - `reference_audio`
+
+The desktop app keeps using the same backend contract regardless of whether the selected backend model runs through OpenVoice or OmniVoice.

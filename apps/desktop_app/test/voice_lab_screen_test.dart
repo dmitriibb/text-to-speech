@@ -79,7 +79,8 @@ void main() {
     await tester.pump();
 
     expect(find.text('Voice Library'), findsOneWidget);
-    expect(find.text('OpenVoice'), findsOneWidget);
+    expect(find.text('Voice cloning OpenVoice'), findsOneWidget);
+    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
     expect(find.text('Generate With Cloned Voice'), findsOneWidget);
     expect(find.text('Generate Speech'), findsOneWidget);
     expect(find.text('Shared Text Input'), findsNothing);
@@ -125,7 +126,8 @@ void main() {
 
     expect(find.text('Import Voice Sample'), findsNothing);
     expect(find.text('Voice Library'), findsNothing);
-    expect(find.text('OpenVoice'), findsOneWidget);
+    expect(find.text('Voice cloning OpenVoice'), findsOneWidget);
+    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
     expect(find.text('Generate Speech'), findsOneWidget);
   });
 
@@ -144,7 +146,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('Import Voice Sample'), findsOneWidget);
-    expect(find.text('Voice Library'), findsOneWidget);
     expect(find.text('Generate Speech'), findsNothing);
   });
 
@@ -173,6 +174,26 @@ void main() {
     );
   });
 
+  testWidgets('OmniVoice section advertises its own backend path', (
+    tester,
+  ) async {
+    final state = _FakeVoiceLabState()
+      ..isPocketVoiceCloningEnabledValue = false
+      ..isOpenVoiceEnabledValue = false
+      ..isOmniVoiceEnabledValue = true;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: VoiceLabPanel(stateOverride: state)),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
+    expect(find.text('Select Reference Audio'), findsOneWidget);
+    expect(find.text('No OmniVoice reference audio selected yet.'), findsOneWidget);
+  });
+
   testWidgets('VoiceLabPanel uses app-scoped VoiceLabState when provided', (
     tester,
   ) async {
@@ -190,6 +211,7 @@ void main() {
 
     expect(find.text('Generate Speech'), findsOneWidget);
     expect(find.text('Voice cloning OpenVoice'), findsOneWidget);
+    expect(find.text('Voice cloning OmniVoice'), findsOneWidget);
   });
 
   test('enabling voice cloning auto-selects Pocket TTS', () async {
@@ -226,14 +248,21 @@ class _FakeVoiceLabState extends VoiceLabState {
   final bool hasPocketModelValue;
   bool isPocketVoiceCloningEnabledValue = true;
   bool isOpenVoiceEnabledValue = true;
+  bool isOmniVoiceEnabledValue = false;
   final String sharedInputTextValue;
   final List<ClonedVoice> voicesValue;
   String openVoiceBackendUrlValue = OpenVoiceBackendService.defaultBaseUrl;
+  String omniVoiceBackendUrlValue = 'http://127.0.0.1:8010';
   OpenVoiceBackendConnectionState openVoiceConnectionStateValue =
       OpenVoiceBackendConnectionState.disconnected;
+  OpenVoiceBackendConnectionState omniVoiceConnectionStateValue =
+      OpenVoiceBackendConnectionState.disconnected;
   String? openVoiceBackendMessageValue;
+  String? omniVoiceBackendMessageValue;
   String? openVoiceSamplePathValue;
+  String? omniVoiceSamplePathValue;
   bool isOpenVoiceGenerationSubmittingValue = false;
+  bool isOmniVoiceGenerationSubmittingValue = false;
 
   @override
   Future<void> initialize() async {}
@@ -257,27 +286,50 @@ class _FakeVoiceLabState extends VoiceLabState {
   bool get isOpenVoiceEnabled => isOpenVoiceEnabledValue;
 
   @override
+  bool get isOmniVoiceEnabled => isOmniVoiceEnabledValue;
+
+  @override
   bool get hasSharedInputText => sharedInputTextValue.trim().isNotEmpty;
 
   @override
   String get openVoiceBackendUrl => openVoiceBackendUrlValue;
 
   @override
+  String get omniVoiceBackendUrl => omniVoiceBackendUrlValue;
+
+  @override
   OpenVoiceBackendConnectionState get openVoiceConnectionState =>
       openVoiceConnectionStateValue;
+
+  @override
+  OpenVoiceBackendConnectionState get omniVoiceConnectionState =>
+      omniVoiceConnectionStateValue;
 
   @override
   String? get openVoiceBackendMessage => openVoiceBackendMessageValue;
 
   @override
+  String? get omniVoiceBackendMessage => omniVoiceBackendMessageValue;
+
+  @override
   String? get openVoiceSamplePath => openVoiceSamplePathValue;
+
+  @override
+  String? get omniVoiceSamplePath => omniVoiceSamplePathValue;
 
   @override
   bool get isOpenVoiceGenerationSubmitting =>
       isOpenVoiceGenerationSubmittingValue;
 
   @override
+  bool get isOmniVoiceGenerationSubmitting =>
+      isOmniVoiceGenerationSubmittingValue;
+
+  @override
   bool get canGenerateWithOpenVoice => true;
+
+  @override
+  bool get canGenerateWithOmniVoice => true;
 
   @override
   Future<void> setVoiceCloningEnabled(bool enabled) async {
@@ -292,8 +344,19 @@ class _FakeVoiceLabState extends VoiceLabState {
   }
 
   @override
+  Future<void> setOmniVoiceEnabled(bool enabled) async {
+    isOmniVoiceEnabledValue = enabled;
+    notifyListeners();
+  }
+
+  @override
   Future<void> setOpenVoiceBackendUrl(String backendUrl) async {
     openVoiceBackendUrlValue = backendUrl;
+  }
+
+  @override
+  Future<void> setOmniVoiceBackendUrl(String backendUrl) async {
+    omniVoiceBackendUrlValue = backendUrl;
   }
 
   @override
@@ -302,7 +365,15 @@ class _FakeVoiceLabState extends VoiceLabState {
   }
 
   @override
-  Future<void> checkOpenVoiceConnection() async {}
+  void setOmniVoiceSamplePath(String? samplePath) {
+    omniVoiceSamplePathValue = samplePath;
+  }
+
+  @override
+  Future<void> checkOpenVoiceConnection({bool showAsError = false}) async {}
+
+  @override
+  Future<void> checkOmniVoiceConnection({bool showAsError = false}) async {}
 
   @override
   Future<void> addVoice({
@@ -324,6 +395,9 @@ class _FakeVoiceLabState extends VoiceLabState {
 
   @override
   Future<void> generateWithOpenVoice() async {}
+
+  @override
+  Future<void> generateWithOmniVoice() async {}
 }
 
 class _FakeDesktopAppState extends AppState {

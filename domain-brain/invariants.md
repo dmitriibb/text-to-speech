@@ -1,7 +1,8 @@
 # Invariants
 
 - `packages/model_catalog/approved_models.json` is the source of truth for app-visible model metadata.
-- `sherpa-onnx` is the only supported synthesis runtime family in this repository.
+- `sherpa-onnx` is the only shared app-runtime family for Basic functionality in this repository.
+- Desktop-only Voice Lab backend integrations may use a separate local runtime family as long as they stay behind the desktop backend boundary and do not replace the shared Basic runtime.
 - A model is `ready` only when all required files exist: model file, `tokens.txt`, and `data_dir` when declared.
 - Shared model installation logic must remain portable across desktop and Android; it must not depend on shell archive extraction.
 - Android normal model installation uses app-private storage and must not rely on the workspace `models/` directory.

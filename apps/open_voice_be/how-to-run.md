@@ -1,4 +1,4 @@
-# How to Run the OpenVoice Backend
+# How to Run the Desktop Voice Backend
 
 Short setup guide for Windows, Ubuntu, and macOS.
 
@@ -62,19 +62,34 @@ source .venv/bin/activate
 ```powershell
 python -m pip install --upgrade pip
 pip install -r requirements.txt
-.\.venv\Scripts\python -m pip install --no-deps git+https://github.com/myshell-ai/OpenVoice.git
 ```
 
 ```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+This installs the backend core plus OmniVoice support.
+
+If you also want the optional OpenVoice runtime, install its extra dependencies afterward:
+
+```powershell
+pip install -r requirements-openvoice.txt
+python -m pip install --no-deps git+https://github.com/myshell-ai/OpenVoice.git
+```
+
+```bash
+pip install -r requirements-openvoice.txt
 python -m pip install --no-deps git+https://github.com/myshell-ai/OpenVoice.git
 ```
 
 The separate `--no-deps` install for `OpenVoice` is intentional.
 It avoids the optional `faster-whisper` and `av` dependency chain, which this MVP does not use.
 
-The current English-only MVP does not require the large `unidic` dictionary download step.
+The current OpenVoice path does not require the large `unidic` dictionary download step.
+
+`omnivoice==0.1.5` is now installed from `requirements.txt` for the OmniVoice backend path.
+Its first real use may download several gigabytes of model assets into the local Hugging Face cache.
 
 ## 5. Start the backend
 
@@ -109,6 +124,7 @@ On the first admin download action or first real job, the backend may download:
 
 - OpenVoice model assets into `models/`
 - tokenizer and text-processing assets used by MeloTTS
+- OmniVoice model and tokenizer assets into the local Hugging Face cache
 
 Because of that, the first successful request can take noticeably longer than later ones.
 
@@ -125,5 +141,6 @@ These directories are local-only generated state and should not be committed to 
 
 - Wrong Python version: use Python `3.10` explicitly when creating the virtual environment.
 - `ModuleNotFoundError` after install: confirm the virtual environment is activated before running `python -m src.main`.
-- OpenVoice install pulls extra media dependencies: make sure you used the separate `--no-deps` install command above.
+- Dependency conflict between `MeloTTS` and `OmniVoice`: use `requirements.txt` for OmniVoice-only backend startup, and install `requirements-openvoice.txt` only if you also need the OpenVoice runtime.
 - Desktop app cannot connect: confirm the backend is listening on `127.0.0.1:8008` and check `GET /health` in a browser or terminal.
+- OmniVoice initialization fails on low-memory machines: try the OpenVoice model path first, since OmniVoice is heavier.

@@ -34,14 +34,23 @@ class VoiceLabState extends ChangeNotifier {
   bool _isLoading = true;
   String? _errorMessage;
   String _openVoiceBackendUrl = OpenVoiceBackendService.defaultBaseUrl;
+  String _omniVoiceBackendUrl = 'http://127.0.0.1:8010';
   OpenVoiceBackendConnectionState _openVoiceConnectionState =
       OpenVoiceBackendConnectionState.disconnected;
+  OpenVoiceBackendConnectionState _omniVoiceConnectionState =
+      OpenVoiceBackendConnectionState.disconnected;
   String? _openVoiceBackendMessage;
+  String? _omniVoiceBackendMessage;
   String? _openVoiceSamplePath;
+  String? _omniVoiceSamplePath;
   bool _isOpenVoiceEnabled = false;
+  bool _isOmniVoiceEnabled = false;
   bool _isOpenVoiceGenerationSubmitting = false;
+  bool _isOmniVoiceGenerationSubmitting = false;
   String? _activeOpenVoiceJobId;
+  String? _activeOmniVoiceJobId;
   Timer? _openVoiceHealthTimer;
+  Timer? _omniVoiceHealthTimer;
 
   // Preview playback
   String? _previewingVoiceId;
@@ -56,22 +65,38 @@ class VoiceLabState extends ChangeNotifier {
   bool get isPreviewPlaying => _isPreviewPlaying;
   bool get isPocketVoiceCloningEnabled => _appState.isVoiceCloningEnabled;
   bool get isOpenVoiceEnabled => _isOpenVoiceEnabled;
+  bool get isOmniVoiceEnabled => _isOmniVoiceEnabled;
   bool get hasSharedInputText => _appState.inputText.trim().isNotEmpty;
   String get openVoiceBackendUrl => _openVoiceBackendUrl;
+  String get omniVoiceBackendUrl => _omniVoiceBackendUrl;
   OpenVoiceBackendConnectionState get openVoiceConnectionState =>
       _openVoiceConnectionState;
+  OpenVoiceBackendConnectionState get omniVoiceConnectionState =>
+      _omniVoiceConnectionState;
   String? get openVoiceBackendMessage => _openVoiceBackendMessage;
+  String? get omniVoiceBackendMessage => _omniVoiceBackendMessage;
   String? get openVoiceSamplePath => _openVoiceSamplePath;
+  String? get omniVoiceSamplePath => _omniVoiceSamplePath;
   bool get hasOpenVoiceSample =>
       _openVoiceSamplePath != null && _openVoiceSamplePath!.trim().isNotEmpty;
+  bool get hasOmniVoiceSample =>
+      _omniVoiceSamplePath != null && _omniVoiceSamplePath!.trim().isNotEmpty;
   bool get isOpenVoiceGenerationSubmitting => _isOpenVoiceGenerationSubmitting;
+  bool get isOmniVoiceGenerationSubmitting => _isOmniVoiceGenerationSubmitting;
   String? get activeOpenVoiceJobId => _activeOpenVoiceJobId;
+  String? get activeOmniVoiceJobId => _activeOmniVoiceJobId;
   bool get canGenerateWithOpenVoice =>
       _isOpenVoiceEnabled &&
       hasSharedInputText &&
       hasOpenVoiceSample &&
       !_isOpenVoiceGenerationSubmitting &&
       _openVoiceConnectionState == OpenVoiceBackendConnectionState.connected;
+  bool get canGenerateWithOmniVoice =>
+      _isOmniVoiceEnabled &&
+      hasSharedInputText &&
+      hasOmniVoiceSample &&
+      !_isOmniVoiceGenerationSubmitting &&
+      _omniVoiceConnectionState == OpenVoiceBackendConnectionState.connected;
 
   void setError(String message) {
     _errorMessage = message;
@@ -129,6 +154,28 @@ class VoiceLabState extends ChangeNotifier {
     _startOpenVoiceHealthPolling();
   }
 
+  Future<void> setOmniVoiceEnabled(bool enabled) async {
+    if (!enabled) {
+      if (_isOmniVoiceEnabled) {
+        _isOmniVoiceEnabled = false;
+        _stopOmniVoiceHealthPolling();
+        notifyListeners();
+      }
+      return;
+    }
+
+    if (_isOmniVoiceEnabled) {
+      return;
+    }
+
+    _isOmniVoiceEnabled = true;
+    _omniVoiceBackendMessage = 'Checking backend connection...';
+    _omniVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
+    notifyListeners();
+    unawaited(checkOmniVoiceConnection());
+    _startOmniVoiceHealthPolling();
+  }
+
   Future<void> setOpenVoiceBackendUrl(String backendUrl) async {
     _openVoiceBackendUrl = backendUrl;
     _openVoiceConnectionState = OpenVoiceBackendConnectionState.disconnected;
@@ -140,8 +187,23 @@ class VoiceLabState extends ChangeNotifier {
     }
   }
 
+  Future<void> setOmniVoiceBackendUrl(String backendUrl) async {
+    _omniVoiceBackendUrl = backendUrl;
+    _omniVoiceConnectionState = OpenVoiceBackendConnectionState.disconnected;
+    _omniVoiceBackendMessage = null;
+    notifyListeners();
+    if (_isOmniVoiceEnabled) {
+      unawaited(checkOmniVoiceConnection());
+    }
+  }
+
   void setOpenVoiceSamplePath(String? samplePath) {
     _openVoiceSamplePath = samplePath;
+    notifyListeners();
+  }
+
+  void setOmniVoiceSamplePath(String? samplePath) {
+    _omniVoiceSamplePath = samplePath;
     notifyListeners();
   }
 
@@ -180,6 +242,49 @@ class VoiceLabState extends ChangeNotifier {
       _openVoiceConnectionState = OpenVoiceBackendConnectionState.error;
       _openVoiceBackendMessage =
           'Backend is down at ${_openVoiceBackendUrl.trim()}.';
+      if (showAsError) {
+        _errorMessage = error.toString();
+      }
+    }
+
+    notifyListeners();
+  }
+
+  Future<void> checkOmniVoiceConnection({bool showAsError = false}) async {
+    _omniVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
+    _omniVoiceBackendMessage = 'Checking backend connection...';
+    notifyListeners();
+
+    try {
+      final baseUri = _openVoiceBackendService.parseBaseUri(_omniVoiceBackendUrl);
+      final health = await _openVoiceBackendService.fetchHealth(baseUri);
+      if (health.engineReady) {
+        _omniVoiceConnectionState = OpenVoiceBackendConnectionState.connected;
+        _omniVoiceBackendMessage =
+            'Backend is healthy at ${_omniVoiceBackendUrl.trim()}.';
+        if (showAsError) {
+          _errorMessage = null;
+        }
+      } else {
+        _omniVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+        _omniVoiceBackendMessage =
+            'Backend is not healthy at ${_omniVoiceBackendUrl.trim()}.';
+        if (showAsError) {
+          _errorMessage =
+              'Connected to ${health.backend} ${health.version}, but speech generation is not ready yet.';
+        }
+      }
+    } on OpenVoiceBackendException catch (error) {
+      _omniVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+      _omniVoiceBackendMessage =
+          'Backend is down at ${_omniVoiceBackendUrl.trim()}.';
+      if (showAsError) {
+        _errorMessage = error.message;
+      }
+    } catch (error) {
+      _omniVoiceConnectionState = OpenVoiceBackendConnectionState.error;
+      _omniVoiceBackendMessage =
+          'Backend is down at ${_omniVoiceBackendUrl.trim()}.';
       if (showAsError) {
         _errorMessage = error.toString();
       }
@@ -343,20 +448,126 @@ class VoiceLabState extends ChangeNotifier {
   }
 
   Future<String> _normalizeOpenVoiceSample(String sourceAudioPath) async {
-    final outputDir = Directory(
-      p.join(Directory.systemTemp.path, 'openvoice-reference'),
+    return _normalizeBackendSample(
+      sourceAudioPath,
+      tempDirName: 'openvoice-reference',
+      filePrefix: 'openvoice-reference',
     );
+  }
+
+  Future<String> _normalizeOmniVoiceSample(String sourceAudioPath) async {
+    return _normalizeBackendSample(
+      sourceAudioPath,
+      tempDirName: 'omnivoice-reference',
+      filePrefix: 'omnivoice-reference',
+    );
+  }
+
+  Future<String> _normalizeBackendSample(
+    String sourceAudioPath, {
+    required String tempDirName,
+    required String filePrefix,
+  }) async {
+    final outputDir = Directory(p.join(Directory.systemTemp.path, tempDirName));
     await outputDir.create(recursive: true);
 
     final normalizedPath = p.join(
       outputDir.path,
-      'openvoice-reference-${DateTime.now().microsecondsSinceEpoch}.wav',
+      '$filePrefix-${DateTime.now().microsecondsSinceEpoch}.wav',
     );
     await _libraryService.normalizeAudioToWav(
       sourceAudioPath: sourceAudioPath,
       destinationWavPath: normalizedPath,
     );
     return normalizedPath;
+  }
+
+  Future<void> generateWithOmniVoice() async {
+    final sharedText = _appState.inputText.trim();
+    if (sharedText.isEmpty) {
+      _errorMessage =
+          'Enter text on the Home screen before generating OmniVoice speech';
+      notifyListeners();
+      return;
+    }
+
+    final samplePath = _omniVoiceSamplePath;
+    if (samplePath == null || samplePath.trim().isEmpty) {
+      _errorMessage =
+          'Select a reference WAV or MP3 file for OmniVoice speech generation.';
+      notifyListeners();
+      return;
+    }
+
+    if (_omniVoiceConnectionState != OpenVoiceBackendConnectionState.connected) {
+      await checkOmniVoiceConnection(showAsError: true);
+      if (_omniVoiceConnectionState !=
+          OpenVoiceBackendConnectionState.connected) {
+        return;
+      }
+    }
+
+    _isOmniVoiceGenerationSubmitting = true;
+    _errorMessage = null;
+    _omniVoiceBackendMessage = 'Submitting OmniVoice speech job...';
+    notifyListeners();
+
+    try {
+      final baseUri = _openVoiceBackendService.parseBaseUri(_omniVoiceBackendUrl);
+      final normalizedSamplePath = await _normalizeOmniVoiceSample(samplePath);
+      final startedAt = DateTime.now();
+      final submission = await _openVoiceBackendService.submitJob(
+        baseUri: baseUri,
+        text: sharedText,
+        referenceAudioPath: normalizedSamplePath,
+        speed: _appState.speed,
+      );
+      _activeOmniVoiceJobId = submission.jobId;
+      _omniVoiceBackendMessage =
+          'OmniVoice speech job ${submission.jobId} submitted.';
+      notifyListeners();
+
+      final completedJob = await _openVoiceBackendService.waitForJobCompletion(
+        baseUri: baseUri,
+        jobId: submission.jobId,
+      );
+
+      if (completedJob.status == OpenVoiceJobStatus.failed) {
+        _errorMessage = completedJob.error ?? 'OmniVoice speech job failed.';
+        _omniVoiceBackendMessage =
+            'OmniVoice speech job ${submission.jobId} failed.';
+        return;
+      }
+      final outputPath = await _appState.createGeneratedAudioOutputPath(
+        prefix: 'omnivoice-speech',
+      );
+      final outputFile = await _openVoiceBackendService.downloadJobResult(
+        baseUri: baseUri,
+        jobId: submission.jobId,
+        outputPath: outputPath,
+      );
+
+      _appState.registerExternalGeneratedAudio(
+        label: 'omnivoice-${submission.jobId}',
+        modelId: 'omnivoice',
+        modelName: 'OmniVoice',
+        inputCharacterCount: sharedText.length,
+        speechSpeed: _appState.speed,
+        outputPath: outputFile.path,
+        startedAt: startedAt,
+      );
+      _omniVoiceBackendMessage =
+          'OmniVoice speech job ${submission.jobId} is ready on the Home screen.';
+    } on OpenVoiceBackendException catch (error) {
+      _errorMessage = error.message;
+      _omniVoiceBackendMessage = 'OmniVoice speech generation failed.';
+    } catch (error) {
+      _errorMessage = 'OmniVoice speech generation failed: $error';
+      _omniVoiceBackendMessage = 'OmniVoice speech generation failed.';
+    } finally {
+      _isOmniVoiceGenerationSubmitting = false;
+      notifyListeners();
+    }
   }
 
   /// Generates speech using a cloned voice via the Pocket TTS model.
@@ -427,9 +638,25 @@ class VoiceLabState extends ChangeNotifier {
     });
   }
 
+  void _startOmniVoiceHealthPolling() {
+    _stopOmniVoiceHealthPolling();
+    _omniVoiceHealthTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (_isOmniVoiceEnabled &&
+          _omniVoiceConnectionState !=
+              OpenVoiceBackendConnectionState.checking) {
+        unawaited(checkOmniVoiceConnection());
+      }
+    });
+  }
+
   void _stopOpenVoiceHealthPolling() {
     _openVoiceHealthTimer?.cancel();
     _openVoiceHealthTimer = null;
+  }
+
+  void _stopOmniVoiceHealthPolling() {
+    _omniVoiceHealthTimer?.cancel();
+    _omniVoiceHealthTimer = null;
   }
 
   @override
@@ -437,6 +664,7 @@ class VoiceLabState extends ChangeNotifier {
     _appState.removeListener(_handleAppStateChanged);
     unawaited(_previewSub?.cancel());
     _stopOpenVoiceHealthPolling();
+    _stopOmniVoiceHealthPolling();
     _openVoiceBackendService.dispose();
     _previewAudio.dispose();
     super.dispose();

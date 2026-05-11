@@ -19,8 +19,9 @@ class BackendModelDefinition:
     id: str
     display_name: str
     description: str
-    speaker_key: str
-    asset: ModelAsset
+    engine: str
+    download_assets: tuple[ModelAsset, ...] = ()
+    speaker_key: str = ''
 
 
 BACKEND_MODELS = (
@@ -28,36 +29,47 @@ BACKEND_MODELS = (
         id='en-default',
         display_name='English Default',
         description='Balanced OpenVoice base speaker checkpoint.',
+        engine='openvoice',
         speaker_key='EN-Default',
-        asset=BASE_SPEAKER_ASSETS['en-default'],
+        download_assets=(BASE_SPEAKER_ASSETS['en-default'],),
     ),
     BackendModelDefinition(
         id='en-us',
         display_name='English US',
         description='US English OpenVoice base speaker checkpoint.',
+        engine='openvoice',
         speaker_key='EN-US',
-        asset=BASE_SPEAKER_ASSETS['en-us'],
+        download_assets=(BASE_SPEAKER_ASSETS['en-us'],),
     ),
     BackendModelDefinition(
         id='en-au',
         display_name='English AU',
         description='Australian English OpenVoice base speaker checkpoint.',
+        engine='openvoice',
         speaker_key='EN-AU',
-        asset=BASE_SPEAKER_ASSETS['en-au'],
+        download_assets=(BASE_SPEAKER_ASSETS['en-au'],),
     ),
     BackendModelDefinition(
         id='en-br',
         display_name='English BR',
         description='Brazil-flavored English OpenVoice base speaker checkpoint.',
+        engine='openvoice',
         speaker_key='EN-BR',
-        asset=BASE_SPEAKER_ASSETS['en-br'],
+        download_assets=(BASE_SPEAKER_ASSETS['en-br'],),
     ),
     BackendModelDefinition(
         id='en-india',
         display_name='English India',
         description='Indian English OpenVoice base speaker checkpoint.',
+        engine='openvoice',
         speaker_key='EN-INDIA',
-        asset=BASE_SPEAKER_ASSETS['en-india'],
+        download_assets=(BASE_SPEAKER_ASSETS['en-india'],),
+    ),
+    BackendModelDefinition(
+        id='omnivoice-multilingual',
+        display_name='OmniVoice Multilingual',
+        description='Multilingual OmniVoice cloning model with automatic reference transcription.',
+        engine='omnivoice',
     ),
 )
 
@@ -72,15 +84,15 @@ class BackendModelManager:
 
     def list_models(self) -> list[dict[str, object]]:
         current_model_id = self.get_current_model_id()
-        runtime_ready = self.runtime_assets_ready()
         return [
             {
                 'id': model.id,
                 'display_name': model.display_name,
                 'description': model.description,
+                'engine': model.engine,
                 'downloaded': self.is_model_downloaded(model.id),
                 'is_current': model.id == current_model_id,
-                'runtime_ready': runtime_ready,
+                'runtime_ready': self.runtime_assets_ready(model.id),
             }
             for model in BACKEND_MODELS
         ]
@@ -142,21 +154,24 @@ class BackendModelManager:
             'id': model.id,
             'display_name': model.display_name,
             'description': model.description,
+            'engine': model.engine,
             'downloaded': self.is_model_downloaded(model.id),
             'is_current': model.id == current_model_id,
-            'runtime_ready': self.runtime_assets_ready(),
+            'runtime_ready': self.runtime_assets_ready(model.id),
         }
 
     def download_model(self, model_id: str) -> dict[str, object]:
         model = self.get_model(model_id)
-        self._bootstrapper.ensure_assets((*CORE_RUNTIME_ASSETS, model.asset))
+        if model.engine == 'openvoice':
+            self._bootstrapper.ensure_assets((*CORE_RUNTIME_ASSETS, *model.download_assets))
         return self.describe_model(model.id)
 
     def delete_model(self, model_id: str) -> dict[str, object]:
         model = self.get_model(model_id)
-        destination = self._bootstrapper.asset_destination(model.asset)
-        if destination.exists():
-            destination.unlink(missing_ok=True)
+        for asset in model.download_assets:
+            destination = self._bootstrapper.asset_destination(asset)
+            if destination.exists():
+                destination.unlink(missing_ok=True)
 
         if self.get_current_model_id() == model.id:
             fallback = self._pick_fallback_model_id(excluding=model.id)
@@ -174,10 +189,17 @@ class BackendModelManager:
 
     def is_model_downloaded(self, model_id: str) -> bool:
         model = self.get_model(model_id)
-        destination = self._bootstrapper.asset_destination(model.asset)
-        return destination.exists() and destination.stat().st_size > 0
+        if model.engine == 'omnivoice':
+            return True
+        for asset in model.download_assets:
+            destination = self._bootstrapper.asset_destination(asset)
+            if not destination.exists() or destination.stat().st_size <= 0:
+                return False
+        return True
 
-    def runtime_assets_ready(self) -> bool:
+    def runtime_assets_ready(self, model_id: str | None = None) -> bool:
+        if model_id is not None and self.get_model(model_id).engine == 'omnivoice':
+            return True
         for asset in CORE_RUNTIME_ASSETS:
             destination = self._bootstrapper.asset_destination(asset)
             if not destination.exists() or destination.stat().st_size <= 0:

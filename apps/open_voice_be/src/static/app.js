@@ -34,6 +34,7 @@ async function refreshAll() {
 function renderHealth(health) {
   const summary = [
     `${health.backend} ${health.version}`,
+    `${health.engine_display_name || health.engine} active`,
     health.engine_ready ? 'reachable' : 'has initialization issues',
     `current model: ${health.current_model_name || health.current_model_id || 'unknown'}`,
   ];
@@ -44,6 +45,7 @@ function renderHealth(health) {
 
   const stats = [
     { label: 'Engine', value: pill(health.engine_ready ? 'Ready' : 'Error', statusClass(health.engine_ready)) },
+    { label: 'Runtime', value: escapeHtml(health.engine_display_name || health.engine || 'unknown') },
     { label: 'Runtime assets', value: pill(health.runtime_assets_ready ? 'Downloaded' : 'Missing', statusClass(health.runtime_assets_ready)) },
     { label: 'Current model files', value: pill(health.models_loaded ? 'Ready' : 'Missing', statusClass(health.models_loaded)) },
     { label: 'Jobs in progress', value: String(health.jobs_in_progress) },
@@ -77,6 +79,7 @@ function renderModels(payload) {
         <td>
           <strong>${escapeHtml(model.display_name)}</strong>
           <div class="muted">${escapeHtml(model.description)}</div>
+          <div class="muted">engine: ${escapeHtml(model.engine)}</div>
         </td>
         <td>
           <div class="pill-row">${downloaded}${current}</div>

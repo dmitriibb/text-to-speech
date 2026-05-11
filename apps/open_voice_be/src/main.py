@@ -61,20 +61,21 @@ def create_app(
     async def health() -> HealthResponse:
         current_model = model_manager.get_current_model()
         models_loaded = (
-            model_manager.runtime_assets_ready()
+            model_manager.runtime_assets_ready(current_model.id)
             and model_manager.is_model_downloaded(current_model.id)
         )
         return HealthResponse(
             ok=engine.is_ready,
             backend=settings.app_name,
             version=settings.version,
-            engine='openvoice',
+            engine=engine.engine_name,
+            engine_display_name=engine.engine_display_name,
             engine_ready=engine.is_ready,
             models_loaded=models_loaded,
             jobs_in_progress=await job_store.count_in_progress(),
             current_model_id=current_model.id,
             current_model_name=current_model.display_name,
-            runtime_assets_ready=model_manager.runtime_assets_ready(),
+            runtime_assets_ready=model_manager.runtime_assets_ready(current_model.id),
             initialization_error=engine.initialization_error,
         )
 
@@ -82,7 +83,9 @@ def create_app(
     async def list_models() -> ModelCatalogResponse:
         return ModelCatalogResponse(
             current_model_id=model_manager.get_current_model_id(),
-            runtime_assets_ready=model_manager.runtime_assets_ready(),
+            runtime_assets_ready=model_manager.runtime_assets_ready(
+                model_manager.get_current_model_id(),
+            ),
             models=[
                 ModelSummaryResponse.model_validate(model)
                 for model in model_manager.list_models()

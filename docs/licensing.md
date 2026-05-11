@@ -106,7 +106,17 @@ This file records what is currently approved, what is blocked, and what is still
   - it is a voice-cloning and style-transfer path, not a drop-in replacement for the current shared runtime
   - desktop-only integration complexity is significantly higher than Piper, Kokoro, or KittenTTS
 
+### `OmniVoice`
+
+- Status for Phase 0 runtime: Not used
+- Status for future review: Candidate
+- Repository license signal: Apache-2.0
+- Hugging Face model card license signal: Apache-2.0
+- Why it is not a current shared app model:
+  - it is a PyTorch and Transformers runtime, not a drop-in `sherpa-onnx` model
+  - desktop-only integration currently fits best as a separate backend path
+  - redistribution of the exact downloaded backend assets still needs a shipping review even though the license signal is promising
+
 ## Rule for the repo
 
 If a model license or redistribution status is Unknown, we can use it for local evaluation only. We do not bundle or distribute it with the applications until the missing license evidence is captured.
-
