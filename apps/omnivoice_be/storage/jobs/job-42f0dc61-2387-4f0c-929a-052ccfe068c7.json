@@ -1,0 +1,31 @@
+{
+  "job_id": "job-42f0dc61-2387-4f0c-929a-052ccfe068c7",
+  "job_type": "design",
+  "status": "failed",
+  "text": "The dataset viewer\u2019s backend provides an API for visualizing and exploring all types of datasets - computer vision, speech, text, and tabular - stored on the Hugging Face Hub.\n\nThe main feature of the dataset viewer\u2019s backend is to auto-convert all the Hub datasets to Parquet. Read more in the Parquet section.\n\nAs datasets increase in size and data type richness, the cost of preprocessing (storage and compute) these datasets can be challenging and time-consuming. To help users access these modern datasets, The dataset viewer runs a server behind the scenes to generate the API responses ahead of time and stores them in a database so they are instantly returned when you make a query through the API.",
+  "language": "en",
+  "speed": 1.0,
+  "model_id": "omnivoice-multilingual",
+  "voice_id": "narrator-female",
+  "voice_label": "Narrator Female",
+  "reference_audio_path": null,
+  "reference_text": null,
+  "instruct": "female, calm, clear narration, medium pitch",
+  "duration": null,
+  "num_step": null,
+  "result_audio_path": null,
+  "error": "Unsupported instruct items found in female, calm, clear narration, medium pitch:\n  'calm' -> 'calm' (unsupported)\n  'clear narration' -> 'clear narration' (unsupported)\n  'medium pitch' -> 'medium pitch' (unsupported; did you mean 'high pitch'?)\n\nValid English items: american accent, australian accent, british accent, canadian accent, child, chinese accent, elderly, female, high pitch, indian accent, japanese accent, korean accent, low pitch, male, middle-aged, moderate pitch, portuguese accent, russian accent, teenager, very high pitch, very low pitch, whisper, young adult\nValid Chinese items: \u4e1c\u5317\u8bdd\uff0c\u4e2d\u5e74\uff0c\u4e2d\u97f3\u8c03\uff0c\u4e91\u5357\u8bdd\uff0c\u4f4e\u97f3\u8c03\uff0c\u513f\u7ae5\uff0c\u56db\u5ddd\u8bdd\uff0c\u5973\uff0c\u5b81\u590f\u8bdd\uff0c\u5c11\u5e74\uff0c\u6781\u4f4e\u97f3\u8c03\uff0c\u6781\u9ad8\u97f3\u8c03\uff0c\u6842\u6797\u8bdd\uff0c\u6cb3\u5357\u8bdd\uff0c\u6d4e\u5357\u8bdd\uff0c\u7518\u8083\u8bdd\uff0c\u7537\uff0c\u77f3\u5bb6\u5e84\u8bdd\uff0c\u8001\u5e74\uff0c\u8033\u8bed\uff0c\u8d35\u5dde\u8bdd\uff0c\u9655\u897f\u8bdd\uff0c\u9752\u5c9b\u8bdd\uff0c\u9752\u5e74\uff0c\u9ad8\u97f3\u8c03\n\nTip: Use only English or only Chinese instructs. English instructs should use comma + space (e.g. 'male, indian accent'),\nChinese instructs should use full-width comma (e.g. '\u7537\uff0c\u6cb3\u5357\u8bdd').",
+  "submitted_at": "2026-05-23T07:34:15.057786Z",
+  "started_at": "2026-05-23T07:34:15.059423Z",
+  "completed_at": "2026-05-23T07:35:28.783667Z",
+  "result": {
+    "audio_ready": false,
+    "download_path": null,
+    "sample_rate": null,
+    "metadata": {
+      "job_type": "design",
+      "voice_id": "narrator-female",
+      "voice_label": "Narrator Female"
+    }
+  }
+}

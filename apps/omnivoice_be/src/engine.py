@@ -39,7 +39,7 @@ VOICE_DEFINITIONS: tuple[OmniVoiceVoiceDefinition, ...] = (
         description='Calm, clear narration tuned for longer passages and explainers.',
         mode=VoiceMode.design,
         supports_instruction_editing=True,
-        preset_instruction='female, calm, clear narration, medium pitch',
+        preset_instruction='female, middle-aged, moderate pitch',
     ),
     OmniVoiceVoiceDefinition(
         id='narrator-male',
@@ -47,7 +47,7 @@ VOICE_DEFINITIONS: tuple[OmniVoiceVoiceDefinition, ...] = (
         description='Steady male narration voice with lower pitch and a measured pace.',
         mode=VoiceMode.design,
         supports_instruction_editing=True,
-        preset_instruction='male, calm, low pitch, documentary narrator',
+        preset_instruction='male, middle-aged, low pitch',
     ),
     OmniVoiceVoiceDefinition(
         id='conversational-warm',
@@ -55,7 +55,7 @@ VOICE_DEFINITIONS: tuple[OmniVoiceVoiceDefinition, ...] = (
         description='Friendly, approachable voice for demos, chats, and assistants.',
         mode=VoiceMode.design,
         supports_instruction_editing=True,
-        preset_instruction='warm, friendly, conversational, natural pacing',
+        preset_instruction='female, young adult, moderate pitch',
     ),
     OmniVoiceVoiceDefinition(
         id='british-female',
@@ -63,7 +63,7 @@ VOICE_DEFINITIONS: tuple[OmniVoiceVoiceDefinition, ...] = (
         description='Voice design preset with a British English accent.',
         mode=VoiceMode.design,
         supports_instruction_editing=True,
-        preset_instruction='female, british accent, articulate, medium pitch',
+        preset_instruction='female, british accent, moderate pitch',
     ),
     OmniVoiceVoiceDefinition(
         id='british-male',
@@ -71,7 +71,7 @@ VOICE_DEFINITIONS: tuple[OmniVoiceVoiceDefinition, ...] = (
         description='Voice design preset with a British English accent and lower pitch.',
         mode=VoiceMode.design,
         supports_instruction_editing=True,
-        preset_instruction='male, british accent, low pitch, articulate',
+        preset_instruction='male, british accent, low pitch',
     ),
     OmniVoiceVoiceDefinition(
         id='whisper-female',
@@ -79,7 +79,7 @@ VOICE_DEFINITIONS: tuple[OmniVoiceVoiceDefinition, ...] = (
         description='Soft whisper-style voice design preset for expressive short lines.',
         mode=VoiceMode.design,
         supports_instruction_editing=True,
-        preset_instruction='female, whisper, soft, intimate',
+        preset_instruction='female, whisper, moderate pitch',
     ),
 )
 

@@ -94,7 +94,7 @@ class OmniVoiceApiTests(unittest.TestCase):
                 'text': 'hello there',
                 'voice_id': 'narrator-female',
                 'language': 'en',
-                'instruct': 'female, calm narrator',
+                'instruct': 'female, moderate pitch',
                 'num_step': '16',
             },
         )

@@ -1,0 +1,31 @@
+{
+  "job_id": "job-042ade20-6560-40a1-85f2-a81c3ca6fc8f",
+  "job_type": "design",
+  "status": "succeeded",
+  "text": "The dataset page includes a table with the dataset\u2019s contents, arranged by pages of 100 rows. You can navigate between pages using the buttons at the bottom of the table, filter, search, look at basic statistics, and more.",
+  "language": "en",
+  "speed": 1.0,
+  "model_id": "omnivoice-multilingual",
+  "voice_id": "narrator-female",
+  "voice_label": "Narrator Female",
+  "reference_audio_path": null,
+  "reference_text": null,
+  "instruct": "female, middle-aged, moderate pitch",
+  "duration": null,
+  "num_step": null,
+  "result_audio_path": "/home/dmitrii/projects/text-to-speech/apps/omnivoice_be/storage/results/job-042ade20-6560-40a1-85f2-a81c3ca6fc8f.wav",
+  "error": null,
+  "submitted_at": "2026-05-23T16:41:21.059580Z",
+  "started_at": "2026-05-23T16:41:21.060494Z",
+  "completed_at": "2026-05-23T16:42:55.992492Z",
+  "result": {
+    "audio_ready": true,
+    "download_path": "/jobs/job-042ade20-6560-40a1-85f2-a81c3ca6fc8f/result",
+    "sample_rate": null,
+    "metadata": {
+      "job_type": "design",
+      "voice_id": "narrator-female",
+      "voice_label": "Narrator Female"
+    }
+  }
+}

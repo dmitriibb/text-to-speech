@@ -1,0 +1,27 @@
+{
+  "job_id": "job-a4055917-b50b-4b01-b69c-699f12373e95",
+  "job_type": "design",
+  "status": "running",
+  "text": "The dataset viewer\u2019s backend provides an API for visualizing and exploring all types of datasets - computer vision, speech, text, and tabular - stored on the Hugging Face Hub.\n\nThe main feature of the dataset viewer\u2019s backend is to auto-convert all the Hub datasets to Parquet. Read more in the Parquet section.\n\nAs datasets increase in size and data type richness, the cost of preprocessing (storage and compute) these datasets can be challenging and time-consuming. To help users access these modern datasets, The dataset viewer runs a server behind the scenes to generate the API responses ahead of time and stores them in a database so they are instantly returned when you make a query through the API.",
+  "language": "en",
+  "speed": 1.0,
+  "model_id": "omnivoice-multilingual",
+  "voice_id": "narrator-female",
+  "voice_label": "Narrator Female",
+  "reference_audio_path": null,
+  "reference_text": null,
+  "instruct": "female, middle-aged, moderate pitch",
+  "duration": null,
+  "num_step": null,
+  "result_audio_path": null,
+  "error": null,
+  "submitted_at": "2026-05-23T08:00:51.304400Z",
+  "started_at": "2026-05-23T08:00:51.316917Z",
+  "completed_at": null,
+  "result": {
+    "audio_ready": false,
+    "download_path": null,
+    "sample_rate": null,
+    "metadata": {}
+  }
+}
