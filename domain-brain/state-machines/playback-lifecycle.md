@@ -27,6 +27,7 @@
 
 - Exactly one generated audio may be active at a time across the app.
 - The shared generated-audio player uses play/pause semantics; full stop is reserved for reset, removal, replacement, shutdown, or failure.
+- Dialog mode maps full stop to sequence reset: the next Dialog play starts from the first generated non-empty line.
 - Pause, seek, and destructive task actions must take effect during active playback rather than waiting for the clip to finish.
 - On Windows desktop, replaying or seeking the active clip must keep control of the same loaded audio session rather than starting a second overlapping playback.
 - Both desktop and Android now use in-app player state with seekable position updates.

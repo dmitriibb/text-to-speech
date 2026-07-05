@@ -7,6 +7,7 @@ import '../state/app_state.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/settings_panel.dart';
 import '../widgets/text_input_panel.dart';
+import 'dialog_screen.dart';
 import 'live_tts_screen.dart';
 import 'models_screen.dart';
 import 'voice_lab_screen.dart';
@@ -128,6 +129,10 @@ class HomeScreen extends StatelessWidget {
       case AppDestination.liveTts:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const LiveTtsScreen()),
+        );
+      case AppDestination.dialog:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const DialogScreen()),
         );
       case AppDestination.models:
         Navigator.of(context).pushReplacement(

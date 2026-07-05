@@ -16,10 +16,11 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 8. Live mode plays one generated chunk at a time in order, promotes the next ready chunk immediately when playback finishes, and may keep later chunks generating in the background.
 9. Live mode exposes play or pause for the current chunk and a separate stop action that halts playback, cancels further generation, and clears temporary chunk buffers.
 10. Live-mode chunk `.wav` files are temporary playback buffers only; they are not restored into the persistent generated-audio task list.
-11. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
-12. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
-13. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
-14. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
+11. Dialog mode plays generated line `.wav` files one at a time in transcript order, pauses and resumes the current line in place, and stop resets the next sequence play to the beginning.
+12. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
+13. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
+14. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
+15. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
 
 ## Invariants
 
@@ -33,6 +34,8 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Per-model stats cap aggregated character count at `1,000,000` while preserving the current averaged rates so the file stays bounded.
 - Live mode still honors the single-active-audio rule; starting the next chunk replaces the previous chunk playback rather than overlapping it.
 - Live-mode chunk buffer files are temporary and must be deleted when the live session stops or completes.
+- Dialog mode honors the single-active-audio rule; playing a line or sequence replaces any other active playback.
+- Dialog sequence play skips cleared lines and lines without generated output.
 - If generated audio survives app restart on disk, the task list must restore an entry for it on startup so the user can delete it later.
 - Task-row playback and output actions target the selected task's `.wav`, not just the most recent global output path.
 - Only one generated audio may be active at a time across the app.
@@ -59,3 +62,4 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - task-row output action targets the wrong generated file
 - generated audio file remains on disk after its task is dismissed
 - live-mode chunk buffers survive after the live session stops
+- dialog sequence playback overlaps lines or fails to reset to the first line after stop

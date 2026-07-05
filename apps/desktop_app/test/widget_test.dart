@@ -27,6 +27,7 @@ void main() {
 
     expect(find.text('Home'), findsOneWidget);
     expect(find.text('Live TTS'), findsOneWidget);
+    expect(find.text('Dialog'), findsOneWidget);
     expect(find.text('Models'), findsOneWidget);
     expect(find.text('Voice Lab'), findsOneWidget);
 

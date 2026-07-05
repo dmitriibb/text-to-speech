@@ -6,6 +6,7 @@ import '../state/app_state.dart';
 import '../widgets/app_navigation_drawer.dart';
 import '../widgets/error_banner.dart';
 import 'about_screen.dart';
+import 'dialog_screen.dart';
 import 'home_screen.dart';
 import 'live_tts_screen.dart';
 import 'settings_screen.dart';
@@ -77,6 +78,10 @@ class ModelsScreen extends StatelessWidget {
       case AppDestination.liveTts:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const LiveTtsScreen()),
+        );
+      case AppDestination.dialog:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const DialogScreen()),
         );
       case AppDestination.models:
         break;

@@ -25,12 +25,14 @@ flows:
     paths:
       - apps/android_app/lib/screens/home_screen.dart
       - apps/android_app/lib/screens/live_tts_screen.dart
+      - apps/android_app/lib/screens/dialog_screen.dart
       - apps/android_app/lib/screens/about_screen.dart
       - apps/android_app/lib/screens/models_screen.dart
       - apps/android_app/lib/screens/settings_screen.dart
       - apps/android_app/lib/widgets/app_navigation_drawer.dart
       - apps/desktop_app/lib/screens/home_screen.dart
       - apps/desktop_app/lib/screens/live_tts_screen.dart
+      - apps/desktop_app/lib/screens/dialog_screen.dart
       - apps/desktop_app/lib/screens/models_screen.dart
       - apps/desktop_app/lib/screens/voice_lab_screen.dart
       - apps/desktop_app/lib/widgets/app_navigation_drawer.dart
@@ -73,7 +75,9 @@ flows:
       - packages/tts_core/lib/src/services/live_tts_session.dart
       - packages/tts_core/lib/src/services/isolate_task_executor.dart
       - packages/tts_core/lib/src/services/text_input_validator.dart
+      - packages/tts_core/lib/src/models/dialog_mode.dart
       - packages/shared_ui/lib/src/widgets/live_text_input_editor.dart
+      - packages/shared_ui/lib/src/widgets/dialog_mode_panel.dart
       - packages/shared_ui/lib/src/widgets/voice_settings_controls.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/state/app_state.dart
@@ -101,6 +105,7 @@ flows:
       - apps/desktop_app/lib/state/app_state.dart
       - apps/android_app/lib/state/app_state.dart
       - packages/shared_ui/lib/src/widgets/live_text_input_editor.dart
+      - packages/shared_ui/lib/src/widgets/dialog_mode_panel.dart
       - packages/shared_ui/lib/src/widgets/audio_playback_controls.dart
       - packages/shared_ui/lib/src/widgets/generation_estimate_summary.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart

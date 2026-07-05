@@ -14,6 +14,7 @@ class TaskManager extends ChangeNotifier {
 
   final BackgroundTaskExecutor _executor;
   final Map<String, LongRunningTask> _tasks = {};
+  int _taskIdCounter = 0;
   int _speechCounter = 0;
   int _modelLoadCounter = 0;
   Timer? _ticker;
@@ -487,7 +488,8 @@ class TaskManager extends ChangeNotifier {
   }
 
   String _nextTaskId() {
-    return 'task-${DateTime.now().microsecondsSinceEpoch}';
+    _taskIdCounter++;
+    return 'task-${DateTime.now().microsecondsSinceEpoch}-$_taskIdCounter';
   }
 
   Map<String, Object?> _buildModelPayload({

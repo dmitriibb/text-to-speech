@@ -24,6 +24,10 @@ A local `.wav` artifact produced after successful synthesis and then used for pl
 
 Speech generation that runs entirely on the device through `sherpa-onnx` with no cloud dependency.
 
+## Dialog Mode
+
+A Basic navigation destination that parses clipboard text in `Speaker: line` form, assigns a ready local model and optional speaker voice per person, generates one `.wav` per non-empty dialog line, and plays those line outputs in order.
+
 ## Development Model
 
 A model approved for local validation and development use, but not yet approved for redistribution in shipped apps.

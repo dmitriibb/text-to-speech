@@ -20,6 +20,8 @@ Generate understandable speech locally from user-provided text with no cloud dep
 12. Live mode also highlights generating, next-ready, and currently playing text chunks directly inside the shared editor.
 13. Live TTS uses a dedicated screen with chunk size, play or pause, and stop controls above a large internally scrollable editor.
 14. In live mode, the main control toggles between play and pause for the current chunk, while stop cancels remaining generation and clears temporary generated chunk buffers.
+15. In Dialog mode, clipboard text is parsed as `Speaker: line`; each valid non-empty line is queued as its own local synthesis task using the model and optional speaker voice assigned to that person.
+16. Dialog speaker settings are per parsed speaker name; changing a person's model or voice clears generated output for that person's existing lines.
 
 ## Invariants
 
@@ -33,6 +35,8 @@ Generate understandable speech locally from user-provided text with no cloud dep
 - Live mode chunk size is a positive word count and defaults to `10`.
 - Live mode uses the same selected ready model, speaker, and speed settings as normal synthesis.
 - Live mode stop must release already generated chunk buffers instead of keeping them in memory or on disk for later reuse.
+- Dialog mode requires every non-empty line to have a ready model assignment before generation starts.
+- Dialog line generation writes one `.wav` per line and keeps the speaker name and line text immutable in the compact line row; removing a row is the destructive line-level action.
 - Android inference provider selection is persisted across app launches and applies to model preload, normal synthesis, and live TTS.
 - Android NNAPI acceleration is best-effort: supported work may use device acceleration and unsupported work must fall back to CPU.
 - After install, synthesis works offline.
@@ -49,5 +53,7 @@ Generate understandable speech locally from user-provided text with no cloud dep
 - model load or generation finishes after the user has already requested cancellation
 - runtime synthesis error
 - live-mode chunk generation fails after earlier chunks have already started playback
+- dialog clipboard import has no valid `Speaker: text` lines
+- dialog generation starts with a missing or non-ready speaker model
 - Pocket TTS bundled reference clip missing from an installed model directory
 - `.wav` file write failure

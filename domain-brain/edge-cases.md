@@ -30,6 +30,24 @@
 - Scenario: The user stops live mode while future chunks are already generated or still generating.
   Expected handling: active playback stops, background chunk work is cancelled, and temporary chunk `.wav` buffers are deleted.
 
+- Scenario: The user opens Dialog mode before importing any transcript.
+  Expected handling: the screen shows only the `Paste from buffer` action.
+
+- Scenario: Dialog clipboard content contains blank lines or rows without a `Speaker: text` separator.
+  Expected handling: invalid rows are skipped; if no valid rows remain, import fails with a clear message.
+
+- Scenario: The user changes a Dialog speaker's model or voice after generating line audio.
+  Expected handling: generated audio for that speaker's lines is invalidated so playback cannot use stale output with the wrong voice.
+
+- Scenario: The user stops Dialog sequence playback and presses play again.
+  Expected handling: playback restarts from the first generated non-empty line.
+
+- Scenario: A stale playback `stopped` event arrives while Dialog mode is loading the next line.
+  Expected handling: auto-advance ignores it until the newly selected line has actually entered `playing`, so lines are not skipped or repeated.
+
+- Scenario: Dialog generation queues several lines within the same system clock tick.
+  Expected handling: each line still receives a unique task ID and output `.wav` path so rows cannot point at another line's generated audio.
+
 - Scenario: The user pauses live mode while background generation is still running.
   Expected handling: current playback pauses in place, already in-flight chunk generation may finish, and buffering stops growing once 4 ready chunks are waiting.
 

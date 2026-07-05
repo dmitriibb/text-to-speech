@@ -9,6 +9,7 @@ import '../models/cloned_voice.dart';
 import '../services/open_voice_backend_service.dart';
 import '../state/voice_lab_state.dart';
 import '../widgets/app_navigation_drawer.dart';
+import 'dialog_screen.dart';
 import 'home_screen.dart';
 import 'live_tts_screen.dart';
 import 'models_screen.dart';
@@ -166,6 +167,10 @@ class VoiceLabScreen extends StatelessWidget {
       case AppDestination.liveTts:
         Navigator.of(context).pushReplacement(
           MaterialPageRoute<void>(builder: (context) => const LiveTtsScreen()),
+        );
+      case AppDestination.dialog:
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute<void>(builder: (context) => const DialogScreen()),
         );
       case AppDestination.models:
         Navigator.of(context).pushReplacement(

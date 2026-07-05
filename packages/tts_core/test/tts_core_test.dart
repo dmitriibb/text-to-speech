@@ -8,6 +8,41 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tts_core/tts_core.dart';
 
 void main() {
+  test('parses dialog clipboard text into speaker lines', () {
+    const rawDialog = '''
+Mitarbeiterin: Guten Tag, Bürgeramt Berlin. Wie kann ich helfen?
+Omar: Guten Tag. Ich habe nächsten Monat einen Termin.
+
+Mitarbeiterin: An welchem Tag ist der Termin?
+invalid line
+Omar: Der Termin ist am Montag.
+''';
+
+    final lines = const DialogModeParser().parse(rawDialog);
+
+    expect(lines, hasLength(4));
+    expect(lines[0].speakerName, 'Mitarbeiterin');
+    expect(lines[0].text, 'Guten Tag, Bürgeramt Berlin. Wie kann ich helfen?');
+    expect(lines[1].speakerName, 'Omar');
+    expect(lines[2].speakerName, 'Mitarbeiterin');
+    expect(lines[3].text, 'Der Termin ist am Montag.');
+  });
+
+  test('dialog parser ignores blank or incomplete speaker rows', () {
+    final lines = const DialogModeParser().parse(
+      [
+        ': missing speaker',
+        'Speaker:',
+        'Speaker: ${'   '}',
+        'Speaker: valid line',
+      ].join('\n'),
+    );
+
+    expect(lines, hasLength(1));
+    expect(lines.single.speakerName, 'Speaker');
+    expect(lines.single.text, 'valid line');
+  });
+
   test('parses the approved model catalog shape', () {
     const rawCatalog = '''
 {
@@ -499,6 +534,29 @@ void main() {
     final queuedTask = manager.tasks.firstWhere((task) => task.id == taskId);
     expect(queuedTask.label, 'speech-3');
     expect(queuedTask.modelName, _demoVoiceModel.displayName);
+  });
+
+  test('rapid synthesis submissions get unique task ids', () async {
+    final manager = TaskManager(executor: _FakeBackgroundTaskExecutor());
+    addTearDown(manager.dispose);
+
+    await manager.initialize();
+    final taskIds = <String>[];
+    for (var index = 0; index < 5; index++) {
+      taskIds.add(
+        await manager.submitSynthesis(
+          modelDir: '/tmp/demo-model',
+          voice: _demoVoiceModel,
+          text: 'line $index',
+          speed: 1,
+          speakerId: 0,
+          outputPath: '/tmp/generated_audio/dialog-$index.wav',
+        ),
+      );
+    }
+
+    expect(taskIds.toSet(), hasLength(taskIds.length));
+    expect(manager.tasks, hasLength(taskIds.length));
   });
 
   test(
