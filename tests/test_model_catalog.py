@@ -5,6 +5,10 @@ import unittest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CATALOG_PATH = REPO_ROOT / "packages" / "model_catalog" / "approved_models.json"
+APP_CATALOG_PATHS = [
+    REPO_ROOT / "apps" / "desktop_app" / "assets" / "approved_models.json",
+    REPO_ROOT / "apps" / "android_app" / "assets" / "approved_models.json",
+]
 
 
 class ModelCatalogTests(unittest.TestCase):
@@ -32,6 +36,17 @@ class ModelCatalogTests(unittest.TestCase):
             self.assertIn("install", model)
             self.assertIn("files", model)
             self.assertIn("defaults", model)
+
+    def test_app_catalog_assets_match_canonical_catalog(self) -> None:
+        for path in APP_CATALOG_PATHS:
+            with self.subTest(path=path):
+                self.assertEqual(json.loads(path.read_text(encoding="utf-8")), self.catalog)
+
+    def test_german_dialog_models_are_available(self) -> None:
+        model_ids = {model["id"] for model in self.catalog["models"]}
+        self.assertIn("vits-piper-de_DE-thorsten-medium", model_ids)
+        self.assertIn("vits-piper-de_DE-thorsten-high", model_ids)
+        self.assertIn("vits-piper-de_DE-kerstin-low", model_ids)
 
 
 if __name__ == "__main__":

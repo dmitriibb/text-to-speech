@@ -1,6 +1,6 @@
 {
     "catalog_version":  1,
-    "updated_on":  "2026-04-11",
+    "updated_on":  "2026-07-05",
     "default_model_id":  "vits-piper-en_US-lessac-medium",
     "models":  [
                    {
@@ -481,6 +481,162 @@
                                             "name":  "zm_yunyang"
                                         }
                                     ]
+                   },
+                   {
+                       "id":  "vits-piper-de_DE-thorsten-medium",
+                       "display_name":  "Piper German Thorsten Medium",
+                       "family":  "vits",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  64.1,
+                       "supported_languages":  [
+                                                   "German"
+                                               ],
+                       "description":  "Single-speaker German voice for everyday offline speech. Balanced quality and footprint for dialog playback.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Capture an explicit release-level license statement for the exported German Piper model artifact",
+                                                                            "Confirm redistribution terms for the original Thorsten training data and voice assets"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/all/German/vits-piper-de_DE-thorsten-medium.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-de_DE-thorsten-medium.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Pin the checksum from the upstream release asset or",
+                                                                              "download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Unknown",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "Thorsten German voice dataset"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "vits-piper-de_DE-thorsten-medium",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "de_DE-thorsten-medium.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "data_dir":  "espeak-ng-data"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  1,
+                                        "speed":  1.0,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    }
+                   },
+                   {
+                       "id":  "vits-piper-de_DE-thorsten-high",
+                       "display_name":  "Piper German Thorsten High",
+                       "family":  "vits",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  110.2,
+                       "supported_languages":  [
+                                                   "German"
+                                               ],
+                       "description":  "Higher-quality single-speaker German Thorsten voice. Larger download than the medium model.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Capture an explicit release-level license statement for the exported German Piper model artifact",
+                                                                            "Confirm redistribution terms for the original Thorsten training data and voice assets"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/all/German/vits-piper-de_DE-thorsten-high.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-de_DE-thorsten-high.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Pin the checksum from the upstream release asset or",
+                                                                              "download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Unknown",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "Thorsten German voice dataset"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "vits-piper-de_DE-thorsten-high",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "de_DE-thorsten-high.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "data_dir":  "espeak-ng-data"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  1,
+                                        "speed":  1.0,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    }
+                   },
+                   {
+                       "id":  "vits-piper-de_DE-kerstin-low",
+                       "display_name":  "Piper German Kerstin Low",
+                       "family":  "vits",
+                       "runtime":  "sherpa-onnx",
+                       "size_mb":  64.0,
+                       "supported_languages":  [
+                                                   "German"
+                                               ],
+                       "description":  "Small single-speaker German Kerstin voice. Useful as a contrasting voice for dialog speakers.",
+                       "phase0_default":  false,
+                       "status":  {
+                                      "approved_for_local_validation":  true,
+                                      "approved_for_distribution":  false,
+                                      "distribution_decision":  "Unknown",
+                                      "needed_to_decide_distribution":  [
+                                                                            "Capture an explicit release-level license statement for the exported German Piper model artifact",
+                                                                            "Confirm redistribution terms for the original Kerstin training data and voice assets"
+                                                                        ]
+                                  },
+                       "source":  {
+                                      "homepage":  "https://k2-fsa.github.io/sherpa/onnx/tts/all/German/vits-piper-de_DE-kerstin-low.html",
+                                      "archive_url":  "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-de_DE-kerstin-low.tar.bz2",
+                                      "archive_sha256":  "Unknown",
+                                      "needed_to_decide_archive_sha256":  [
+                                                                              "Pin the checksum from the upstream release asset or",
+                                                                              "download once and store a verified local checksum in project metadata"
+                                                                          ]
+                                  },
+                       "licensing":  {
+                                         "runtime_license":  "Apache-2.0",
+                                         "model_license":  "Unknown",
+                                         "dataset_license":  "Unknown",
+                                         "dataset_name":  "Kerstin German voice dataset"
+                                     },
+                       "install":  {
+                                       "install_dir_name":  "vits-piper-de_DE-kerstin-low",
+                                       "archive_format":  "tar.bz2"
+                                   },
+                       "files":  {
+                                     "model":  "de_DE-kerstin-low.onnx",
+                                     "tokens":  "tokens.txt",
+                                     "data_dir":  "espeak-ng-data"
+                                 },
+                       "defaults":  {
+                                        "provider":  "cpu",
+                                        "num_threads":  1,
+                                        "speed":  1.0,
+                                        "speaker_id":  0,
+                                        "max_num_sentences":  1
+                                    }
                    },
                    {
                        "id":  "pocket-tts-en",

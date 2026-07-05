@@ -74,6 +74,39 @@ This file records what is currently approved, what is blocked, and what is still
   - capture an explicit release-level license statement for the sherpa-converted KittenTTS archive
   - verify whether any bundled speaker assets add extra redistribution constraints
 
+### `vits-piper-de_DE-thorsten-medium`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Unknown
+- Dataset license: Unknown
+- Needed to decide:
+  - explicit model artifact license from the upstream exported release
+  - redistribution terms for the original Thorsten German voice dataset and voice assets
+
+### `vits-piper-de_DE-thorsten-high`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Unknown
+- Dataset license: Unknown
+- Needed to decide:
+  - explicit model artifact license from the upstream exported release
+  - redistribution terms for the original Thorsten German voice dataset and voice assets
+
+### `vits-piper-de_DE-kerstin-low`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Unknown
+- Dataset license: Unknown
+- Needed to decide:
+  - explicit model artifact license from the upstream exported release
+  - redistribution terms for the original Kerstin German voice dataset and voice assets
+
 ## Candidate for later shipping review
 
 ### `en_US-ljspeech-medium` from `rhasspy/piper-voices`
