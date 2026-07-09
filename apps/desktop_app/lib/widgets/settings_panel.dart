@@ -20,11 +20,13 @@ class SettingsPanel extends StatelessWidget {
               readyModels: state.readyModels,
               selectedModel: state.selectedModel,
               selectedSpeakerId: state.selectedSpeakerId,
+              selectedGenerationLanguage: state.selectedGenerationLanguage,
               speed: state.speed,
               canSelectModel: state.readyModels.isNotEmpty,
               canAdjustSpeed: true,
               onModelSelected: (model) => state.selectModel(model),
               onSpeakerSelected: state.setSpeakerId,
+              onGenerationLanguageSelected: state.setGenerationLanguage,
               onSpeedChanged: state.setSpeed,
             ),
             if (state.availableProviders.length > 1) ...[

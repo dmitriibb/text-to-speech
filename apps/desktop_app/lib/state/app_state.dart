@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -15,9 +16,16 @@ enum SynthesisStatus { idle, generating, done, error }
 
 /// Top-level application state.
 class AppState extends ChangeNotifier {
+  static const String _settingsFileName = 'settings.json';
+  static const String _dialogGenerationConcurrencyKey =
+      'dialogGenerationConcurrency';
+
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
-  final TaskManager taskManager = TaskManager(executor: IsolateTaskExecutor());
+  final BackgroundTaskExecutorPool _taskExecutor = BackgroundTaskExecutorPool(
+    executorFactory: () => IsolateTaskExecutor(),
+  );
+  late final TaskManager taskManager = TaskManager(executor: _taskExecutor);
   GeneratedAudioStore? _generatedAudioStore;
   Map<String, GeneratedAudioStatistics> _generatedAudioStatistics = const {};
   final Set<String> _persistedGeneratedAudioPaths = <String>{};
@@ -36,6 +44,7 @@ class AppState extends ChangeNotifier {
   String _inputText = '';
   double _speed = speechSpeedDefault;
   int _selectedSpeakerId = 0;
+  String _selectedGenerationLanguage = '';
   int _inputCursorOffset = 0;
   SynthesisStatus _synthesisStatus = SynthesisStatus.idle;
   String? _errorMessage;
@@ -54,6 +63,7 @@ class AppState extends ChangeNotifier {
   bool _dialogPlaybackStarted = false;
   bool _isAdvancingDialogPlayback = false;
   bool _isStoppingDialogPlayback = false;
+  int _dialogGenerationConcurrency = 4;
 
   // ---- Audio state ----
   String? _generatedWavPath;
@@ -82,6 +92,7 @@ class AppState extends ChangeNotifier {
   String get inputText => _inputText;
   double get speed => _speed;
   int get selectedSpeakerId => _selectedSpeakerId;
+  String get selectedGenerationLanguage => _selectedGenerationLanguage;
   int get inputCursorOffset => _inputCursorOffset;
   SynthesisStatus get synthesisStatus => _synthesisStatus;
   String? get errorMessage => _errorMessage;
@@ -103,6 +114,7 @@ class AppState extends ChangeNotifier {
   Map<String, DialogSpeakerSettings> get dialogSpeakerSettings =>
       _dialogSpeakerSettings;
   String? get dialogErrorMessage => _dialogErrorMessage;
+  int get dialogGenerationConcurrency => _dialogGenerationConcurrency;
   bool get isDialogGenerating => _dialogLines.any(
     (line) =>
         line.status == DialogLineStatus.queued ||
@@ -174,6 +186,9 @@ class AppState extends ChangeNotifier {
 
   /// Call once at startup to init bindings and scan models.
   Future<void> initialize() async {
+    final settings = await _loadDesktopSettings();
+    _dialogGenerationConcurrency = settings.dialogGenerationConcurrency;
+    _taskExecutor.workerCount = _dialogGenerationConcurrency;
     taskManager.addListener(_handleTaskManagerChanged);
 
     _audioSubscription = _audioService.onStateChanged.listen((state) {
@@ -268,6 +283,7 @@ class AppState extends ChangeNotifier {
       model.voice,
       preferredSpeakerId: model.voice.defaultSpeakerId,
     );
+    _selectedGenerationLanguage = model.voice.resolveGenerationLanguage(null);
     _errorMessage = null;
     notifyListeners();
 
@@ -453,6 +469,26 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setGenerationLanguage(String language) {
+    final selectedModel = _selectedModel;
+    if (selectedModel == null) {
+      return;
+    }
+
+    final nextLanguage = selectedModel.voice.resolveGenerationLanguage(
+      language,
+    );
+    if (_selectedGenerationLanguage == nextLanguage) {
+      return;
+    }
+
+    _selectedGenerationLanguage = nextLanguage;
+    if (isLiveTtsStreaming) {
+      unawaited(stopLiveTts());
+    }
+    notifyListeners();
+  }
+
   void setLiveTtsEnabled(bool enabled) {
     if (_isLiveTtsEnabled == enabled) {
       return;
@@ -537,6 +573,7 @@ class AppState extends ChangeNotifier {
         text: _inputText.trim(),
         speed: _speed,
         speakerId: _selectedSpeakerId,
+        generationLanguage: _selectedGenerationLanguage,
         outputPath: outputPath,
         providerOverride: _selectedProvider,
       );
@@ -587,6 +624,7 @@ class AppState extends ChangeNotifier {
       text: _inputText,
       speed: _speed,
       speakerId: _selectedSpeakerId,
+      generationLanguage: _selectedGenerationLanguage,
       chunkSizeWords: _liveChunkSizeWords,
       outputDirectoryPath: (await _generatedAudioDirectory()).path,
       startOffset: _inputCursorOffset,
@@ -743,6 +781,11 @@ class AppState extends ChangeNotifier {
           text: current.text.trim(),
           speed: _speed,
           speakerId: _dialogSpeakerIdFor(current.speakerName, model.voice),
+          generationLanguage: _dialogGenerationLanguageFor(
+            current.speakerName,
+            model.voice,
+          ),
+          volume: _dialogVolumeForSpeaker(current.speakerName),
           outputPath: await createGeneratedAudioOutputPath(prefix: 'dialog'),
           providerOverride: _selectedProvider,
         );
@@ -858,16 +901,21 @@ class AppState extends ChangeNotifier {
     if (model.status != ModelStatus.ready || model.modelDir == null) {
       return;
     }
+    final settings =
+        _dialogSpeakerSettings[speakerName] ??
+        _defaultDialogSpeakerSettings(speakerName);
     final speakerId = _resolveSpeakerId(
       model.voice,
       preferredSpeakerId: model.voice.defaultSpeakerId,
     );
     _dialogSpeakerSettings = {
       ..._dialogSpeakerSettings,
-      speakerName: DialogSpeakerSettings(
-        speakerName: speakerName,
+      speakerName: settings.copyWith(
         modelId: model.voice.id,
         speakerId: speakerId,
+        generationLanguage: model.voice.resolveGenerationLanguage(
+          settings.generationLanguage,
+        ),
       ),
     };
     _resetDialogLinesForSpeaker(speakerName);
@@ -889,6 +937,42 @@ class AppState extends ChangeNotifier {
     _dialogSpeakerSettings = {
       ..._dialogSpeakerSettings,
       speakerName: settings.copyWith(speakerId: speakerId),
+    };
+    _resetDialogLinesForSpeaker(speakerName);
+    notifyListeners();
+  }
+
+  void setDialogSpeakerLanguage(String speakerName, String language) {
+    final settings =
+        _dialogSpeakerSettings[speakerName] ??
+        _defaultDialogSpeakerSettings(speakerName);
+    final model = _dialogModelForSpeaker(speakerName);
+    final nextLanguage =
+        model?.voice.resolveGenerationLanguage(language) ?? language;
+    if (settings.generationLanguage == nextLanguage) {
+      return;
+    }
+
+    _dialogSpeakerSettings = {
+      ..._dialogSpeakerSettings,
+      speakerName: settings.copyWith(generationLanguage: nextLanguage),
+    };
+    _resetDialogLinesForSpeaker(speakerName);
+    notifyListeners();
+  }
+
+  void setDialogSpeakerVolume(String speakerName, int volume) {
+    final settings =
+        _dialogSpeakerSettings[speakerName] ??
+        _defaultDialogSpeakerSettings(speakerName);
+    final nextSettings = settings.copyWith(volume: volume);
+    if (nextSettings.volume == settings.volume) {
+      return;
+    }
+
+    _dialogSpeakerSettings = {
+      ..._dialogSpeakerSettings,
+      speakerName: nextSettings,
     };
     _resetDialogLinesForSpeaker(speakerName);
     notifyListeners();
@@ -1231,6 +1315,7 @@ class AppState extends ChangeNotifier {
     return DialogSpeakerSettings(
       speakerName: speakerName,
       modelId: model?.voice.id,
+      generationLanguage: model?.voice.resolveGenerationLanguage(null),
       speakerId: model == null
           ? null
           : _resolveSpeakerId(
@@ -1264,6 +1349,18 @@ class AppState extends ChangeNotifier {
     return _resolveSpeakerId(
       voice,
       preferredSpeakerId: _dialogSpeakerSettings[speakerName]?.speakerId,
+    );
+  }
+
+  String _dialogGenerationLanguageFor(String speakerName, VoiceModel voice) {
+    return voice.resolveGenerationLanguage(
+      _dialogSpeakerSettings[speakerName]?.generationLanguage,
+    );
+  }
+
+  int _dialogVolumeForSpeaker(String speakerName) {
+    return clampDialogVolume(
+      _dialogSpeakerSettings[speakerName]?.volume ?? dialogVolumeDefault,
     );
   }
 
@@ -1576,6 +1673,49 @@ class AppState extends ChangeNotifier {
 
   static const String _providerPrefFile = '.tts_provider_pref';
 
+  Future<_DesktopAppSettings> _loadDesktopSettings() async {
+    for (final file in _desktopSettingsFileCandidates()) {
+      try {
+        if (!await file.exists()) {
+          continue;
+        }
+
+        final decoded = jsonDecode(await file.readAsString());
+        if (decoded is! Map) {
+          continue;
+        }
+
+        final concurrency = decoded[_dialogGenerationConcurrencyKey] as int?;
+        return _DesktopAppSettings(
+          dialogGenerationConcurrency: _normalizeDialogGenerationConcurrency(
+            concurrency,
+          ),
+        );
+      } catch (_) {
+        continue;
+      }
+    }
+
+    return const _DesktopAppSettings();
+  }
+
+  List<File> _desktopSettingsFileCandidates() {
+    final current = Directory.current.path;
+    final executableDir = p.dirname(Platform.resolvedExecutable);
+    return <File>[
+      File(p.join(current, _settingsFileName)),
+      File(p.join(current, 'apps', 'desktop_app', _settingsFileName)),
+      File(p.join(executableDir, _settingsFileName)),
+    ];
+  }
+
+  int _normalizeDialogGenerationConcurrency(int? value) {
+    if (value == null || value < 1) {
+      return 4;
+    }
+    return value;
+  }
+
   Future<String> _loadProviderPreference() async {
     try {
       final home =
@@ -1636,4 +1776,10 @@ class AppState extends ChangeNotifier {
     _audioService.dispose();
     super.dispose();
   }
+}
+
+class _DesktopAppSettings {
+  const _DesktopAppSettings({this.dialogGenerationConcurrency = 4});
+
+  final int dialogGenerationConcurrency;
 }
