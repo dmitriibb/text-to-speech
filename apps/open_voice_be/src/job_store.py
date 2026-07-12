@@ -45,6 +45,7 @@ class JobStore:
         text: str,
         language: str,
         speed: float,
+        settings: dict[str, object],
         reference_audio: UploadFile,
     ) -> JobRecord:
         job_id = f'job-{uuid.uuid4()}'
@@ -62,6 +63,7 @@ class JobStore:
             text=text,
             language=language,
             speed=speed,
+            settings=settings,
             model_id=current_model.id,
             reference_audio_path=str(stored_reference_path),
             submitted_at=_utc_now(),

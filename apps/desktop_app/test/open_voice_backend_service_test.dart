@@ -200,6 +200,21 @@ void main() {
     expect(request.files, isEmpty);
     expect(request.fields['voice_id'], 'auto-random');
   });
+
+  test('submits a JSON settings object for model-specific options', () async {
+    final client = _RecordingClient();
+    final service = OpenVoiceBackendService(client: client);
+
+    await service.submitJob(
+      baseUri: service.parseBaseUri('http://127.0.0.1:8011'),
+      text: 'Guten Tag',
+      language: 'de',
+      settings: const {'cfg_value': 2.5, 'inference_timesteps': 12, 'seed': 42},
+    );
+
+    final request = client.lastRequest! as http.MultipartRequest;
+    expect(jsonDecode(request.fields['settings']!)['inference_timesteps'], 12);
+  });
 }
 
 class _RecordingClient extends http.BaseClient {

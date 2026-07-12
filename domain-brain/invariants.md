@@ -3,6 +3,8 @@
 - `packages/model_catalog/approved_models.json` is the source of truth for app-visible model metadata.
 - `sherpa-onnx` is the only shared app-runtime family for Basic functionality in this repository.
 - Desktop-only Voice Lab backend integrations may use a separate local runtime family as long as they stay behind the desktop backend boundary and do not replace the shared Basic runtime.
+- Desktop model backends use the common asynchronous job API; model-specific request values are carried in the `settings` JSON object rather than changing the endpoint lifecycle.
+- A backend that requests automatic acceleration must fall back to CPU when its supported PyTorch GPU runtime is unavailable or accelerated model initialization fails.
 - A model is `ready` only when all required files exist: model file, `tokens.txt`, and `data_dir` when declared.
 - Shared model installation logic must remain portable across desktop and Android; it must not depend on shell archive extraction.
 - Android normal model installation uses app-private storage and must not rely on the workspace `models/` directory.

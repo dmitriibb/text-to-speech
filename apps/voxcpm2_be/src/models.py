@@ -19,14 +19,19 @@ class HealthResponse(BaseModel):
     backend: str
     version: str
     engine: str
-    engine_display_name: str | None = None
+    engine_display_name: str
     engine_ready: bool
     models_loaded: bool
     jobs_in_progress: int
-    current_model_id: str | None = None
-    current_model_name: str | None = None
-    runtime_assets_ready: bool | None = None
+    current_model_id: str
+    current_model_name: str
+    runtime_assets_ready: bool
     initialization_error: str | None = None
+    features: list[str] = Field(default_factory=list)
+    supported_job_modes: list[str] = Field(default_factory=list)
+    voices_endpoint: str | None = None
+    device: str
+    device_backend: str
 
 
 class JobResultPayload(BaseModel):
@@ -43,9 +48,9 @@ class JobRecord(BaseModel):
     text: str
     language: str
     speed: float
+    model_id: str
     settings: dict[str, Any] = Field(default_factory=dict)
-    model_id: str | None = None
-    reference_audio_path: str
+    reference_audio_path: str | None = None
     result_audio_path: str | None = None
     error: str | None = None
     submitted_at: datetime
@@ -60,50 +65,3 @@ class CreateJobResponse(BaseModel):
     status_url: str
     result_url: str
 
-
-class ReferencedFileResponse(BaseModel):
-    kind: str
-    path: str
-    exists: bool
-
-
-class JobSummaryResponse(BaseModel):
-    job_id: str
-    job_type: str
-    status: JobStatus
-    text: str
-    language: str
-    speed: float
-    model_id: str | None = None
-    submitted_at: datetime
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    error: str | None = None
-    referenced_files: list[ReferencedFileResponse] = Field(default_factory=list)
-
-
-class ModelSummaryResponse(BaseModel):
-    id: str
-    display_name: str
-    description: str
-    engine: str
-    downloaded: bool
-    is_current: bool
-    runtime_ready: bool
-
-
-class RuntimeAssetResponse(BaseModel):
-    name: str
-    path: str
-    downloaded: bool
-
-
-class ModelCatalogResponse(BaseModel):
-    current_model_id: str
-    runtime_assets_ready: bool
-    models: list[ModelSummaryResponse]
-    runtime_assets: list[RuntimeAssetResponse]
-
-
-class UpdateCurrentModelRequest(BaseModel):
-    model_id: str

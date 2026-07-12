@@ -131,5 +131,6 @@ Everything under `storage/` is generated local runtime data and should not be co
 - `language`
 - `speed` in the `0.5` to `2.0` range
 - `reference_audio`
+- `settings`, a JSON object reserved for model-specific options; `{}` uses defaults
 
 The desktop app keeps using the same backend contract regardless of whether the selected backend model runs through OpenVoice or OmniVoice.

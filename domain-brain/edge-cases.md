@@ -87,5 +87,11 @@
 - Scenario: Share or export fails after a successful synthesis.
   Expected handling: the generated `.wav` stays available and only the output action fails.
 
+- Scenario: A desktop model backend runs on a machine whose AMD GPU is not exposed by a supported PyTorch ROCm build, or accelerated model initialization fails.
+  Expected handling: the backend retries on CPU, reports the selected device through health/job metadata, and does not require a different desktop API.
+
+- Scenario: A backend job receives malformed or non-object JSON in the `settings` field.
+  Expected handling: the backend rejects the request with HTTP 400 before creating a job.
+
 - Scenario: A model is approved for local validation but redistribution evidence is still missing.
   Expected handling: development may continue, but shipping decisions remain blocked.

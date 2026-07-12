@@ -7,8 +7,10 @@ import 'open_voice_backend_service.dart';
 class OpenVoicePreferencesService {
   static const _backendUrlFile = '.tts_open_voice_backend_url';
   static const _omniVoiceBackendUrlFile = '.tts_omnivoice_backend_url';
+  static const _voxCpm2BackendUrlFile = '.tts_voxcpm2_backend_url';
   static const _openVoiceEnabledFile = '.tts_open_voice_enabled';
   static const _omniVoiceEnabledFile = '.tts_omnivoice_enabled';
+  static const _voxCpm2EnabledFile = '.tts_voxcpm2_enabled';
 
   Future<String> loadBackendUrl() async {
     try {
@@ -53,6 +55,12 @@ class OpenVoicePreferencesService {
   Future<void> saveOmniVoiceBackendUrl(String backendUrl) =>
       _saveString(_omniVoiceBackendUrlFile, backendUrl.trim());
 
+  Future<String> loadVoxCpm2BackendUrl(String fallback) =>
+      _loadString(_voxCpm2BackendUrlFile, fallback);
+
+  Future<void> saveVoxCpm2BackendUrl(String backendUrl) =>
+      _saveString(_voxCpm2BackendUrlFile, backendUrl.trim());
+
   Future<bool> loadOpenVoiceEnabled() => _loadBool(_openVoiceEnabledFile);
 
   Future<void> saveOpenVoiceEnabled(bool enabled) =>
@@ -62,6 +70,11 @@ class OpenVoicePreferencesService {
 
   Future<void> saveOmniVoiceEnabled(bool enabled) =>
       _saveString(_omniVoiceEnabledFile, enabled.toString());
+
+  Future<bool> loadVoxCpm2Enabled() => _loadBool(_voxCpm2EnabledFile);
+
+  Future<void> saveVoxCpm2Enabled(bool enabled) =>
+      _saveString(_voxCpm2EnabledFile, enabled.toString());
 
   Future<String> _loadString(String fileName, String fallback) async {
     try {

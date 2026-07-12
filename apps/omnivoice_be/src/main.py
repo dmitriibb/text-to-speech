@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import RedirectResponse, FileResponse
@@ -89,6 +90,7 @@ def create_app(
         voice_id: str | None = Form(None),
         language: str = Form('en'),
         speed: float = Form(1.0),
+        settings_json: str = Form('{}', alias='settings'),
         reference_text: str | None = Form(None),
         instruct: str | None = Form(None),
         duration: float | None = Form(None),
@@ -99,6 +101,33 @@ def create_app(
             raise HTTPException(status_code=400, detail='Text is required.')
         if speed < 0.5 or speed > 2.0:
             raise HTTPException(status_code=400, detail='Speed must be between 0.5 and 2.0.')
+        if duration is not None and duration <= 0:
+            raise HTTPException(
+                status_code=400,
+                detail='Duration must be greater than 0 seconds.',
+            )
+        if num_step is not None and (num_step < 1 or num_step > 64):
+            raise HTTPException(
+                status_code=400,
+                detail='Num steps must be between 1 and 64.',
+            )
+
+        try:
+            model_settings = json.loads(settings_json)
+        except json.JSONDecodeError as error:
+            raise HTTPException(status_code=400, detail='settings must be valid JSON.') from error
+        if not isinstance(model_settings, dict):
+            raise HTTPException(status_code=400, detail='settings must be a JSON object.')
+
+        voice_id = str(model_settings.get('voice_id', voice_id or '')).strip() or None
+        reference_text = str(
+            model_settings.get('reference_text', reference_text or '')
+        ).strip() or None
+        instruct = str(model_settings.get('instruct', instruct or '')).strip() or None
+        duration_value = model_settings.get('duration', duration)
+        duration = float(duration_value) if duration_value is not None else None
+        num_step_value = model_settings.get('num_step', num_step)
+        num_step = int(num_step_value) if num_step_value is not None else None
         if duration is not None and duration <= 0:
             raise HTTPException(
                 status_code=400,
@@ -136,6 +165,7 @@ def create_app(
             text=text.strip(),
             language=language.strip() or 'en',
             speed=speed,
+            settings=model_settings,
             voice_id=selected_voice.id,
             voice_label=selected_voice.display_name,
             reference_text=(reference_text.strip() or None)

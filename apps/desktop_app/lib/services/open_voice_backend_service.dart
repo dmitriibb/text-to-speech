@@ -222,6 +222,7 @@ class OpenVoiceBackendService {
     double speed = 1.0,
     double? duration,
     int? numStep,
+    Map<String, Object?> settings = const <String, Object?>{},
   }) async {
     final request = http.MultipartRequest('POST', _endpoint(baseUri, '/jobs'));
     request.fields['text'] = text;
@@ -230,6 +231,7 @@ class OpenVoiceBackendService {
     }
     request.fields['language'] = language;
     request.fields['speed'] = speed.toString();
+    request.fields['settings'] = jsonEncode(settings);
     if (referenceText != null && referenceText.trim().isNotEmpty) {
       request.fields['reference_text'] = referenceText.trim();
     }

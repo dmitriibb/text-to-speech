@@ -209,6 +209,12 @@ This file records what is currently approved, what is blocked, and what is still
   - desktop-only integration currently fits best as a separate backend path
   - redistribution of the exact downloaded backend assets still needs a shipping review even though the license signal is promising
 
+### `openbmb/VoxCPM2`
+
+- Upstream code and model weights identify Apache-2.0 licensing.
+- The model is integrated as a separately installed desktop backend and is not bundled with either app.
+- Before distributing cached model assets, capture the exact checkpoint license and attribution files from the pinned release.
+
 ## Rule for the repo
 
 If a model license or redistribution status is Unknown, we can use it for local evaluation only. We do not bundle or distribute it with the applications until the missing license evidence is captured.

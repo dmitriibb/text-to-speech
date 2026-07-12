@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -148,6 +149,7 @@ def create_app(
         text: str = Form(...),
         language: str = Form('en'),
         speed: float = Form(1.0),
+        settings_json: str = Form('{}', alias='settings'),
         reference_audio: UploadFile = File(...),
     ) -> CreateJobResponse:
         if not text.strip():
@@ -158,10 +160,18 @@ def create_app(
                 detail='Speed must be between 0.5 and 2.0.',
             )
 
+        try:
+            model_settings = json.loads(settings_json)
+        except json.JSONDecodeError as error:
+            raise HTTPException(status_code=400, detail='settings must be valid JSON.') from error
+        if not isinstance(model_settings, dict):
+            raise HTTPException(status_code=400, detail='settings must be a JSON object.')
+
         job = await job_store.create_job(
             text=text.strip(),
             language=language.strip() or 'en',
             speed=speed,
+            settings=model_settings,
             reference_audio=reference_audio,
         )
         return CreateJobResponse(

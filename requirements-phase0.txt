@@ -1,3 +1,0 @@
-sherpa-onnx
-sherpa-onnx-bin
-

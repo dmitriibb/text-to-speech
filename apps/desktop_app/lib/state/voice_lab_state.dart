@@ -48,12 +48,16 @@ class VoiceLabState extends ChangeNotifier {
   String? _errorMessage;
   String _openVoiceBackendUrl = OpenVoiceBackendService.defaultBaseUrl;
   String _omniVoiceBackendUrl = 'http://127.0.0.1:8010';
+  String _voxCpm2BackendUrl = 'http://127.0.0.1:8011';
   OpenVoiceBackendConnectionState _openVoiceConnectionState =
       OpenVoiceBackendConnectionState.disconnected;
   OpenVoiceBackendConnectionState _omniVoiceConnectionState =
       OpenVoiceBackendConnectionState.disconnected;
+  OpenVoiceBackendConnectionState _voxCpm2ConnectionState =
+      OpenVoiceBackendConnectionState.disconnected;
   String? _openVoiceBackendMessage;
   String? _omniVoiceBackendMessage;
+  String? _voxCpm2BackendMessage;
   String? _openVoiceSamplePath;
   String? _omniVoiceSamplePath;
   List<ExternalBackendVoice> _omniVoiceVoices = _fallbackOmniVoiceVoices;
@@ -67,12 +71,14 @@ class VoiceLabState extends ChangeNotifier {
   String _omniVoiceNumStep = '';
   bool _isOpenVoiceEnabled = false;
   bool _isOmniVoiceEnabled = false;
+  bool _isVoxCpm2Enabled = false;
   bool _isOpenVoiceGenerationSubmitting = false;
   bool _isOmniVoiceGenerationSubmitting = false;
   String? _activeOpenVoiceJobId;
   String? _activeOmniVoiceJobId;
   Timer? _openVoiceHealthTimer;
   Timer? _omniVoiceHealthTimer;
+  Timer? _voxCpm2HealthTimer;
 
   // Preview playback
   String? _previewingVoiceId;
@@ -88,15 +94,20 @@ class VoiceLabState extends ChangeNotifier {
   bool get isPocketVoiceCloningEnabled => _appState.isVoiceCloningEnabled;
   bool get isOpenVoiceEnabled => _isOpenVoiceEnabled;
   bool get isOmniVoiceEnabled => _isOmniVoiceEnabled;
+  bool get isVoxCpm2Enabled => _isVoxCpm2Enabled;
   bool get hasSharedInputText => _appState.inputText.trim().isNotEmpty;
   String get openVoiceBackendUrl => _openVoiceBackendUrl;
   String get omniVoiceBackendUrl => _omniVoiceBackendUrl;
+  String get voxCpm2BackendUrl => _voxCpm2BackendUrl;
   OpenVoiceBackendConnectionState get openVoiceConnectionState =>
       _openVoiceConnectionState;
   OpenVoiceBackendConnectionState get omniVoiceConnectionState =>
       _omniVoiceConnectionState;
+  OpenVoiceBackendConnectionState get voxCpm2ConnectionState =>
+      _voxCpm2ConnectionState;
   String? get openVoiceBackendMessage => _openVoiceBackendMessage;
   String? get omniVoiceBackendMessage => _omniVoiceBackendMessage;
+  String? get voxCpm2BackendMessage => _voxCpm2BackendMessage;
   String? get openVoiceSamplePath => _openVoiceSamplePath;
   String? get omniVoiceSamplePath => _omniVoiceSamplePath;
   List<ExternalBackendVoice> get omniVoiceVoices => _omniVoiceVoices;
@@ -182,10 +193,13 @@ class VoiceLabState extends ChangeNotifier {
     _openVoiceBackendUrl = await _openVoicePreferencesService.loadBackendUrl();
     _omniVoiceBackendUrl = await _openVoicePreferencesService
         .loadOmniVoiceBackendUrl(_omniVoiceBackendUrl);
+    _voxCpm2BackendUrl = await _openVoicePreferencesService
+        .loadVoxCpm2BackendUrl(_voxCpm2BackendUrl);
     _isOpenVoiceEnabled = await _openVoicePreferencesService
         .loadOpenVoiceEnabled();
     _isOmniVoiceEnabled = await _openVoicePreferencesService
         .loadOmniVoiceEnabled();
+    _isVoxCpm2Enabled = await _openVoicePreferencesService.loadVoxCpm2Enabled();
     _previewSub = _previewAudio.onStateChanged.listen((state) {
       _isPreviewPlaying = state == PlaybackState.playing;
       if (state == PlaybackState.stopped) {
@@ -202,6 +216,10 @@ class VoiceLabState extends ChangeNotifier {
     if (_isOmniVoiceEnabled) {
       unawaited(checkOmniVoiceConnection());
       _startOmniVoiceHealthPolling();
+    }
+    if (_isVoxCpm2Enabled) {
+      unawaited(checkVoxCpm2Connection());
+      _startVoxCpm2HealthPolling();
     }
   }
 
@@ -257,6 +275,26 @@ class VoiceLabState extends ChangeNotifier {
     _startOmniVoiceHealthPolling();
   }
 
+  Future<void> setVoxCpm2Enabled(bool enabled) async {
+    if (!enabled) {
+      if (_isVoxCpm2Enabled) {
+        _isVoxCpm2Enabled = false;
+        _stopVoxCpm2HealthPolling();
+        await _openVoicePreferencesService.saveVoxCpm2Enabled(false);
+        notifyListeners();
+      }
+      return;
+    }
+    if (_isVoxCpm2Enabled) return;
+    _isVoxCpm2Enabled = true;
+    await _openVoicePreferencesService.saveVoxCpm2Enabled(true);
+    _voxCpm2BackendMessage = 'Checking backend connection...';
+    _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.checking;
+    notifyListeners();
+    unawaited(checkVoxCpm2Connection());
+    _startVoxCpm2HealthPolling();
+  }
+
   Future<void> setOpenVoiceBackendUrl(String backendUrl) async {
     _openVoiceBackendUrl = backendUrl;
     _openVoiceConnectionState = OpenVoiceBackendConnectionState.disconnected;
@@ -277,6 +315,15 @@ class VoiceLabState extends ChangeNotifier {
     if (_isOmniVoiceEnabled) {
       unawaited(checkOmniVoiceConnection());
     }
+  }
+
+  Future<void> setVoxCpm2BackendUrl(String backendUrl) async {
+    _voxCpm2BackendUrl = backendUrl;
+    _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.disconnected;
+    _voxCpm2BackendMessage = null;
+    notifyListeners();
+    await _openVoicePreferencesService.saveVoxCpm2BackendUrl(backendUrl);
+    if (_isVoxCpm2Enabled) unawaited(checkVoxCpm2Connection());
   }
 
   void setOpenVoiceSamplePath(String? samplePath) {
@@ -444,6 +491,41 @@ class VoiceLabState extends ChangeNotifier {
       }
     }
 
+    notifyListeners();
+  }
+
+  Future<void> checkVoxCpm2Connection({bool showAsError = false}) async {
+    _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.checking;
+    _voxCpm2BackendMessage = 'Checking backend connection...';
+    notifyListeners();
+    try {
+      final baseUri = _openVoiceBackendService.parseBaseUri(_voxCpm2BackendUrl);
+      final health = await _openVoiceBackendService.fetchHealth(baseUri);
+      if (health.engineReady && health.engine == 'voxcpm2') {
+        _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.connected;
+        _voxCpm2BackendMessage =
+            '${health.engineDisplayName ?? 'VoxCPM2'} is healthy at ${_voxCpm2BackendUrl.trim()}.';
+        if (showAsError) _errorMessage = null;
+      } else {
+        _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.error;
+        _voxCpm2BackendMessage =
+            'VoxCPM2 is not ready at ${_voxCpm2BackendUrl.trim()}.';
+        if (showAsError) {
+          _errorMessage =
+              'Connected to ${health.backend} ${health.version}, but VoxCPM2 is not ready.';
+        }
+      }
+    } on OpenVoiceBackendException catch (error) {
+      _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.error;
+      _voxCpm2BackendMessage =
+          'Backend is down at ${_voxCpm2BackendUrl.trim()}.';
+      if (showAsError) _errorMessage = error.message;
+    } catch (error) {
+      _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.error;
+      _voxCpm2BackendMessage =
+          'Backend is down at ${_voxCpm2BackendUrl.trim()}.';
+      if (showAsError) _errorMessage = error.toString();
+    }
     notifyListeners();
   }
 
@@ -852,6 +934,16 @@ class VoiceLabState extends ChangeNotifier {
     });
   }
 
+  void _startVoxCpm2HealthPolling() {
+    _stopVoxCpm2HealthPolling();
+    _voxCpm2HealthTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (_isVoxCpm2Enabled &&
+          _voxCpm2ConnectionState != OpenVoiceBackendConnectionState.checking) {
+        unawaited(checkVoxCpm2Connection());
+      }
+    });
+  }
+
   void _stopOpenVoiceHealthPolling() {
     _openVoiceHealthTimer?.cancel();
     _openVoiceHealthTimer = null;
@@ -860,6 +952,11 @@ class VoiceLabState extends ChangeNotifier {
   void _stopOmniVoiceHealthPolling() {
     _omniVoiceHealthTimer?.cancel();
     _omniVoiceHealthTimer = null;
+  }
+
+  void _stopVoxCpm2HealthPolling() {
+    _voxCpm2HealthTimer?.cancel();
+    _voxCpm2HealthTimer = null;
   }
 
   void _replaceOmniVoiceVoices(List<ExternalBackendVoice> voices) {
@@ -885,6 +982,7 @@ class VoiceLabState extends ChangeNotifier {
     unawaited(_previewSub?.cancel());
     _stopOpenVoiceHealthPolling();
     _stopOmniVoiceHealthPolling();
+    _stopVoxCpm2HealthPolling();
     _openVoiceBackendService.dispose();
     _previewAudio.dispose();
     super.dispose();

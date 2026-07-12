@@ -52,6 +52,7 @@ class JobRecord(BaseModel):
     text: str
     language: str
     speed: float
+    settings: dict[str, Any] = Field(default_factory=dict)
     model_id: str | None = None
     voice_id: str | None = None
     voice_label: str | None = None

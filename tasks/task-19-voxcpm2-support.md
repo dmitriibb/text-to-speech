@@ -6,7 +6,7 @@ Implement support for `openbmb/VoxCPM2`, add the model, and document how to run 
 
 ## Current Status
 
-Not started.
+Backend service and desktop backend registration complete. Full model-settings UI and Dialog generation routing remain pending.
 
 ## Scope
 
@@ -41,3 +41,19 @@ The user's second machine with a 16 GB GPU is a good fit for this. LM Studio its
 - Desktop app tests for backend configuration and task state
 - Manual German generation through the remote backend
 - Documentation smoke test from a clean environment
+
+## Completed Backend Milestone
+
+- Added standalone `apps/voxcpm2_be` FastAPI service on port `8011`.
+- Standardized backend job requests around common fields plus a JSON `settings` object.
+- Added VoxCPM2 design, cloning, prompt-cloning, guidance, inference-step, seed, normalization, denoising, and retry settings.
+- Added automatic CUDA/ROCm/MPS detection with CPU fallback when acceleration is unavailable or accelerated initialization fails.
+- Added Windows CPU, Linux ROCm, NVIDIA, LAN, and server environment instructions.
+- Added persisted desktop enablement, URL, health polling, and a VoxCPM2 card on `Backend models`.
+- Added backend tests and desktop client settings tests.
+
+## Remaining
+
+- Add the model-specific settings controls to the shared model settings modal.
+- Route Home/Dialog generation through the VoxCPM2 backend and register returned WAV files in the generated-audio flow.
+- Perform a real model download and German synthesis smoke test on the target CPU/AMD/remote GPU environments.

@@ -8,6 +8,7 @@ conventions:
   desktop_voice_backend_runtime:
     - openvoice
     - omnivoice
+    - voxcpm2
   ui_apps:
     - apps/desktop_app
     - apps/android_app
@@ -153,6 +154,11 @@ flows:
       - apps/omnivoice_be/src/main.py
       - apps/omnivoice_be/src/job_store.py
       - apps/omnivoice_be/src/storage.py
+      - apps/voxcpm2_be/src/engine.py
+      - apps/voxcpm2_be/src/main.py
+      - apps/voxcpm2_be/src/job_store.py
+      - apps/voxcpm2_be/src/storage.py
+      - docs/backend-api.md
   benchmark_validation:
     docs:
       - domain-brain/flows/benchmark-validation.md
