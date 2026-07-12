@@ -19,6 +19,7 @@ class AppState extends ChangeNotifier {
   static const String _settingsFileName = 'settings.json';
   static const String _dialogGenerationConcurrencyKey =
       'dialogGenerationConcurrency';
+  static const String _modelSettingsFileName = '.tts_model_settings.json';
 
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
@@ -34,6 +35,8 @@ class AppState extends ChangeNotifier {
   // ---- Model state ----
   List<InstalledModel> _installedModels = [];
   InstalledModel? _selectedModel;
+  final Map<String, ModelSynthesisSettings> _modelSettingsById = {};
+  Map<String, Object?> _persistedModelSettingsJson = {};
   bool _isLoadingModels = true;
   double _downloadProgress = 0;
   bool _isDownloading = false;
@@ -91,6 +94,13 @@ class AppState extends ChangeNotifier {
 
   String get inputText => _inputText;
   double get speed => _speed;
+  double get volume => modelSettings.volume;
+  ModelSynthesisSettings get modelSettings {
+    final model = _selectedModel;
+    if (model == null) return const ModelSynthesisSettings();
+    return _settingsFor(model.voice);
+  }
+
   int get selectedSpeakerId => _selectedSpeakerId;
   String get selectedGenerationLanguage => _selectedGenerationLanguage;
   int get inputCursorOffset => _inputCursorOffset;
@@ -187,6 +197,7 @@ class AppState extends ChangeNotifier {
   /// Call once at startup to init bindings and scan models.
   Future<void> initialize() async {
     final settings = await _loadDesktopSettings();
+    _persistedModelSettingsJson = await _loadModelSettingsJson();
     _dialogGenerationConcurrency = settings.dialogGenerationConcurrency;
     _taskExecutor.workerCount = _dialogGenerationConcurrency;
     taskManager.addListener(_handleTaskManagerChanged);
@@ -279,11 +290,7 @@ class AppState extends ChangeNotifier {
       _isVoiceCloningEnabled = false;
     }
     _selectedModel = model;
-    _selectedSpeakerId = _resolveSpeakerId(
-      model.voice,
-      preferredSpeakerId: model.voice.defaultSpeakerId,
-    );
-    _selectedGenerationLanguage = model.voice.resolveGenerationLanguage(null);
+    _applySettingsFields(_settingsFor(model.voice));
     _errorMessage = null;
     notifyListeners();
 
@@ -446,11 +453,7 @@ class AppState extends ChangeNotifier {
   }
 
   void setSpeed(double speed) {
-    _speed = clampSpeechSpeed(speed);
-    if (isLiveTtsStreaming) {
-      unawaited(stopLiveTts());
-    }
-    notifyListeners();
+    applyModelSettings(modelSettings.copyWith(speed: speed));
   }
 
   void setSpeakerId(int speakerId) {
@@ -459,14 +462,11 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    _selectedSpeakerId = _resolveSpeakerId(
+    final resolved = _resolveSpeakerId(
       selectedModel.voice,
       preferredSpeakerId: speakerId,
     );
-    if (isLiveTtsStreaming) {
-      unawaited(stopLiveTts());
-    }
-    notifyListeners();
+    applyModelSettings(modelSettings.copyWith(speakerId: resolved));
   }
 
   void setGenerationLanguage(String language) {
@@ -482,10 +482,22 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    _selectedGenerationLanguage = nextLanguage;
-    if (isLiveTtsStreaming) {
-      unawaited(stopLiveTts());
-    }
+    applyModelSettings(
+      modelSettings.copyWith(generationLanguage: nextLanguage),
+    );
+  }
+
+  void applyModelSettings(ModelSynthesisSettings settings) {
+    final model = _selectedModel;
+    if (model == null) return;
+    final normalized = ModelSynthesisSettings.fromJson(
+      settings.toJson(),
+      model.voice,
+    );
+    _modelSettingsById[model.voice.id] = normalized;
+    _applySettingsFields(normalized);
+    if (isLiveTtsStreaming) unawaited(stopLiveTts());
+    unawaited(_saveModelSettings());
     notifyListeners();
   }
 
@@ -573,6 +585,7 @@ class AppState extends ChangeNotifier {
         text: _inputText.trim(),
         speed: _speed,
         speakerId: _selectedSpeakerId,
+        volumeGain: volume,
         generationLanguage: _selectedGenerationLanguage,
         outputPath: outputPath,
         providerOverride: _selectedProvider,
@@ -624,6 +637,7 @@ class AppState extends ChangeNotifier {
       text: _inputText,
       speed: _speed,
       speakerId: _selectedSpeakerId,
+      volumeGain: volume,
       generationLanguage: _selectedGenerationLanguage,
       chunkSizeWords: _liveChunkSizeWords,
       outputDirectoryPath: (await _generatedAudioDirectory()).path,
@@ -1708,6 +1722,58 @@ class AppState extends ChangeNotifier {
     }
 
     return speakers.first.id;
+  }
+
+  ModelSynthesisSettings _settingsFor(VoiceModel voice) {
+    final cached = _modelSettingsById[voice.id];
+    if (cached != null) return cached;
+    final raw = _persistedModelSettingsJson[voice.id];
+    final settings = raw is Map
+        ? ModelSynthesisSettings.fromJson(Map<String, Object?>.from(raw), voice)
+        : ModelSynthesisSettings.defaultsFor(voice);
+    _modelSettingsById[voice.id] = settings;
+    return settings;
+  }
+
+  void _applySettingsFields(ModelSynthesisSettings settings) {
+    _speed = settings.speed;
+    _selectedSpeakerId = settings.speakerId;
+    _selectedGenerationLanguage = settings.generationLanguage;
+  }
+
+  Future<Map<String, Object?>> _loadModelSettingsJson() async {
+    try {
+      final home =
+          Platform.environment['HOME'] ??
+          Platform.environment['USERPROFILE'] ??
+          '';
+      if (home.isEmpty) return {};
+      final file = File(p.join(home, _modelSettingsFileName));
+      if (!await file.exists()) return {};
+      final decoded = jsonDecode(await file.readAsString());
+      return decoded is Map ? Map<String, Object?>.from(decoded) : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _saveModelSettings() async {
+    try {
+      final home =
+          Platform.environment['HOME'] ??
+          Platform.environment['USERPROFILE'] ??
+          '';
+      if (home.isEmpty) return;
+      final values = <String, Object?>{
+        ..._persistedModelSettingsJson,
+        for (final entry in _modelSettingsById.entries)
+          entry.key: entry.value.toJson(),
+      };
+      await File(
+        p.join(home, _modelSettingsFileName),
+      ).writeAsString(jsonEncode(values), flush: true);
+      _persistedModelSettingsJson = values;
+    } catch (_) {}
   }
 
   // ---- Provider Persistence ----

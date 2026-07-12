@@ -25,6 +25,7 @@ class LiveTtsSession extends ChangeNotifier {
     required this.text,
     required this.speed,
     required this.speakerId,
+    this.volumeGain = modelVolumeDefault,
     required this.chunkSizeWords,
     required this.outputDirectoryPath,
     this.startOffset = 0,
@@ -46,6 +47,7 @@ class LiveTtsSession extends ChangeNotifier {
   final String text;
   final double speed;
   final int speakerId;
+  final double volumeGain;
   final int chunkSizeWords;
   final String outputDirectoryPath;
   final int startOffset;
@@ -254,6 +256,7 @@ class LiveTtsSession extends ChangeNotifier {
             'text': chunk.text.trim(),
             'speed': clampSpeechSpeed(speed),
             'speakerId': speakerId,
+            'volumeGain': clampModelVolume(volumeGain),
             'generationLanguage': voice.resolveGenerationLanguage(
               generationLanguage,
             ),

@@ -52,6 +52,36 @@ Omar: Der Termin ist am Montag.
     expect(dialogVolumeToGain(dialogVolumeDefault), 1);
   });
 
+  test('model settings use model defaults and survive JSON round-trip', () {
+    final defaults = ModelSynthesisSettings.defaultsFor(_supertonicVoiceModel);
+    expect(defaults.speed, 1);
+    expect(defaults.volume, modelVolumeDefault);
+    expect(defaults.generationLanguage, 'en');
+
+    final restored = ModelSynthesisSettings.fromJson(
+      defaults
+          .copyWith(
+            volume: 1.25,
+            speed: 1.5,
+            generationLanguage: 'fr',
+            extensionValues: const {'referenceAudioPath': '/voice.wav'},
+          )
+          .toJson(),
+      _supertonicVoiceModel,
+    );
+
+    expect(restored.volume, 1.25);
+    expect(restored.speed, 1.5);
+    expect(restored.generationLanguage, 'fr');
+    expect(restored.extensionValues['referenceAudioPath'], '/voice.wav');
+  });
+
+  test('model volume is clamped to the supported range', () {
+    expect(clampModelVolume(0.1), modelVolumeMin);
+    expect(clampModelVolume(2), modelVolumeMax);
+    expect(clampModelVolume(double.nan), modelVolumeDefault);
+  });
+
   test('parses the approved model catalog shape', () {
     const rawCatalog = '''
 {
@@ -732,12 +762,12 @@ Omar: Der Termin ist am Montag.
       expect(await outputFile.exists(), isFalse);
 
       await outputFile.writeAsString('late wav');
-    executor.completeTask(
-      taskId,
-      LongRunningTaskType.synthesizeSpeech,
-      outputPath: outputFile.path,
-    );
-    await Future<void>.delayed(const Duration(milliseconds: 50));
+      executor.completeTask(
+        taskId,
+        LongRunningTaskType.synthesizeSpeech,
+        outputPath: outputFile.path,
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
 
       expect(await outputFile.exists(), isFalse);
     },
@@ -762,6 +792,28 @@ Omar: Der Termin ist am Montag.
     expect(
       executor.submittedRequests.single.payload['volumeGain'],
       closeTo(10 / dialogVolumeDefault, 0.000001),
+    );
+  });
+
+  test('synthesis payload accepts per-model volume gain', () async {
+    final executor = _FakeBackgroundTaskExecutor();
+    final manager = TaskManager(executor: executor);
+    addTearDown(manager.dispose);
+
+    await manager.initialize();
+    await manager.submitSynthesis(
+      modelDir: '/tmp/demo-model',
+      voice: _demoVoiceModel,
+      text: 'hello',
+      speed: 1,
+      speakerId: 0,
+      volumeGain: 1.25,
+      outputPath: '/tmp/generated_audio/speech.wav',
+    );
+
+    expect(
+      executor.submittedRequests.single.payload['volumeGain'],
+      closeTo(1.25, 0.000001),
     );
   });
 

@@ -36,11 +36,13 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Voice and speed'), findsOneWidget);
-    expect(find.text('Speaker'), findsOneWidget);
+    expect(find.text('AI model'), findsWidgets);
+    await tester.tap(find.byTooltip('Model settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Voice / speaker'), findsOneWidget);
     expect(find.text('AF Bella'), findsOneWidget);
-    expect(find.text('0.5x'), findsOneWidget);
-    expect(find.text('2.0x'), findsOneWidget);
+    expect(find.text('0.5'), findsNWidgets(2));
+    expect(find.text('2.0'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
@@ -64,6 +66,10 @@ class _FakeAppState extends AppState {
 
   @override
   int get selectedSpeakerId => selectedSpeakerIdValue;
+
+  @override
+  ModelSynthesisSettings get modelSettings =>
+      ModelSynthesisSettings(speakerId: selectedSpeakerIdValue);
 
   @override
   double get speed => speechSpeedDefault;

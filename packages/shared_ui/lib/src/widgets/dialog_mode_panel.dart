@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:tts_core/tts_core.dart';
 
+import 'model_selector.dart';
+
 class DialogModePanel extends StatelessWidget {
   const DialogModePanel({
     super.key,
@@ -21,6 +23,8 @@ class DialogModePanel extends StatelessWidget {
     required this.onSpeakerSelected,
     required this.onLanguageSelected,
     required this.onVolumeChanged,
+    required this.speed,
+    required this.onSpeedChanged,
   });
 
   final List<DialogLineItem> lines;
@@ -40,6 +44,8 @@ class DialogModePanel extends StatelessWidget {
   final void Function(String speakerName, int speakerId) onSpeakerSelected;
   final void Function(String speakerName, String language) onLanguageSelected;
   final void Function(String speakerName, int volume) onVolumeChanged;
+  final double speed;
+  final ValueChanged<double> onSpeedChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +77,8 @@ class DialogModePanel extends StatelessWidget {
           onSpeakerSelected: onSpeakerSelected,
           onLanguageSelected: onLanguageSelected,
           onVolumeChanged: onVolumeChanged,
+          speed: speed,
+          onSpeedChanged: onSpeedChanged,
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -138,6 +146,8 @@ class _SpeakerSettingsList extends StatelessWidget {
     required this.onSpeakerSelected,
     required this.onLanguageSelected,
     required this.onVolumeChanged,
+    required this.speed,
+    required this.onSpeedChanged,
   });
 
   final List<String> speakers;
@@ -147,6 +157,8 @@ class _SpeakerSettingsList extends StatelessWidget {
   final void Function(String speakerName, int speakerId) onSpeakerSelected;
   final void Function(String speakerName, String language) onLanguageSelected;
   final void Function(String speakerName, int volume) onVolumeChanged;
+  final double speed;
+  final ValueChanged<double> onSpeedChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -162,6 +174,8 @@ class _SpeakerSettingsList extends StatelessWidget {
             onSpeakerSelected: onSpeakerSelected,
             onLanguageSelected: onLanguageSelected,
             onVolumeChanged: onVolumeChanged,
+            speed: speed,
+            onSpeedChanged: onSpeedChanged,
           ),
           if (speakerName != speakers.last) const SizedBox(height: 12),
         ],
@@ -179,6 +193,8 @@ class _SpeakerSettingsRow extends StatelessWidget {
     required this.onSpeakerSelected,
     required this.onLanguageSelected,
     required this.onVolumeChanged,
+    required this.speed,
+    required this.onSpeedChanged,
   });
 
   final String speakerName;
@@ -188,58 +204,45 @@ class _SpeakerSettingsRow extends StatelessWidget {
   final void Function(String speakerName, int speakerId) onSpeakerSelected;
   final void Function(String speakerName, String language) onLanguageSelected;
   final void Function(String speakerName, int volume) onVolumeChanged;
+  final double speed;
+  final ValueChanged<double> onSpeedChanged;
 
   @override
   Widget build(BuildContext context) {
     final selectedModel = _selectedModel();
-    final speakers = selectedModel?.voice.speakers ?? const <Speaker>[];
-    final languages =
-        selectedModel?.voice.generationLanguages ?? const <VoiceLanguage>[];
-    final selectedSpeakerId = settings?.speakerId;
-    final hasLanguageSelection = languages.length > 1;
-    final minWidth =
-        720.0 +
-        (speakers.isNotEmpty ? 252.0 : 0.0) +
-        (hasLanguageSelection ? 192.0 : 0.0);
+    final modelSettings = selectedModel == null
+        ? const ModelSynthesisSettings()
+        : ModelSynthesisSettings.defaultsFor(selectedModel.voice).copyWith(
+            speed: speed,
+            volume: dialogVolumeToGain(settings?.volume ?? dialogVolumeDefault),
+            speakerId: settings?.speakerId,
+            generationLanguage: settings?.generationLanguage,
+          );
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(minWidth: minWidth),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 160, child: _SpeakerNameLabel(name: speakerName)),
-            SizedBox(
-              width: 360,
-              child: _buildModelSelector(context, selectedModel),
-            ),
-            if (speakers.isNotEmpty) ...[
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 240,
-                child: _buildVoiceSelector(
-                  context,
-                  speakers,
-                  selectedSpeakerId,
-                ),
-              ),
-            ],
-            if (hasLanguageSelection) ...[
-              const SizedBox(width: 12),
-              SizedBox(
-                width: 180,
-                child: _buildLanguageSelector(context, languages),
-              ),
-            ],
-            const SizedBox(width: 12),
-            _VolumeStepper(
-              volume: settings?.volume ?? dialogVolumeDefault,
-              onChanged: (volume) => onVolumeChanged(speakerName, volume),
-            ),
-          ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 160, child: _SpeakerNameLabel(name: speakerName)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: ModelSelector(
+            readyModels: readyModels,
+            selectedModel: selectedModel,
+            settings: modelSettings,
+            enabled: readyModels.isNotEmpty,
+            onModelSelected: (model) => onModelSelected(speakerName, model),
+            onSettingsChanged: (next) {
+              onSpeedChanged(next.speed);
+              onSpeakerSelected(speakerName, next.speakerId);
+              onLanguageSelected(speakerName, next.generationLanguage);
+              onVolumeChanged(
+                speakerName,
+                (next.volume * dialogVolumeDefault).round(),
+              );
+            },
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -256,6 +259,7 @@ class _SpeakerSettingsRow extends StatelessWidget {
     return null;
   }
 
+  // ignore: unused_element
   Widget _buildModelSelector(
     BuildContext context,
     InstalledModel? selectedModel,
@@ -293,6 +297,7 @@ class _SpeakerSettingsRow extends StatelessWidget {
     );
   }
 
+  // ignore: unused_element
   Widget _buildVoiceSelector(
     BuildContext context,
     List<Speaker> speakers,
@@ -330,6 +335,7 @@ class _SpeakerSettingsRow extends StatelessWidget {
     );
   }
 
+  // ignore: unused_element
   Widget _buildLanguageSelector(
     BuildContext context,
     List<VoiceLanguage> languages,
@@ -378,6 +384,7 @@ class _SpeakerSettingsRow extends StatelessWidget {
   }
 }
 
+// ignore: unused_element
 class _VolumeStepper extends StatelessWidget {
   const _VolumeStepper({required this.volume, required this.onChanged});
 

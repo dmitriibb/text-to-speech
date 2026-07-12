@@ -55,9 +55,9 @@ class AppNavigationDrawer extends StatelessWidget {
               onTap: () => onDestinationSelected(AppDestination.models),
             ),
             _DestinationTile(
-              icon: Icons.science_outlined,
-              selectedIcon: Icons.science,
-              label: 'Voice Lab',
+              icon: Icons.dns_outlined,
+              selectedIcon: Icons.dns,
+              label: 'Backend models',
               selected: selectedDestination == AppDestination.voiceLab,
               onTap: () => onDestinationSelected(AppDestination.voiceLab),
             ),

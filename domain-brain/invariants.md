@@ -11,5 +11,7 @@
 - Synthesized output is written to a local `.wav` file before playback, export, or sharing.
 - After a model is installed, local synthesis must work without network access.
 - Speed input is bounded to the app-supported range of `0.5x` to `2.0x`.
+- Per-model output volume is bounded to `0.5x` to `1.5x` and defaults to `1.0x`.
+- Model synthesis settings are keyed by model ID and shared across Home, Live TTS, and Dialog rather than owned by an individual screen.
 - Models with Unknown redistribution status may be used for local validation and development, but must not be treated as ship-ready bundled assets.
 - Repair or reinstall must never silently leave a broken model marked as `ready`.

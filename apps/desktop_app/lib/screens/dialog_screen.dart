@@ -7,7 +7,7 @@ import '../widgets/app_navigation_drawer.dart';
 import 'home_screen.dart';
 import 'live_tts_screen.dart';
 import 'models_screen.dart';
-import 'voice_lab_screen.dart';
+import 'backend_models_screen.dart';
 
 class DialogScreen extends StatelessWidget {
   const DialogScreen({super.key});
@@ -50,6 +50,8 @@ class DialogScreen extends StatelessWidget {
                   onSpeakerSelected: state.setDialogSpeakerVoice,
                   onLanguageSelected: state.setDialogSpeakerLanguage,
                   onVolumeChanged: state.setDialogSpeakerVolume,
+                  speed: state.speed,
+                  onSpeedChanged: state.setSpeed,
                 ),
               ),
             ),
@@ -87,7 +89,9 @@ class DialogScreen extends StatelessWidget {
       case AppDestination.voiceLab:
         state.stopDialogPlayback();
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(builder: (context) => const VoiceLabScreen()),
+          MaterialPageRoute<void>(
+            builder: (context) => const BackendModelsScreen(),
+          ),
         );
     }
   }

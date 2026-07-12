@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('desktop navigation drawer exposes voice lab destination', (
+  testWidgets('desktop navigation drawer exposes backend models destination', (
     tester,
   ) async {
     AppDestination? selectedDestination;
@@ -29,9 +29,9 @@ void main() {
     expect(find.text('Live TTS'), findsOneWidget);
     expect(find.text('Dialog'), findsOneWidget);
     expect(find.text('Models'), findsOneWidget);
-    expect(find.text('Voice Lab'), findsOneWidget);
+    expect(find.text('Backend models'), findsOneWidget);
 
-    await tester.tap(find.text('Voice Lab'));
+    await tester.tap(find.text('Backend models'));
     expect(selectedDestination, AppDestination.voiceLab);
   });
 }

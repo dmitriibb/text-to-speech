@@ -34,7 +34,7 @@ flows:
       - apps/desktop_app/lib/screens/live_tts_screen.dart
       - apps/desktop_app/lib/screens/dialog_screen.dart
       - apps/desktop_app/lib/screens/models_screen.dart
-      - apps/desktop_app/lib/screens/voice_lab_screen.dart
+      - apps/desktop_app/lib/screens/backend_models_screen.dart
       - apps/desktop_app/lib/widgets/app_navigation_drawer.dart
   model_catalog_and_approval:
     docs:
@@ -78,7 +78,8 @@ flows:
       - packages/tts_core/lib/src/models/dialog_mode.dart
       - packages/shared_ui/lib/src/widgets/live_text_input_editor.dart
       - packages/shared_ui/lib/src/widgets/dialog_mode_panel.dart
-      - packages/shared_ui/lib/src/widgets/voice_settings_controls.dart
+      - packages/shared_ui/lib/src/widgets/model_selector.dart
+      - packages/tts_core/lib/src/models/model_synthesis_settings.dart
       - packages/shared_ui/lib/src/widgets/task_list_panel.dart
       - apps/desktop_app/lib/state/app_state.dart
       - apps/desktop_app/lib/screens/live_tts_screen.dart
@@ -93,6 +94,23 @@ flows:
       - VoiceModel
       - InstalledModel
       - GeneratedAudio
+  model_settings:
+    docs:
+      - domain-brain/flows/model-settings.md
+    paths:
+      - packages/tts_core/lib/src/models/model_synthesis_settings.dart
+      - packages/tts_core/lib/src/services/synthesis_settings.dart
+      - packages/shared_ui/lib/src/widgets/model_selector.dart
+      - packages/shared_ui/lib/src/widgets/dialog_mode_panel.dart
+      - apps/desktop_app/lib/state/app_state.dart
+      - apps/android_app/lib/state/app_state.dart
+      - apps/desktop_app/lib/widgets/settings_panel.dart
+      - apps/android_app/lib/widgets/settings_panel.dart
+      - apps/desktop_app/lib/widgets/live_tts_panel.dart
+      - apps/android_app/lib/widgets/live_tts_panel.dart
+    entities:
+      - VoiceModel
+      - ModelSynthesisSettings
   audio_output:
     docs:
       - domain-brain/flows/audio-output.md
@@ -116,7 +134,8 @@ flows:
       - domain-brain/flows/voice-cloning.md
     paths:
       - apps/desktop_app/lib/models/cloned_voice.dart
-      - apps/desktop_app/lib/screens/voice_lab_screen.dart
+      - apps/desktop_app/lib/screens/backend_models_screen.dart
+      - packages/shared_ui/lib/src/widgets/model_selector.dart
       - apps/desktop_app/lib/state/voice_lab_state.dart
       - apps/desktop_app/lib/services/voice_library_service.dart
       - apps/desktop_app/lib/services/open_voice_backend_service.dart

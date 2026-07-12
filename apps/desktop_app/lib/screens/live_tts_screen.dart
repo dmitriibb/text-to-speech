@@ -7,7 +7,7 @@ import '../widgets/live_tts_panel.dart';
 import 'dialog_screen.dart';
 import 'home_screen.dart';
 import 'models_screen.dart';
-import 'voice_lab_screen.dart';
+import 'backend_models_screen.dart';
 
 class LiveTtsScreen extends StatelessWidget {
   const LiveTtsScreen({super.key});
@@ -69,7 +69,9 @@ class LiveTtsScreen extends StatelessWidget {
       case AppDestination.voiceLab:
         state.stopLiveTts();
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(builder: (context) => const VoiceLabScreen()),
+          MaterialPageRoute<void>(
+            builder: (context) => const BackendModelsScreen(),
+          ),
         );
     }
   }

@@ -123,7 +123,8 @@ class TaskManager extends ChangeNotifier {
     required int speakerId,
     required String outputPath,
     String? providerOverride,
-    int volume = dialogVolumeDefault,
+    int? volume,
+    double volumeGain = modelVolumeDefault,
     String? generationLanguage,
   }) async {
     _speechCounter++;
@@ -157,7 +158,9 @@ class TaskManager extends ChangeNotifier {
           'text': text,
           'speed': clampSpeechSpeed(speed),
           'speakerId': speakerId,
-          'volumeGain': dialogVolumeToGain(volume),
+          'volumeGain': volume == null
+              ? clampModelVolume(volumeGain)
+              : dialogVolumeToGain(volume),
           'generationLanguage': voice.resolveGenerationLanguage(
             generationLanguage,
           ),

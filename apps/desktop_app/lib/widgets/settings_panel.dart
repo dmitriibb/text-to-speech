@@ -5,7 +5,7 @@ import 'package:shared_ui/shared_ui.dart';
 import '../services/gpu_detector.dart';
 import '../state/app_state.dart';
 
-/// Voice selection dropdown and speed slider.
+/// Shared model selector; model-specific controls live in its settings dialog.
 class SettingsPanel extends StatelessWidget {
   const SettingsPanel({super.key});
 
@@ -16,18 +16,13 @@ class SettingsPanel extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            VoiceSettingsControls(
+            ModelSelector(
               readyModels: state.readyModels,
               selectedModel: state.selectedModel,
-              selectedSpeakerId: state.selectedSpeakerId,
-              selectedGenerationLanguage: state.selectedGenerationLanguage,
-              speed: state.speed,
-              canSelectModel: state.readyModels.isNotEmpty,
-              canAdjustSpeed: true,
+              settings: state.modelSettings,
+              enabled: state.readyModels.isNotEmpty,
               onModelSelected: (model) => state.selectModel(model),
-              onSpeakerSelected: state.setSpeakerId,
-              onGenerationLanguageSelected: state.setGenerationLanguage,
-              onSpeedChanged: state.setSpeed,
+              onSettingsChanged: state.applyModelSettings,
             ),
             if (state.availableProviders.length > 1) ...[
               const SizedBox(height: 16),

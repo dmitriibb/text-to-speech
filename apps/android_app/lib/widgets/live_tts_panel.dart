@@ -42,24 +42,39 @@ class _LiveTtsPanelState extends State<LiveTtsPanel> {
     _syncControllerText(state);
     _controller.setHighlights(_buildHighlights(context, state.liveTtsChunks));
 
-    return LiveTextInputEditor(
-      controller: _controller,
-      scrollController: _scrollController,
-      liveModeEnabled: true,
-      isStreaming: state.isLiveTtsStreaming,
-      isPlaying:
-          state.isLiveTtsStreaming &&
-          state.playbackState == PlaybackState.playing,
-      chunkSizeWords: state.liveChunkSizeWords,
-      onLiveModeChanged: (_) {},
-      onChunkSizeChanged: state.setLiveChunkSizeWords,
-      onPlayPausePressed: state.livePlayPauseAction,
-      onStopPressed: state.isLiveTtsStreaming ? state.stopLiveTts : null,
-      onClearPressed: _controller.clear,
-      showHeader: false,
-      expandEditor: true,
-      liveMinLines: 12,
-      liveMaxLines: 9999,
+    return Column(
+      children: [
+        ModelSelector(
+          readyModels: state.readyModels,
+          selectedModel: state.selectedModel,
+          settings: state.modelSettings,
+          enabled: !state.isLiveTtsStreaming && state.canSelectModel,
+          onModelSelected: state.selectModel,
+          onSettingsChanged: state.applyModelSettings,
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: LiveTextInputEditor(
+            controller: _controller,
+            scrollController: _scrollController,
+            liveModeEnabled: true,
+            isStreaming: state.isLiveTtsStreaming,
+            isPlaying:
+                state.isLiveTtsStreaming &&
+                state.playbackState == PlaybackState.playing,
+            chunkSizeWords: state.liveChunkSizeWords,
+            onLiveModeChanged: (_) {},
+            onChunkSizeChanged: state.setLiveChunkSizeWords,
+            onPlayPausePressed: state.livePlayPauseAction,
+            onStopPressed: state.isLiveTtsStreaming ? state.stopLiveTts : null,
+            onClearPressed: _controller.clear,
+            showHeader: false,
+            expandEditor: true,
+            liveMinLines: 12,
+            liveMaxLines: 9999,
+          ),
+        ),
+      ],
     );
   }
 

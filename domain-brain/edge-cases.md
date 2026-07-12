@@ -24,6 +24,9 @@
 - Scenario: The user edits the input text, speaker, speed, or model while live playback is active.
   Expected handling: the live session stops, queued chunk generation is cancelled, and stale chunk highlighting is cleared.
 
+- Scenario: Saved settings refer to a speaker or language removed by a model catalog update.
+  Expected handling: the app resolves the model's current default speaker or language and persists valid settings on the next change.
+
 - Scenario: The user starts live mode with the text caret at the very end of the input or after only trailing whitespace.
   Expected handling: live playback does not start and the app shows a clear message telling the user to place the caret before some text.
 

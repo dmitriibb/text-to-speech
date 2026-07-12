@@ -1,49 +1,21 @@
 # Voice Cloning
 
-- Voice cloning is an Extended desktop-only flow exposed inline in the desktop home screen when the Advanced Functionality toggle is enabled.
-- The Basic panel stays on the left and the Advanced Voice Lab panel stays on the right with shared text state.
-- The Advanced panel always shows three toggles: `Voice cloning Pocket TTS`, `Voice cloning OpenVoice`, and `OmniVoice Multilingual TTS`.
-- Each cloning section stays hidden until its own toggle is enabled.
-- Each toggle unfolds its controls inline inside the same Voice Lab card instead of opening a separate section elsewhere on the page.
-- Voice Lab does not own a separate synthesis text field; cloned synthesis always uses the text entered in the Basic panel.
-- The Pocket TTS toggle depends on a ready Pocket TTS model and stays disabled until that model is installed.
-- Voice Lab separates cloning into two desktop-only UI paths: `Pocket TTS` and an external backend path.
-- When Pocket TTS is selected outside clone mode, regular synthesis falls back to the model's bundled default reference clip instead of the imported voice library.
-- Enabling the Pocket TTS toggle automatically switches the main desktop model selector to Pocket TTS so cloned synthesis uses the correct runtime.
-- Import starts from a single `Import Audio File` action, which opens the system file chooser and accepts `.wav` and `.mp3` audio.
-- The import dialog stores the chosen path as read-only UI state; users should not need to type filesystem paths manually.
-- Import succeeds only when the user provides a voice name and the chosen file still exists at import time.
-- Voice Lab detects the imported sample format automatically; if the user selects an `.mp3`, desktop converts it to `.wav` at import time before saving it into the voice library.
-- A successful import stores the normalized reference clip as `.wav` under `~/.tts_app/voice_library` and adds a metadata entry to `voices.json`.
-- Imported voices can be previewed, deleted, and used as reference audio for Pocket TTS cloned synthesis tasks.
-- The external backend path is configured by a manual backend URL in Voice Lab and remains usable even when Pocket TTS assets are unavailable.
-- The desktop app may point that backend URL either to the OpenVoice backend app or to a separate OmniVoice-only backend app, as long as the same job API contract is preserved.
-- The OpenVoice toggle is always interactive and controls only whether the OpenVoice section is visible.
-- The OmniVoice toggle is always interactive and controls only whether the OmniVoice section is visible.
-- When the backend toggle is on, the section stays visible even if the backend is down so the user can still edit the backend URL and inspect status.
-- Voice Lab state is app-scoped on desktop, so leaving Voice Lab and returning must not reset backend-toggle state, selected reference audio, active job id, or in-progress generation status.
-- While the backend toggle is on, the desktop app checks backend health immediately and then every 10 seconds in the background.
-- The desktop app uses `GET /health` to determine backend readiness and submits new backend speech work through `POST /jobs`.
-- The OmniVoice backend may additionally expose `GET /voices`; when available, the desktop app uses it to list the available OmniVoice voice options and presets.
-- Backend speech generation uses the shared Home-screen speed value; desktop submits that speed with the job request and the selected backend model applies it during synthesis.
-- The desktop app polls backend jobs at 1s, 2s, 3s, and so on up to a 10s maximum interval.
-- Backend reference selection accepts `.wav` and `.mp3`; when the user picks `.mp3`, the desktop app converts it to a temporary `.wav` before uploading it to the backend.
-- The backend path uses a `Generate Speech` action, not a transient preview-only action; once the backend returns a `.wav`, the desktop app stores it as generated audio and surfaces it on the Home screen like other completed speech tasks.
-- The desktop voice backend stores MVP job state in `apps/open_voice_be/storage/` with `.json` job metadata and `.wav` reference and result audio files.
-- The desktop voice backend also serves a lightweight browser admin page at `/admin` so local users can inspect backend health, model files, and saved jobs without using the desktop client.
-- The separate OmniVoice-only backend is intentionally simpler than OpenVoice: it exposes health, voices, and job endpoints without a browser admin.
-- The browser admin lists the known backend models, shows which ones are downloaded locally when applicable, and lets the user download, delete, and mark the current backend model.
-- The current backend model is the backend runtime/model choice that new backend jobs snapshot and use for synthesis.
-- Browser-admin job rows expose the saved job record, reference audio, working directory, and generated result paths when present.
-- Deleting a backend job from the browser admin removes its saved job metadata and job-owned files, and any late-running result is discarded instead of being re-saved.
-- The current backend implementation supports both the official OpenVoice V2 tone-color converter plus official MeloTTS English-v2 and the OmniVoice multilingual cloning runtime.
-- OpenVoice runtime assets download into `apps/open_voice_be/models/` on the first admin download action or on the first real job that needs them, while OmniVoice downloads its own Hugging Face assets into the local cache. The backend still needs manual Python environment setup by the user.
-- The preferred local backend launch command is `python -m src.main` from `apps/open_voice_be/`.
-- The downloaded files under `apps/open_voice_be/models/` and the generated job artifacts under `apps/open_voice_be/storage/` are local runtime state and must stay out of git history.
-- The OpenVoice backend path currently supports English only.
-- The OmniVoice backend path accepts the submitted `language` value and now supports three desktop-visible modes: clone from reference audio, preset or custom voice design via instruction text, and auto voice with no reference clip.
-- OmniVoice preset voices in the desktop app are backend-defined presets for voice design prompts, not fixed upstream speaker IDs.
-- OmniVoice design mode may expose optional reference transcript, duration override, and diffusion-step controls when the backend advertises those capabilities in `GET /health`.
-- OmniVoice also supports inline text-level controls such as non-verbal tags and pronunciation hints inside the shared Basic text field; the desktop app surfaces that capability as guidance rather than separate per-token widgets.
-- The OpenVoice backend and OmniVoice backend are allowed to live in separate Python environments to avoid dependency conflicts between their upstream stacks.
-- The current MVP extracts the target speaker embedding directly from the uploaded reference WAV instead of using the optional OpenVoice VAD splitting helpers.
+- Voice cloning is an Extended desktop-only model capability.
+- The former Voice Lab navigation destination is replaced by `Backend models`; that screen only enables external backend runtimes and configures server URLs and health checks.
+- Model-specific cloning and voice-design controls belong in the shared model settings modal through its extension builder, not in Home, Live TTS, or Dialog implementations.
+- Model-setting extensions persist JSON-safe values such as reference-audio paths, preset IDs, style instructions, and tuning values under the selected model ID.
+- Pocket TTS normal synthesis uses its bundled default reference clip when no cloning reference is configured.
+- External OpenVoice and OmniVoice runtimes remain desktop-only and stay behind their backend service boundary.
+- Backend configuration state is app-scoped so navigation does not reset enabled state, URLs, or connection progress.
+- Enabled backends check health immediately and continue periodic health checks.
+- OpenVoice and OmniVoice may use separate Python environments to avoid dependency conflicts.
+- The backend API continues to use `GET /health`, `POST /jobs`, and job polling; OmniVoice may additionally expose `GET /voices`.
+- Backend-generated WAV output is stored as generated audio and uses the same playback/export flow as local synthesis.
+- Downloaded backend models and generated backend job artifacts are local runtime state and must stay out of git history.
+
+## Current integration boundary
+
+- The generic shared modal and extension-value storage are implemented.
+- Speaker and language capabilities are derived directly from the shared model catalog.
+- Backend enablement and URL configuration are exposed on `Backend models`.
+- Concrete cloning-file pickers and voice-style extension builders still need to be registered by each desktop model-family integration before those controls appear in the generic modal.

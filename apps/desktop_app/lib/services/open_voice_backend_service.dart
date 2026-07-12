@@ -272,11 +272,10 @@ class OpenVoiceBackendService {
     var current = await fetchJob(baseUri, jobId);
     while (!current.isTerminal) {
       final waitSeconds =
-          ((initialPollingSeconds + (attempt * pollingIncrementSeconds)).clamp(
-                1,
-                maxPollingSeconds,
-              ))
-              as int;
+          (initialPollingSeconds + (attempt * pollingIncrementSeconds)).clamp(
+            1,
+            maxPollingSeconds,
+          );
       await _delay(Duration(seconds: waitSeconds));
       current = await fetchJob(baseUri, jobId);
       attempt += 1;

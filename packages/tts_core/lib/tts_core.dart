@@ -1,5 +1,6 @@
 export 'src/models/dialog_mode.dart';
 export 'src/models/live_tts_chunk.dart';
+export 'src/models/model_synthesis_settings.dart';
 export 'src/models/long_running_task.dart';
 export 'src/models/model_install_progress.dart';
 export 'src/models/voice_model.dart';

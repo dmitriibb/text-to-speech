@@ -10,7 +10,7 @@ import '../widgets/text_input_panel.dart';
 import 'dialog_screen.dart';
 import 'live_tts_screen.dart';
 import 'models_screen.dart';
-import 'voice_lab_screen.dart';
+import 'backend_models_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -141,7 +141,9 @@ class HomeScreen extends StatelessWidget {
         );
       case AppDestination.voiceLab:
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(builder: (context) => const VoiceLabScreen()),
+          MaterialPageRoute<void>(
+            builder: (context) => const BackendModelsScreen(),
+          ),
         );
     }
   }

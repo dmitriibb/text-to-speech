@@ -6,7 +6,7 @@ Generate understandable speech locally from user-provided text with no cloud dep
 
 ## Steps
 
-1. User enters text and chooses a ready voice plus speed; for multi-speaker models the user also chooses a speaker, and for multilingual generation models the user chooses an output language.
+1. User enters text and chooses a ready model; its shared settings modal provides volume and speed plus speaker, language, and extension controls supported by that model.
 2. When enough per-model history exists, the basic UI shows expected generation time and expected audio length for the current text.
 3. App validates that text is non-empty.
 4. In normal mode, the app queues long-running voice-load or synthesis work in the shared isolate task executor instead of blocking the UI isolate.
@@ -35,7 +35,7 @@ Generate understandable speech locally from user-provided text with no cloud dep
 - Live mode chunking must preserve sentence boundaries by extending a chunk to the end of the current sentence instead of cutting mid-sentence.
 - Live mode must begin from the current caret position instead of always restarting from the start of the text.
 - Live mode chunk size is a positive word count and defaults to `10`.
-- Live mode uses the same selected ready model, speaker, and speed settings as normal synthesis.
+- Live mode uses the same persisted per-model volume, speed, speaker, and language settings as normal synthesis.
 - Live mode stop must release already generated chunk buffers instead of keeping them in memory or on disk for later reuse.
 - Dialog mode requires every non-empty line to have a ready model assignment before generation starts.
 - Dialog line generation writes one `.wav` per line and keeps the speaker name and line text immutable in the compact line row; removing a row is the destructive line-level action.

@@ -32,6 +32,8 @@ void main() {
             onSpeakerSelected: (_, _) {},
             onLanguageSelected: (_, _) {},
             onVolumeChanged: (_, _) {},
+            speed: 1,
+            onSpeedChanged: (_) {},
           ),
         ),
       ),
@@ -103,6 +105,8 @@ void main() {
               onSpeakerSelected: (_, _) {},
               onLanguageSelected: (_, _) {},
               onVolumeChanged: (_, _) {},
+              speed: 1,
+              onSpeedChanged: (_) {},
             ),
           ),
         ),
@@ -112,12 +116,11 @@ void main() {
     expect(find.text('Mitarbeiterin'), findsNWidgets(2));
     expect(find.text('Omar'), findsNWidgets(2));
     expect(find.text('Dialog Voice'), findsWidgets);
-    expect(find.text('Voice A'), findsWidgets);
-    expect(find.text('Voice B'), findsWidgets);
-    expect(find.text('7'), findsOneWidget);
-    expect(find.text('5'), findsOneWidget);
-    expect(find.byTooltip('Decrease volume'), findsNWidgets(2));
-    expect(find.byTooltip('Increase volume'), findsNWidgets(2));
+    expect(find.byTooltip('Model settings'), findsNWidgets(2));
+    await tester.tap(find.byTooltip('Model settings').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Voice A'), findsOneWidget);
+    expect(find.text('Volume'), findsOneWidget);
     expect(find.byTooltip('Play line'), findsNWidgets(2));
     expect(find.byTooltip('Remove line'), findsNWidgets(2));
     expect(find.byTooltip('Ready'), findsOneWidget);
@@ -174,6 +177,8 @@ void main() {
                 selectedLanguage = language;
               },
               onVolumeChanged: (_, _) {},
+              speed: 1,
+              onSpeedChanged: (_) {},
             ),
           ),
         ),
@@ -183,11 +188,16 @@ void main() {
         find.text('Supertonic 3 Multilingual · English, French'),
         findsOneWidget,
       );
+      await tester.tap(find.byTooltip('Model settings'));
+      await tester.pumpAndSettle();
       expect(find.text('French'), findsOneWidget);
 
       await tester.tap(find.text('French'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('English').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Apply'));
+      await tester.pumpAndSettle();
 
       expect(selectedLanguage, 'en');
     },

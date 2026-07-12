@@ -5,4 +5,4 @@ export 'src/widgets/dialog_mode_panel.dart';
 export 'src/widgets/generation_estimate_summary.dart';
 export 'src/widgets/live_text_input_editor.dart';
 export 'src/widgets/model_management_panel.dart';
-export 'src/widgets/voice_settings_controls.dart';
+export 'src/widgets/model_selector.dart';

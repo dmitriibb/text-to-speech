@@ -12,7 +12,7 @@ Keep the main generation flow focused on text, voice settings, and playback whil
 4. User may select `Live TTS` to open a dedicated screen with live chunk controls and a large internally scrollable editor.
 5. User may select `Dialog` to paste a speaker-prefixed transcript, assign a ready local model and optional voice per speaker, generate each line, and play the dialog as a sequence.
 6. User selects `Models` to view the approved catalog and start install or repair work on a dedicated screen.
-7. On Android, the user may also select `Settings` or `About`; on desktop, the user may also select `Voice Lab`.
+7. On Android, the user may also select `Settings` or `About`; on desktop, the user may also select `Backend models` to enable external model servers and configure their connection URLs.
 8. App switches screens without disturbing current selected model, text input, generated audio, background task state, dialog transcript state, or desktop Voice Lab state, except that leaving the Live TTS or Dialog playback screens stops their active playback sessions.
 9. User returns to Home and continues the standard local generation flow.
 
@@ -23,7 +23,7 @@ Keep the main generation flow focused on text, voice settings, and playback whil
 - Dialog mode uses a dedicated navigation destination and keeps parsed speaker lines separate from the Home text input.
 - Model catalog browsing and install actions live on the dedicated Models screen instead of Home.
 - Android navigation exposes Home, Live TTS, Dialog, Models, Settings, and About.
-- Desktop navigation exposes Home, Live TTS, Dialog, Models, and Voice Lab.
+- Desktop navigation exposes Home, Live TTS, Dialog, Models, and Backend models.
 - Navigation between destinations must not reset selected model, text input, generated audio state, running tasks, parsed dialog lines, or the current Voice Lab configuration and OpenVoice job progress.
 
 ## Failure Modes

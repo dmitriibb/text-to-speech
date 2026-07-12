@@ -180,6 +180,12 @@ class VoiceLabState extends ChangeNotifier {
   Future<void> initialize() async {
     _appState.addListener(_handleAppStateChanged);
     _openVoiceBackendUrl = await _openVoicePreferencesService.loadBackendUrl();
+    _omniVoiceBackendUrl = await _openVoicePreferencesService
+        .loadOmniVoiceBackendUrl(_omniVoiceBackendUrl);
+    _isOpenVoiceEnabled = await _openVoicePreferencesService
+        .loadOpenVoiceEnabled();
+    _isOmniVoiceEnabled = await _openVoicePreferencesService
+        .loadOmniVoiceEnabled();
     _previewSub = _previewAudio.onStateChanged.listen((state) {
       _isPreviewPlaying = state == PlaybackState.playing;
       if (state == PlaybackState.stopped) {
@@ -189,6 +195,14 @@ class VoiceLabState extends ChangeNotifier {
     });
 
     await loadVoices();
+    if (_isOpenVoiceEnabled) {
+      unawaited(checkOpenVoiceConnection());
+      _startOpenVoiceHealthPolling();
+    }
+    if (_isOmniVoiceEnabled) {
+      unawaited(checkOmniVoiceConnection());
+      _startOmniVoiceHealthPolling();
+    }
   }
 
   Future<void> setVoiceCloningEnabled(bool enabled) {
@@ -200,6 +214,7 @@ class VoiceLabState extends ChangeNotifier {
       if (_isOpenVoiceEnabled) {
         _isOpenVoiceEnabled = false;
         _stopOpenVoiceHealthPolling();
+        await _openVoicePreferencesService.saveOpenVoiceEnabled(false);
         notifyListeners();
       }
       return;
@@ -210,6 +225,7 @@ class VoiceLabState extends ChangeNotifier {
     }
 
     _isOpenVoiceEnabled = true;
+    await _openVoicePreferencesService.saveOpenVoiceEnabled(true);
     _openVoiceBackendMessage = 'Checking backend connection...';
     _openVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
     notifyListeners();
@@ -222,6 +238,7 @@ class VoiceLabState extends ChangeNotifier {
       if (_isOmniVoiceEnabled) {
         _isOmniVoiceEnabled = false;
         _stopOmniVoiceHealthPolling();
+        await _openVoicePreferencesService.saveOmniVoiceEnabled(false);
         notifyListeners();
       }
       return;
@@ -232,6 +249,7 @@ class VoiceLabState extends ChangeNotifier {
     }
 
     _isOmniVoiceEnabled = true;
+    await _openVoicePreferencesService.saveOmniVoiceEnabled(true);
     _omniVoiceBackendMessage = 'Checking backend connection...';
     _omniVoiceConnectionState = OpenVoiceBackendConnectionState.checking;
     notifyListeners();
@@ -255,6 +273,7 @@ class VoiceLabState extends ChangeNotifier {
     _omniVoiceConnectionState = OpenVoiceBackendConnectionState.disconnected;
     _omniVoiceBackendMessage = null;
     notifyListeners();
+    await _openVoicePreferencesService.saveOmniVoiceBackendUrl(backendUrl);
     if (_isOmniVoiceEnabled) {
       unawaited(checkOmniVoiceConnection());
     }

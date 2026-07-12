@@ -22,6 +22,7 @@ class AppState extends ChangeNotifier {
   ];
   static const String _settingsFileName = 'app_settings.json';
   static const String _inferenceProviderKey = 'inferenceProvider';
+  static const String _modelSettingsFileName = 'model_settings.json';
 
   final ModelService _modelService = ModelService();
   final AudioService _audioService = AudioService();
@@ -39,6 +40,8 @@ class AppState extends ChangeNotifier {
 
   List<InstalledModel> _installedModels = [];
   InstalledModel? _selectedModel;
+  final Map<String, ModelSynthesisSettings> _modelSettingsById = {};
+  Map<String, Object?> _persistedModelSettingsJson = {};
   bool _isLoadingModels = true;
   bool _isDownloading = false;
   double _downloadProgress = 0;
@@ -85,6 +88,13 @@ class AppState extends ChangeNotifier {
 
   String get inputText => _inputText;
   double get speed => _speed;
+  double get volume => modelSettings.volume;
+  ModelSynthesisSettings get modelSettings {
+    final model = _selectedModel;
+    if (model == null) return const ModelSynthesisSettings();
+    return _settingsFor(model.voice);
+  }
+
   int get selectedSpeakerId => _selectedSpeakerId;
   String get selectedGenerationLanguage => _selectedGenerationLanguage;
   int get inputCursorOffset => _inputCursorOffset;
@@ -184,6 +194,7 @@ class AppState extends ChangeNotifier {
       notifyListeners();
     });
     _modelsDirectory = await _modelService.getModelsDirectory();
+    _persistedModelSettingsJson = await _loadModelSettingsJson();
     _selectedInferenceProvider = await _loadInferenceProviderPreference();
     _generatedAudioStore = await _createGeneratedAudioStore();
     await _generatedAudioStore!.ensureInitialized();
@@ -201,19 +212,7 @@ class AppState extends ChangeNotifier {
       _installedModels = await _modelService.getInstalledModels();
       final nextSelection = _resolveSelection();
       if (nextSelection != null) {
-        final preserveSpeaker =
-            _selectedModel?.voice.id == nextSelection.voice.id;
-        final preserveLanguage =
-            _selectedModel?.voice.id == nextSelection.voice.id;
-        _speed = clampSpeechSpeed(nextSelection.voice.defaultSpeed);
-        _selectedSpeakerId = _resolveSpeakerId(
-          nextSelection.voice,
-          preferredSpeakerId: preserveSpeaker ? _selectedSpeakerId : null,
-        );
-        _selectedGenerationLanguage = nextSelection.voice
-            .resolveGenerationLanguage(
-              preserveLanguage ? _selectedGenerationLanguage : null,
-            );
+        _applySettingsFields(_settingsFor(nextSelection.voice));
       } else {
         _selectedGenerationLanguage = '';
       }
@@ -258,12 +257,7 @@ class AppState extends ChangeNotifier {
     }
 
     _selectedModel = model;
-    _speed = clampSpeechSpeed(model.voice.defaultSpeed);
-    _selectedSpeakerId = _resolveSpeakerId(
-      model.voice,
-      preferredSpeakerId: model.voice.defaultSpeakerId,
-    );
-    _selectedGenerationLanguage = model.voice.resolveGenerationLanguage(null);
+    _applySettingsFields(_settingsFor(model.voice));
     _errorMessage = null;
     notifyListeners();
 
@@ -385,11 +379,7 @@ class AppState extends ChangeNotifier {
   }
 
   void setSpeed(double speed) {
-    _speed = clampSpeechSpeed(speed);
-    if (isLiveTtsStreaming) {
-      unawaited(stopLiveTts());
-    }
-    notifyListeners();
+    applyModelSettings(modelSettings.copyWith(speed: speed));
   }
 
   void setSpeakerId(int speakerId) {
@@ -398,14 +388,11 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    _selectedSpeakerId = _resolveSpeakerId(
+    final resolved = _resolveSpeakerId(
       selectedModel.voice,
       preferredSpeakerId: speakerId,
     );
-    if (isLiveTtsStreaming) {
-      unawaited(stopLiveTts());
-    }
-    notifyListeners();
+    applyModelSettings(modelSettings.copyWith(speakerId: resolved));
   }
 
   void setGenerationLanguage(String language) {
@@ -421,10 +408,22 @@ class AppState extends ChangeNotifier {
       return;
     }
 
-    _selectedGenerationLanguage = nextLanguage;
-    if (isLiveTtsStreaming) {
-      unawaited(stopLiveTts());
-    }
+    applyModelSettings(
+      modelSettings.copyWith(generationLanguage: nextLanguage),
+    );
+  }
+
+  void applyModelSettings(ModelSynthesisSettings settings) {
+    final model = _selectedModel;
+    if (model == null) return;
+    final normalized = ModelSynthesisSettings.fromJson(
+      settings.toJson(),
+      model.voice,
+    );
+    _modelSettingsById[model.voice.id] = normalized;
+    _applySettingsFields(normalized);
+    if (isLiveTtsStreaming) unawaited(stopLiveTts());
+    unawaited(_saveModelSettings());
     notifyListeners();
   }
 
@@ -515,6 +514,7 @@ class AppState extends ChangeNotifier {
         text: inputText,
         speed: speed,
         speakerId: _selectedSpeakerId,
+        volumeGain: volume,
         generationLanguage: _selectedGenerationLanguage,
         outputPath: await createGeneratedAudioOutputPath(),
         providerOverride: _selectedInferenceProvider,
@@ -556,6 +556,7 @@ class AppState extends ChangeNotifier {
       text: _inputText,
       speed: _speed,
       speakerId: _selectedSpeakerId,
+      volumeGain: volume,
       generationLanguage: _selectedGenerationLanguage,
       chunkSizeWords: _liveChunkSizeWords,
       outputDirectoryPath: (await _generatedAudioDirectory()).path,
@@ -1685,6 +1686,53 @@ class AppState extends ChangeNotifier {
     return File(
       p.join(Directory(modelsDirectory).parent.path, _settingsFileName),
     );
+  }
+
+  Future<File> _modelSettingsFile() async {
+    final settingsFile = await _settingsFile();
+    return File(p.join(settingsFile.parent.path, _modelSettingsFileName));
+  }
+
+  ModelSynthesisSettings _settingsFor(VoiceModel voice) {
+    final cached = _modelSettingsById[voice.id];
+    if (cached != null) return cached;
+    final raw = _persistedModelSettingsJson[voice.id];
+    final settings = raw is Map
+        ? ModelSynthesisSettings.fromJson(Map<String, Object?>.from(raw), voice)
+        : ModelSynthesisSettings.defaultsFor(voice);
+    _modelSettingsById[voice.id] = settings;
+    return settings;
+  }
+
+  void _applySettingsFields(ModelSynthesisSettings settings) {
+    _speed = settings.speed;
+    _selectedSpeakerId = settings.speakerId;
+    _selectedGenerationLanguage = settings.generationLanguage;
+  }
+
+  Future<Map<String, Object?>> _loadModelSettingsJson() async {
+    try {
+      final file = await _modelSettingsFile();
+      if (!await file.exists()) return {};
+      final decoded = jsonDecode(await file.readAsString());
+      return decoded is Map ? Map<String, Object?>.from(decoded) : {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> _saveModelSettings() async {
+    try {
+      final file = await _modelSettingsFile();
+      await file.parent.create(recursive: true);
+      final values = <String, Object?>{
+        ..._persistedModelSettingsJson,
+        for (final entry in _modelSettingsById.entries)
+          entry.key: entry.value.toJson(),
+      };
+      await file.writeAsString(jsonEncode(values), flush: true);
+      _persistedModelSettingsJson = values;
+    } catch (_) {}
   }
 
   Future<String> _loadInferenceProviderPreference() async {

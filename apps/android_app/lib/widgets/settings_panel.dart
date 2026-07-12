@@ -20,22 +20,17 @@ class SettingsPanel extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Voice and speed',
+                  'AI model',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 14),
-                VoiceSettingsControls(
+                ModelSelector(
                   readyModels: ready,
                   selectedModel: state.selectedModel,
-                  selectedSpeakerId: state.selectedSpeakerId,
-                  selectedGenerationLanguage: state.selectedGenerationLanguage,
-                  speed: state.speed,
-                  canSelectModel: state.canSelectModel,
-                  canAdjustSpeed: state.canAdjustSpeed,
+                  settings: state.modelSettings,
+                  enabled: state.canSelectModel,
                   onModelSelected: (model) => state.selectModel(model),
-                  onSpeakerSelected: state.setSpeakerId,
-                  onGenerationLanguageSelected: state.setGenerationLanguage,
-                  onSpeedChanged: state.setSpeed,
+                  onSettingsChanged: state.applyModelSettings,
                 ),
               ],
             ),
