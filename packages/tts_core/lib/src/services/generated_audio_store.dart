@@ -392,6 +392,22 @@ class GeneratedAudioStore {
     });
   }
 
+  /// Deletes every persisted generated-audio file and clears its task records.
+  /// Generation statistics are intentionally preserved for future estimates.
+  Future<void> clearAllAudio() {
+    return _queueOperation(() async {
+      await _ensureInitializedUnlocked();
+      final records = await _readRecords();
+      for (final record in records) {
+        final file = File(record.outputPath);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+      await _writeRecords(const <GeneratedAudioRecord>[]);
+    });
+  }
+
   Future<List<GeneratedAudioRecord>> _readRecords() async {
     final payload = await _readJsonObject(_libraryFile);
     final rawItems = payload['items'];

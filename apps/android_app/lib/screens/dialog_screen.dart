@@ -54,6 +54,8 @@ class DialogScreen extends StatelessWidget {
                 onRemoveLine: state.removeDialogLine,
                 onModelSelected: state.setDialogSpeakerModel,
                 onSpeakerSelected: state.setDialogSpeakerVoice,
+                onLanguageSelected: state.setDialogSpeakerLanguage,
+                onVolumeChanged: state.setDialogSpeakerVolume,
               ),
             );
           },

@@ -30,6 +30,8 @@ void main() {
             onRemoveLine: (_) async {},
             onModelSelected: (_, _) {},
             onSpeakerSelected: (_, _) {},
+            onLanguageSelected: (_, _) {},
+            onVolumeChanged: (_, _) {},
           ),
         ),
       ),
@@ -78,11 +80,13 @@ void main() {
                   speakerName: 'Mitarbeiterin',
                   modelId: 'model-1',
                   speakerId: 0,
+                  volume: 7,
                 ),
                 'Omar': DialogSpeakerSettings(
                   speakerName: 'Omar',
                   modelId: 'model-1',
                   speakerId: 1,
+                  volume: 5,
                 ),
               },
               isGenerating: false,
@@ -97,6 +101,8 @@ void main() {
               onRemoveLine: (_) async {},
               onModelSelected: (_, _) {},
               onSpeakerSelected: (_, _) {},
+              onLanguageSelected: (_, _) {},
+              onVolumeChanged: (_, _) {},
             ),
           ),
         ),
@@ -108,17 +114,93 @@ void main() {
     expect(find.text('Dialog Voice'), findsWidgets);
     expect(find.text('Voice A'), findsWidgets);
     expect(find.text('Voice B'), findsWidgets);
+    expect(find.text('7'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
+    expect(find.byTooltip('Decrease volume'), findsNWidgets(2));
+    expect(find.byTooltip('Increase volume'), findsNWidgets(2));
     expect(find.byTooltip('Play line'), findsNWidgets(2));
     expect(find.byTooltip('Remove line'), findsNWidgets(2));
     expect(find.byTooltip('Ready'), findsOneWidget);
     expect(find.byTooltip('Not ready'), findsOneWidget);
   });
+
+  testWidgets(
+    'dialog speaker row shows language selector for multilingual model',
+    (tester) async {
+      var selectedLanguage = '';
+      final model = _installedModel(
+        id: 'supertonic-3-multilingual',
+        displayName: 'Supertonic 3 Multilingual',
+        supportedLanguages: const ['English', 'French'],
+        generationLanguage: 'en',
+        generationLanguages: const [
+          VoiceLanguage(code: 'en', name: 'English'),
+          VoiceLanguage(code: 'fr', name: 'French'),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: DialogModePanel(
+              lines: const [
+                DialogLineItem(
+                  id: 'line-1',
+                  speakerName: 'Narrator',
+                  text: 'Bonjour.',
+                ),
+              ],
+              readyModels: [model],
+              speakerSettings: const {
+                'Narrator': DialogSpeakerSettings(
+                  speakerName: 'Narrator',
+                  modelId: 'supertonic-3-multilingual',
+                  generationLanguage: 'fr',
+                ),
+              },
+              isGenerating: false,
+              isSequencePlaying: false,
+              activeLineId: null,
+              errorMessage: null,
+              onPasteFromClipboard: () async {},
+              onGenerate: () async {},
+              onPlayPauseSequence: () async {},
+              onStopSequence: () async {},
+              onPlayLine: (_) async {},
+              onRemoveLine: (_) async {},
+              onModelSelected: (_, _) {},
+              onSpeakerSelected: (_, _) {},
+              onLanguageSelected: (_, language) {
+                selectedLanguage = language;
+              },
+              onVolumeChanged: (_, _) {},
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Supertonic 3 Multilingual · English, French'),
+        findsOneWidget,
+      );
+      expect(find.text('French'), findsOneWidget);
+
+      await tester.tap(find.text('French'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('English').last);
+
+      expect(selectedLanguage, 'en');
+    },
+  );
 }
 
 InstalledModel _installedModel({
   required String id,
   required String displayName,
   List<Speaker> speakers = const [],
+  List<String> supportedLanguages = const [],
+  String generationLanguage = '',
+  List<VoiceLanguage> generationLanguages = const [],
 }) {
   return InstalledModel(
     status: ModelStatus.ready,
@@ -143,6 +225,9 @@ InstalledModel _installedModel({
       defaultSpeakerId: 0,
       maxNumSentences: 1,
       speakers: speakers,
+      supportedLanguages: supportedLanguages,
+      generationLanguage: generationLanguage,
+      generationLanguages: generationLanguages,
     ),
   );
 }

@@ -11,7 +11,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 3. App downloads the model archive from the catalog URL.
 4. App extracts the archive through the shared pure-Dart extractor using the file-based archive path for `tar.bz2` assets.
 5. App normalizes the extracted directory back to the expected install root if the archive introduces an extra wrapper directory.
-6. App validates the extracted directory against the required file set and required runtime directories for that specific model family.
+6. App validates the extracted directory against the required file set and required runtime directories for that specific model family, including split-component runtimes such as Supertonic.
 7. App exposes the model as `ready` only if validation succeeds.
 8. App task UI reports the actual install phase (`Downloading`, `Extracting`, `Validating`) and preserves terminal error details for later inspection.
 9. If the user cancels the install task, the app removes the partial archive and extracted model files created by that task.
@@ -23,7 +23,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - Desktop installs to a single app-managed models directory and does not rely on repo-local model folders.
 - Extraction and validation must run before a model is treated as usable.
 - `tar.bz2` extraction must preserve large model files and nested runtime directories, not just top-level metadata files.
-- Validation must cover model-family-specific assets, including Pocket TTS files.
+- Validation must cover model-family-specific assets, including Pocket TTS files and Supertonic component files.
 - Validation must also cover multilingual runtime assets such as extra lexicons, rule FST or FAR files, and dictionary directories.
 - Repair must follow the same validation path as first install.
 - Validation must use the model-specific runtime assets from the catalog, such as `lexicon.txt`, `espeak-ng-data`, multilingual rule files, or dictionary directories.
@@ -42,6 +42,7 @@ Turn a catalog entry into a locally usable `ready` model on the current platform
 - extractor writes only partial top-level metadata from a valid archive
 - required model files missing after extraction
 - catalog metadata expects the wrong runtime asset for the model
+- Supertonic install looks complete but is missing one of the component files such as `tts.json`, `unicode_indexer.bin`, `voice.bin`, or one of the ONNX components
 - multilingual model installs look complete at the top level but miss helper assets such as `dict/` or rule FST files, causing runtime failures after a seemingly successful install
 - install UI shows stale elapsed time or the wrong task as completed while install is still active
 - desktop scans repo-local models and diverges from the app-managed install state

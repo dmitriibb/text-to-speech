@@ -1,3 +1,5 @@
+import '../services/synthesis_settings.dart';
+
 enum DialogLineStatus { idle, queued, generating, ready, failed }
 
 class DialogLineItem {
@@ -53,16 +55,22 @@ class DialogSpeakerSettings {
     required this.speakerName,
     this.modelId,
     this.speakerId,
+    this.generationLanguage,
+    this.volume = dialogVolumeDefault,
   });
 
   final String speakerName;
   final String? modelId;
   final int? speakerId;
+  final String? generationLanguage;
+  final int volume;
 
   DialogSpeakerSettings copyWith({
     String? speakerName,
     Object? modelId = _sentinel,
     Object? speakerId = _sentinel,
+    Object? generationLanguage = _sentinel,
+    int? volume,
   }) {
     return DialogSpeakerSettings(
       speakerName: speakerName ?? this.speakerName,
@@ -72,6 +80,10 @@ class DialogSpeakerSettings {
       speakerId: identical(speakerId, _sentinel)
           ? this.speakerId
           : speakerId as int?,
+      generationLanguage: identical(generationLanguage, _sentinel)
+          ? this.generationLanguage
+          : generationLanguage as String?,
+      volume: volume == null ? this.volume : clampDialogVolume(volume),
     );
   }
 }

@@ -57,6 +57,9 @@
 - Scenario: The user cancels a queued long-running task.
   Expected handling: the task is removed immediately, disappears from the task list, and produces no result.
 
+- Scenario: The user confirms Clear all while synthesis work is active.
+  Expected handling: playback stops, managed work is cancelled and removed, every known generated `.wav` and persisted task record is deleted, and a late worker result deletes its output instead of restoring the task.
+
 - Scenario: The user cancels a running synthesis or model-load task.
   Expected handling: the task transitions to `cancelling`, the UI stays interactive, and any late result is discarded instead of replacing the current output.
 

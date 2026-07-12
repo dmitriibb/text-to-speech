@@ -72,6 +72,7 @@ class HomeScreen extends StatelessWidget {
           onSave: (path) => state.saveTaskAudio(path),
           onCancelTask: state.cancelManagedTask,
           onDismissTask: state.dismissManagedTask,
+          onClearAllTasks: state.clearAllManagedTasks,
         ),
       ],
     );

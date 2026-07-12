@@ -1,6 +1,6 @@
 # Licensing Status
 
-Updated: 2026-04-11
+Updated: 2026-07-09
 
 This file records what is currently approved, what is blocked, and what is still Unknown.
 
@@ -106,6 +106,65 @@ This file records what is currently approved, what is blocked, and what is still
 - Needed to decide:
   - explicit model artifact license from the upstream exported release
   - redistribution terms for the original Kerstin German voice dataset and voice assets
+
+### `vits-piper-de_DE-glados-high`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Unknown
+- Dataset license: Unknown
+- Needed to decide:
+  - explicit model artifact license from the upstream exported release
+  - redistribution terms for the original GLaDOS German voice dataset and voice assets
+
+### `vits-piper-de_DE-glados_turret-high`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Unknown
+- Dataset license: Unknown
+- Needed to decide:
+  - explicit model artifact license from the upstream exported release
+  - redistribution terms for the original GLaDOS turret German voice dataset and voice assets
+
+### `vits-piper-de_DE-miro-high`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Unknown
+- Dataset license: Unknown
+- Needed to decide:
+  - explicit model artifact license from the upstream exported release
+  - redistribution terms for the original Miro German voice dataset and voice assets
+
+### `vits-piper-de_DE-ramona-low`
+
+- Status for local validation: Approved
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release
+- Model license: Unknown
+- Dataset license: Unknown
+- Needed to decide:
+  - explicit model artifact license from the upstream exported release
+  - redistribution terms for the original Ramona German voice dataset and voice assets
+
+### `supertonic-3-multilingual`
+
+- Status for local validation: Approved for English, Korean, Spanish, Portuguese, and French
+- Status for German local validation: Blocked
+- Status for redistribution: Not approved
+- Runtime source: official `sherpa-onnx` TTS release or upstream Supertonic ONNX release
+- Model license: OpenRAIL-M
+- Supported language codes in the current app catalog: `en`, `ko`, `es`, `pt`, `fr`
+- German blocker:
+  - the current sherpa-onnx Supertonic asset rejects `lang=de` at runtime and reports only `en`, `ko`, `es`, `pt`, and `fr` as available
+- Needed to decide:
+  - identify a sherpa-compatible Supertonic 3 artifact that actually includes German
+  - review OpenRAIL-M redistribution obligations for the selected packaged model artifact
+  - confirm redistribution terms for bundled speaker style assets and training data disclosures
 
 ## Candidate for later shipping review
 

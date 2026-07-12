@@ -63,6 +63,7 @@ class HomeScreen extends StatelessWidget {
                     onSave: (path) => state.shareTaskAudio(path),
                     onCancelTask: state.cancelManagedTask,
                     onDismissTask: state.dismissManagedTask,
+                    onClearAllTasks: state.clearAllManagedTasks,
                   ),
                   const SizedBox(height: 16),
                   _GenerateButton(state: state),

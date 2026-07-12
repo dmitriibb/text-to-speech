@@ -3,6 +3,7 @@ export 'src/models/live_tts_chunk.dart';
 export 'src/models/long_running_task.dart';
 export 'src/models/model_install_progress.dart';
 export 'src/models/voice_model.dart';
+export 'src/services/background_task_executor_pool.dart';
 export 'src/services/background_task_executor.dart';
 export 'src/services/generated_audio_store.dart';
 export 'src/services/isolate_task_executor.dart';

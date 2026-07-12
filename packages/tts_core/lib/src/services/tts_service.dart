@@ -114,6 +114,26 @@ class TtsService {
           provider: model.provider,
         );
         break;
+      case 'supertonic':
+        final supertonicConfig = sherpa.OfflineTtsSupertonicModelConfig(
+          durationPredictor: p.join(
+            modelDir,
+            model.supertonicDurationPredictor,
+          ),
+          textEncoder: p.join(modelDir, model.supertonicTextEncoder),
+          vectorEstimator: p.join(modelDir, model.supertonicVectorEstimator),
+          vocoder: p.join(modelDir, model.supertonicVocoder),
+          ttsJson: p.join(modelDir, model.supertonicTtsJson),
+          unicodeIndexer: p.join(modelDir, model.supertonicUnicodeIndexer),
+          voiceStyle: p.join(modelDir, model.supertonicVoiceStyle),
+        );
+        modelConfig = sherpa.OfflineTtsModelConfig(
+          supertonic: supertonicConfig,
+          numThreads: model.numThreads,
+          debug: false,
+          provider: model.provider,
+        );
+        break;
       default:
         final vitsConfig = sherpa.OfflineTtsVitsModelConfig(
           model: modelPath,
@@ -163,6 +183,15 @@ class TtsService {
     }
 
     final normalizedSpeed = clampSpeechSpeed(speed);
+    if (model != null && model.family == 'supertonic') {
+      return _synthesizeSupertonic(
+        text,
+        speed: normalizedSpeed,
+        speakerId: speakerId,
+        model: model,
+      );
+    }
+
     final audio = _tts!.generate(
       text: text,
       sid: speakerId,
@@ -240,6 +269,26 @@ class TtsService {
 
     final audio = _tts!.generateWithConfig(text: text, config: config);
     return _toSynthesisResult(audio, context: 'Pocket TTS synthesis');
+  }
+
+  SynthesisResult _synthesizeSupertonic(
+    String text, {
+    required double speed,
+    required int speakerId,
+    required VoiceModel model,
+  }) {
+    final extra = <String, Object>{
+      if (model.generationLanguage.isNotEmpty) 'lang': model.generationLanguage,
+    };
+    final config = sherpa.OfflineTtsGenerationConfig(
+      speed: speed,
+      sid: speakerId,
+      numSteps: model.generationNumSteps,
+      extra: extra,
+    );
+
+    final audio = _tts!.generateWithConfig(text: text, config: config);
+    return _toSynthesisResult(audio, context: 'Supertonic synthesis');
   }
 
   String _resolvePocketDefaultReferencePath() {

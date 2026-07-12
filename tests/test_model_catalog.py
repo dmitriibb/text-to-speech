@@ -44,9 +44,30 @@ class ModelCatalogTests(unittest.TestCase):
 
     def test_german_dialog_models_are_available(self) -> None:
         model_ids = {model["id"] for model in self.catalog["models"]}
-        self.assertIn("vits-piper-de_DE-thorsten-medium", model_ids)
-        self.assertIn("vits-piper-de_DE-thorsten-high", model_ids)
-        self.assertIn("vits-piper-de_DE-kerstin-low", model_ids)
+        expected_ids = {
+            "vits-piper-de_DE-thorsten-medium",
+            "vits-piper-de_DE-thorsten-high",
+            "vits-piper-de_DE-kerstin-low",
+            "vits-piper-de_DE-glados-high",
+            "vits-piper-de_DE-glados_turret-high",
+            "vits-piper-de_DE-miro-high",
+            "vits-piper-de_DE-ramona-low",
+        }
+        self.assertLessEqual(expected_ids, model_ids)
+
+    def test_supertonic_multilingual_model_has_selectable_languages(self) -> None:
+        model = next(
+            model
+            for model in self.catalog["models"]
+            if model["id"] == "supertonic-3-multilingual"
+        )
+        self.assertEqual(model["family"], "supertonic")
+        self.assertEqual(model["defaults"]["language"], "en")
+        self.assertEqual(
+            [language["code"] for language in model["generation_languages"]],
+            ["en", "ko", "es", "pt", "fr"],
+        )
+        self.assertNotIn("German", model["supported_languages"])
 
 
 if __name__ == "__main__":

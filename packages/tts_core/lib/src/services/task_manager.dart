@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
@@ -14,6 +15,7 @@ class TaskManager extends ChangeNotifier {
 
   final BackgroundTaskExecutor _executor;
   final Map<String, LongRunningTask> _tasks = {};
+  final Map<String, String> _clearedTaskOutputPaths = {};
   int _taskIdCounter = 0;
   int _speechCounter = 0;
   int _modelLoadCounter = 0;
@@ -121,6 +123,8 @@ class TaskManager extends ChangeNotifier {
     required int speakerId,
     required String outputPath,
     String? providerOverride,
+    int volume = dialogVolumeDefault,
+    String? generationLanguage,
   }) async {
     _speechCounter++;
     final task = LongRunningTask(
@@ -133,6 +137,7 @@ class TaskManager extends ChangeNotifier {
       speechSpeed: clampSpeechSpeed(speed),
       modelId: voice.id,
       modelName: voice.displayName,
+      outputPath: outputPath,
     );
 
     _tasks[task.id] = task;
@@ -152,6 +157,10 @@ class TaskManager extends ChangeNotifier {
           'text': text,
           'speed': clampSpeechSpeed(speed),
           'speakerId': speakerId,
+          'volumeGain': dialogVolumeToGain(volume),
+          'generationLanguage': voice.resolveGenerationLanguage(
+            generationLanguage,
+          ),
           'outputPath': outputPath,
         },
       ),
@@ -182,6 +191,7 @@ class TaskManager extends ChangeNotifier {
       speechSpeed: clampSpeechSpeed(speed),
       modelId: voice.id,
       modelName: voice.displayName,
+      outputPath: outputPath,
     );
 
     _tasks[task.id] = task;
@@ -404,6 +414,36 @@ class TaskManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cancels active work and removes every task from the visible task list.
+  ///
+  /// Output paths are retained only long enough to delete files produced by a
+  /// task that finishes after cancellation has been requested.
+  Future<void> clearAllTasks() async {
+    if (_tasks.isEmpty) {
+      return;
+    }
+
+    final outputPaths = <String>{};
+    for (final task in _tasks.values) {
+      final outputPath = task.outputPath;
+      if (outputPath != null && outputPath.trim().isNotEmpty) {
+        outputPaths.add(outputPath);
+      }
+      if (task.isActive) {
+        if (outputPath != null && outputPath.trim().isNotEmpty) {
+          _clearedTaskOutputPaths[task.id] = outputPath;
+        }
+        _executor.requestCancel(task.id);
+      }
+    }
+
+    _tasks.clear();
+    _stopTickerIfIdle();
+    notifyListeners();
+
+    await Future.wait(outputPaths.map(_deleteOutputFile));
+  }
+
   String formatElapsed(LongRunningTask task) {
     final endTime = task.finishedAt ?? DateTime.now();
     final totalSeconds = endTime.difference(task.startedAt).inSeconds;
@@ -448,14 +488,20 @@ class TaskManager extends ChangeNotifier {
 
   void _handleResult(TaskResult result) {
     final task = _tasks[result.taskId];
-    if (task == null) return;
+    if (task == null) {
+      final outputPath = _clearedTaskOutputPaths.remove(result.taskId);
+      if (outputPath != null) {
+        unawaited(_deleteOutputFile(outputPath));
+      }
+      return;
+    }
 
     switch (result.status) {
       case TaskResultStatus.completed:
         _tasks[result.taskId] = task.copyWith(
           status: LongRunningTaskStatus.completed,
           finishedAt: DateTime.now(),
-          outputPath: result.outputPath,
+          outputPath: result.outputPath ?? task.outputPath,
         );
       case TaskResultStatus.failed:
         _tasks[result.taskId] = task.copyWith(
@@ -484,6 +530,18 @@ class TaskManager extends ChangeNotifier {
     if (!hasActiveTasks) {
       _ticker?.cancel();
       _ticker = null;
+    }
+  }
+
+  Future<void> _deleteOutputFile(String outputPath) async {
+    try {
+      final file = File(outputPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (_) {
+      // The application state reports persistent audio-store failures. A
+      // best-effort cleanup here only handles late results after cancellation.
     }
   }
 

@@ -37,6 +37,18 @@ class VoiceModelTaskPayload {
       'pocketVocabJson': voice.pocketVocabJson,
       'pocketTokenScoresJson': voice.pocketTokenScoresJson,
       'pocketDefaultReferenceAudio': voice.pocketDefaultReferenceAudio,
+      'supertonicDurationPredictor': voice.supertonicDurationPredictor,
+      'supertonicTextEncoder': voice.supertonicTextEncoder,
+      'supertonicVectorEstimator': voice.supertonicVectorEstimator,
+      'supertonicVocoder': voice.supertonicVocoder,
+      'supertonicTtsJson': voice.supertonicTtsJson,
+      'supertonicUnicodeIndexer': voice.supertonicUnicodeIndexer,
+      'supertonicVoiceStyle': voice.supertonicVoiceStyle,
+      'generationLanguage': voice.generationLanguage,
+      'generationLanguages': voice.generationLanguages
+          .map((language) => language.toJson())
+          .toList(),
+      'generationNumSteps': voice.generationNumSteps,
     };
   }
 
@@ -70,6 +82,13 @@ class VoiceModelTaskPayload {
         'pocket_token_scores_json': payload['pocketTokenScoresJson'],
         'pocket_default_reference_audio':
             payload['pocketDefaultReferenceAudio'],
+        'supertonic_duration_predictor': payload['supertonicDurationPredictor'],
+        'supertonic_text_encoder': payload['supertonicTextEncoder'],
+        'supertonic_vector_estimator': payload['supertonicVectorEstimator'],
+        'supertonic_vocoder': payload['supertonicVocoder'],
+        'supertonic_tts_json': payload['supertonicTtsJson'],
+        'supertonic_unicode_indexer': payload['supertonicUnicodeIndexer'],
+        'supertonic_voice_style': payload['supertonicVoiceStyle'],
       },
       'defaults': {
         'provider': payload['provider'],
@@ -77,7 +96,10 @@ class VoiceModelTaskPayload {
         'speed': speechSpeedDefault,
         'speaker_id': payload['defaultSpeakerId'],
         'max_num_sentences': payload['maxNumSentences'],
+        'language': payload['generationLanguage'],
+        'num_steps': payload['generationNumSteps'],
       },
+      'generation_languages': payload['generationLanguages'],
     });
   }
 }

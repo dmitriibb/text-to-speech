@@ -74,10 +74,25 @@ class Speaker {
   }
 
   Map<String, Object?> toJson() {
-    return {
-      'id': id,
-      'name': name,
-    };
+    return {'id': id, 'name': name};
+  }
+}
+
+class VoiceLanguage {
+  const VoiceLanguage({required this.code, required this.name});
+
+  final String code;
+  final String name;
+
+  factory VoiceLanguage.fromJson(Map<String, Object?> json) {
+    return VoiceLanguage(
+      code: json['code'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+    );
+  }
+
+  Map<String, Object?> toJson() {
+    return {'code': code, 'name': name};
   }
 }
 
@@ -117,6 +132,16 @@ class VoiceModel {
     this.pocketVocabJson = '',
     this.pocketTokenScoresJson = '',
     this.pocketDefaultReferenceAudio = '',
+    this.supertonicDurationPredictor = '',
+    this.supertonicTextEncoder = '',
+    this.supertonicVectorEstimator = '',
+    this.supertonicVocoder = '',
+    this.supertonicTtsJson = '',
+    this.supertonicUnicodeIndexer = '',
+    this.supertonicVoiceStyle = '',
+    this.generationLanguage = '',
+    this.generationLanguages = const <VoiceLanguage>[],
+    this.generationNumSteps = 5,
   });
 
   final String id;
@@ -153,12 +178,64 @@ class VoiceModel {
   final String pocketVocabJson;
   final String pocketTokenScoresJson;
   final String pocketDefaultReferenceAudio;
+  final String supertonicDurationPredictor;
+  final String supertonicTextEncoder;
+  final String supertonicVectorEstimator;
+  final String supertonicVocoder;
+  final String supertonicTtsJson;
+  final String supertonicUnicodeIndexer;
+  final String supertonicVoiceStyle;
+  final String generationLanguage;
+  final List<VoiceLanguage> generationLanguages;
+  final int generationNumSteps;
+
+  bool get hasLanguageSelection => generationLanguages.length > 1;
+
+  String get languageDisplayLabel {
+    if (supportedLanguages.isNotEmpty) {
+      return supportedLanguages.join(', ');
+    }
+    if (generationLanguages.isNotEmpty) {
+      return generationLanguages.map((language) => language.name).join(', ');
+    }
+    return '';
+  }
+
+  String languageNameForCode(String code) {
+    for (final language in generationLanguages) {
+      if (language.code == code) {
+        return language.name;
+      }
+    }
+    return code;
+  }
+
+  String resolveGenerationLanguage(String? preferredLanguage) {
+    final normalizedPreferred = preferredLanguage?.trim() ?? '';
+    if (normalizedPreferred.isNotEmpty &&
+        generationLanguages.any(
+          (language) => language.code == normalizedPreferred,
+        )) {
+      return normalizedPreferred;
+    }
+
+    if (generationLanguage.isNotEmpty &&
+        (generationLanguages.isEmpty ||
+            generationLanguages.any(
+              (language) => language.code == generationLanguage,
+            ))) {
+      return generationLanguage;
+    }
+
+    if (generationLanguages.isNotEmpty) {
+      return generationLanguages.first.code;
+    }
+
+    return generationLanguage;
+  }
 
   List<String> get allLexiconFiles {
-    return [
-      if (lexiconFile.isNotEmpty) lexiconFile,
-      ...extraLexiconFiles,
-    ];
+    return [if (lexiconFile.isNotEmpty) lexiconFile, ...extraLexiconFiles];
   }
 
   factory VoiceModel.fromJson(Map<String, Object?> json) {
@@ -168,6 +245,7 @@ class VoiceModel {
     final files = _asObjectMap(json['files']);
     final defaults = _asObjectMap(json['defaults']);
     final rawSpeakers = json['speakers'];
+    final rawGenerationLanguages = json['generation_languages'];
 
     return VoiceModel(
       id: json['id'] as String? ?? '',
@@ -192,8 +270,7 @@ class VoiceModel {
       numThreads: (defaults['num_threads'] as num?)?.toInt() ?? 1,
       defaultSpeed: (defaults['speed'] as num?)?.toDouble() ?? 1.0,
       defaultSpeakerId: (defaults['speaker_id'] as num?)?.toInt() ?? 0,
-      maxNumSentences:
-          (defaults['max_num_sentences'] as num?)?.toInt() ?? 1,
+      maxNumSentences: (defaults['max_num_sentences'] as num?)?.toInt() ?? 1,
       speakers: rawSpeakers is List
           ? rawSpeakers
                 .whereType<Map>()
@@ -211,12 +288,36 @@ class VoiceModel {
       pocketLmMain: files['pocket_lm_main'] as String? ?? '',
       pocketEncoder: files['pocket_encoder'] as String? ?? '',
       pocketDecoder: files['pocket_decoder'] as String? ?? '',
-      pocketTextConditioner:
-          files['pocket_text_conditioner'] as String? ?? '',
+      pocketTextConditioner: files['pocket_text_conditioner'] as String? ?? '',
       pocketVocabJson: files['pocket_vocab_json'] as String? ?? '',
       pocketTokenScoresJson: files['pocket_token_scores_json'] as String? ?? '',
       pocketDefaultReferenceAudio:
           files['pocket_default_reference_audio'] as String? ?? '',
+      supertonicDurationPredictor:
+          files['supertonic_duration_predictor'] as String? ?? '',
+      supertonicTextEncoder: files['supertonic_text_encoder'] as String? ?? '',
+      supertonicVectorEstimator:
+          files['supertonic_vector_estimator'] as String? ?? '',
+      supertonicVocoder: files['supertonic_vocoder'] as String? ?? '',
+      supertonicTtsJson: files['supertonic_tts_json'] as String? ?? '',
+      supertonicUnicodeIndexer:
+          files['supertonic_unicode_indexer'] as String? ?? '',
+      supertonicVoiceStyle: files['supertonic_voice_style'] as String? ?? '',
+      generationLanguage: defaults['language'] as String? ?? '',
+      generationLanguages: rawGenerationLanguages is List
+          ? rawGenerationLanguages
+                .whereType<Map>()
+                .map(
+                  (language) => VoiceLanguage.fromJson(
+                    Map<String, Object?>.from(
+                      language as Map<Object?, Object?>,
+                    ),
+                  ),
+                )
+                .where((language) => language.code.isNotEmpty)
+                .toList(growable: false)
+          : const <VoiceLanguage>[],
+      generationNumSteps: (defaults['num_steps'] as num?)?.toInt() ?? 5,
     );
   }
 
@@ -229,12 +330,8 @@ class VoiceModel {
       'size_mb': sizeMb,
       'supported_languages': supportedLanguages,
       'description': description,
-      'status': {
-        'approved_for_distribution': approvedForDistribution,
-      },
-      'source': {
-        'archive_url': archiveUrl,
-      },
+      'status': {'approved_for_distribution': approvedForDistribution},
+      'source': {'archive_url': archiveUrl},
       'install': {
         'archive_format': archiveFormat,
         'install_dir_name': installDirName,
@@ -256,6 +353,13 @@ class VoiceModel {
         'pocket_vocab_json': pocketVocabJson,
         'pocket_token_scores_json': pocketTokenScoresJson,
         'pocket_default_reference_audio': pocketDefaultReferenceAudio,
+        'supertonic_duration_predictor': supertonicDurationPredictor,
+        'supertonic_text_encoder': supertonicTextEncoder,
+        'supertonic_vector_estimator': supertonicVectorEstimator,
+        'supertonic_vocoder': supertonicVocoder,
+        'supertonic_tts_json': supertonicTtsJson,
+        'supertonic_unicode_indexer': supertonicUnicodeIndexer,
+        'supertonic_voice_style': supertonicVoiceStyle,
       },
       'defaults': {
         'provider': provider,
@@ -263,8 +367,13 @@ class VoiceModel {
         'speed': defaultSpeed,
         'speaker_id': defaultSpeakerId,
         'max_num_sentences': maxNumSentences,
+        'language': generationLanguage,
+        'num_steps': generationNumSteps,
       },
       'voice_cloning': voiceCloning,
+      'generation_languages': generationLanguages
+          .map((language) => language.toJson())
+          .toList(),
       'speakers': speakers.map((speaker) => speaker.toJson()).toList(),
     };
   }

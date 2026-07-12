@@ -150,7 +150,12 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
             final outputPath = payload['outputPath']! as String;
             final outputDir = Directory(p.dirname(outputPath));
             outputDir.createSync(recursive: true);
-            final saved = tts.saveWav(result, outputPath);
+            final volumeGain =
+                (payload['volumeGain'] as num?)?.toDouble() ?? 1.0;
+            final outputResult = volumeGain == 1.0
+                ? result
+                : _scaleResultVolume(result, volumeGain);
+            final saved = tts.saveWav(outputResult, outputPath);
             if (!saved) {
               throw Exception('Failed to write WAV file');
             }
@@ -203,5 +208,16 @@ class IsolateTaskExecutor implements BackgroundTaskExecutor {
       queue.add(data);
       processNext();
     });
+  }
+
+  static SynthesisResult _scaleResultVolume(
+    SynthesisResult result,
+    double gain,
+  ) {
+    final samples = Float32List(result.samples.length);
+    for (var index = 0; index < result.samples.length; index++) {
+      samples[index] = (result.samples[index] * gain).clamp(-1.0, 1.0);
+    }
+    return SynthesisResult(samples: samples, sampleRate: result.sampleRate);
   }
 }

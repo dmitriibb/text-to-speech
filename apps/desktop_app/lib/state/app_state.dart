@@ -1191,6 +1191,47 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  Future<void> clearAllManagedTasks() async {
+    try {
+      if (taskManager.activeInstallTask != null) {
+        await _modelService.cancelActiveDownload();
+      }
+
+      await _audioService.stop();
+      await taskManager.clearAllTasks();
+      await _generatedAudioStore?.clearAllAudio();
+
+      _persistedGeneratedAudioPaths.clear();
+      _generatedWavPath = null;
+      _currentTaskId = null;
+      _playbackPosition = Duration.zero;
+      _playbackDuration = null;
+      _synthesisStatus = SynthesisStatus.idle;
+      _activeInstallTaskId = null;
+      _isDownloading = false;
+      _downloadProgress = 0;
+      _currentInstallProgress = null;
+      _dialogPlaybackIndex = null;
+      _dialogAutoAdvance = false;
+      _dialogPlaybackStarted = false;
+      _dialogLines = _dialogLines
+          .map(
+            (line) => line.copyWith(
+              taskId: null,
+              outputPath: null,
+              status: DialogLineStatus.idle,
+              errorMessage: null,
+            ),
+          )
+          .toList(growable: false);
+      _errorMessage = null;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'Failed to clear tasks: $e';
+      notifyListeners();
+    }
+  }
+
   // ---- Task Manager Integration ----
 
   void _handleTaskManagerChanged() {

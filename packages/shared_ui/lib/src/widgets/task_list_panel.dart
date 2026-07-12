@@ -38,6 +38,7 @@ class TaskListPanel extends StatelessWidget {
     this.onSeek,
     this.onCancelTask,
     this.onDismissTask,
+    this.onClearAllTasks,
   });
 
   final TaskPlaybackInfo playbackInfo;
@@ -47,6 +48,7 @@ class TaskListPanel extends StatelessWidget {
   final TaskSeekCallback? onSeek;
   final TaskActionCallback? onCancelTask;
   final TaskActionCallback? onDismissTask;
+  final TaskPlaybackActionCallback? onClearAllTasks;
 
   @override
   Widget build(BuildContext context) {
@@ -61,7 +63,20 @@ class TaskListPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Tasks', style: Theme.of(context).textTheme.titleMedium),
+                Row(
+                  children: [
+                    Text(
+                      'Tasks',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const Spacer(),
+                    TextButton.icon(
+                      onPressed: () => _handleClearAll(context, manager),
+                      icon: const Icon(Icons.delete_sweep_outlined),
+                      label: const Text('Clear all'),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 for (var i = 0; i < tasks.length; i++) ...[
                   _TaskRow(
@@ -83,6 +98,34 @@ class TaskListPanel extends StatelessWidget {
         );
       },
     );
+  }
+
+  Future<void> _handleClearAll(
+    BuildContext context,
+    TaskManager manager,
+  ) async {
+    final pausePlayback = onPausePlayback;
+    if (pausePlayback != null) {
+      await pausePlayback();
+    }
+    if (!context.mounted) {
+      return;
+    }
+
+    final confirmed = await showClearAllTasksDialog(
+      context,
+      taskCount: manager.tasks.length,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    final clearAllTasks = onClearAllTasks;
+    if (clearAllTasks != null) {
+      await clearAllTasks();
+    } else {
+      await manager.clearAllTasks();
+    }
   }
 }
 

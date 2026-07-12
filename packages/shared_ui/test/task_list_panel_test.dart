@@ -131,6 +131,65 @@ void main() {
     },
   );
 
+  testWidgets('clearing all tasks pauses playback and requires confirmation', (
+    tester,
+  ) async {
+    final manager = TaskManager(executor: _FakeBackgroundTaskExecutor());
+    addTearDown(manager.dispose);
+    manager.restoreTasks([
+      LongRunningTask(
+        id: 'restored-speech-1',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-1',
+        startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+        status: LongRunningTaskStatus.completed,
+        finishedAt: DateTime(2026, 4, 6, 10, 0, 3),
+        outputPath: '/tmp/output.wav',
+      ),
+    ]);
+    var pauseCalls = 0;
+    var clearCalls = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChangeNotifierProvider<TaskManager>.value(
+          value: manager,
+          child: Scaffold(
+            body: TaskListPanel(
+              playbackInfo: TaskPlaybackInfo(),
+              onPausePlayback: () async {
+                pauseCalls++;
+              },
+              onClearAllTasks: () async {
+                clearCalls++;
+                await manager.clearAllTasks();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Clear all'));
+    await tester.pumpAndSettle();
+
+    expect(pauseCalls, 1);
+    expect(find.text('Clear all tasks?'), findsOneWidget);
+    expect(clearCalls, 0);
+
+    await tester.tap(find.text('No'));
+    await tester.pumpAndSettle();
+    expect(clearCalls, 0);
+
+    await tester.tap(find.text('Clear all'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Clear all'));
+    await tester.pumpAndSettle();
+
+    expect(clearCalls, 1);
+    expect(manager.tasks, isEmpty);
+  });
+
   testWidgets('expanded generated audio row shows model and duration', (
     tester,
   ) async {

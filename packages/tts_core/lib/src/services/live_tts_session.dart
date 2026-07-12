@@ -29,6 +29,7 @@ class LiveTtsSession extends ChangeNotifier {
     required this.outputDirectoryPath,
     this.startOffset = 0,
     this.providerOverride,
+    this.generationLanguage,
     this.maxConcurrentGenerations = 2,
   }) : _executorFactory = executorFactory,
        _sessionId = DateTime.now().microsecondsSinceEpoch.toString(),
@@ -49,6 +50,7 @@ class LiveTtsSession extends ChangeNotifier {
   final String outputDirectoryPath;
   final int startOffset;
   final String? providerOverride;
+  final String? generationLanguage;
   final int maxConcurrentGenerations;
 
   final List<LiveTtsChunk> _chunks;
@@ -252,6 +254,9 @@ class LiveTtsSession extends ChangeNotifier {
             'text': chunk.text.trim(),
             'speed': clampSpeechSpeed(speed),
             'speakerId': speakerId,
+            'generationLanguage': voice.resolveGenerationLanguage(
+              generationLanguage,
+            ),
             'outputPath': outputPath,
           },
         ),

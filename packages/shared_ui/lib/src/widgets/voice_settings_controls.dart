@@ -7,33 +7,42 @@ class VoiceSettingsControls extends StatelessWidget {
     required this.readyModels,
     required this.selectedModel,
     required this.selectedSpeakerId,
+    required this.selectedGenerationLanguage,
     required this.speed,
     required this.canSelectModel,
     required this.canAdjustSpeed,
     required this.onModelSelected,
     required this.onSpeakerSelected,
+    required this.onGenerationLanguageSelected,
     required this.onSpeedChanged,
   });
 
   final List<InstalledModel> readyModels;
   final InstalledModel? selectedModel;
   final int selectedSpeakerId;
+  final String selectedGenerationLanguage;
   final double speed;
   final bool canSelectModel;
   final bool canAdjustSpeed;
   final ValueChanged<InstalledModel> onModelSelected;
   final ValueChanged<int> onSpeakerSelected;
+  final ValueChanged<String> onGenerationLanguageSelected;
   final ValueChanged<double> onSpeedChanged;
 
   @override
   Widget build(BuildContext context) {
     final hasSpeakers =
         selectedModel != null && selectedModel!.voice.speakers.isNotEmpty;
+    final hasLanguageSelection =
+        selectedModel != null && selectedModel!.voice.hasLanguageSelection;
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final useCompactLayout =
-            constraints.maxWidth < (hasSpeakers ? 720 : 560);
+            constraints.maxWidth <
+            (hasSpeakers && hasLanguageSelection
+                ? 920
+                : (hasSpeakers || hasLanguageSelection ? 720 : 560));
 
         if (useCompactLayout) {
           return Column(
@@ -43,6 +52,10 @@ class VoiceSettingsControls extends StatelessWidget {
               if (hasSpeakers) ...[
                 const SizedBox(height: 16),
                 _buildSpeakerSelector(context),
+              ],
+              if (hasLanguageSelection) ...[
+                const SizedBox(height: 16),
+                _buildLanguageSelector(context),
               ],
               const SizedBox(height: 16),
               _buildSpeedControl(context),
@@ -57,6 +70,10 @@ class VoiceSettingsControls extends StatelessWidget {
             if (hasSpeakers) ...[
               const SizedBox(width: 16),
               Expanded(flex: 2, child: _buildSpeakerSelector(context)),
+            ],
+            if (hasLanguageSelection) ...[
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: _buildLanguageSelector(context)),
             ],
             const SizedBox(width: 24),
             Expanded(flex: 3, child: _buildSpeedControl(context)),
@@ -79,7 +96,7 @@ class VoiceSettingsControls extends StatelessWidget {
         return DropdownMenuItem<String>(
           value: model.voice.id,
           child: Text(
-            model.voice.displayName,
+            _voiceLabel(model.voice),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -90,7 +107,7 @@ class VoiceSettingsControls extends StatelessWidget {
           return Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              model.voice.displayName,
+              _voiceLabel(model.voice),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyLarge,
@@ -111,6 +128,45 @@ class VoiceSettingsControls extends StatelessWidget {
               onModelSelected(model);
             },
       hint: Text(readyModels.isEmpty ? 'No voices available' : 'Select voice'),
+    );
+  }
+
+  Widget _buildLanguageSelector(BuildContext context) {
+    final voice = selectedModel!.voice;
+    final languages = voice.generationLanguages;
+    final initialLanguage = voice.resolveGenerationLanguage(
+      selectedGenerationLanguage,
+    );
+
+    return DropdownButtonFormField<String>(
+      initialValue:
+          languages.any((language) => language.code == initialLanguage)
+          ? initialLanguage
+          : null,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Language',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      ),
+      items: languages.map((language) {
+        return DropdownMenuItem<String>(
+          value: language.code,
+          child: Text(
+            language.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: !canSelectModel
+          ? null
+          : (code) {
+              if (code == null) {
+                return;
+              }
+              onGenerationLanguageSelected(code);
+            },
     );
   }
 
@@ -205,5 +261,13 @@ class VoiceSettingsControls extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  String _voiceLabel(VoiceModel voice) {
+    final languages = voice.languageDisplayLabel;
+    if (languages.isEmpty) {
+      return voice.displayName;
+    }
+    return '${voice.displayName} · $languages';
   }
 }

@@ -26,6 +26,20 @@ Future<bool> showRemoveGeneratedAudioDialog(
   );
 }
 
+Future<bool> showClearAllTasksDialog(
+  BuildContext context, {
+  required int taskCount,
+}) async {
+  final taskDescription = taskCount == 1 ? 'task' : 'tasks';
+  return _showTaskActionDialog(
+    context: context,
+    title: 'Clear all tasks?',
+    content:
+        'This permanently removes $taskCount $taskDescription and all related generated WAV files from local storage.',
+    confirmLabel: 'Clear all',
+  );
+}
+
 Future<bool> _showTaskActionDialog({
   required BuildContext context,
   required String title,

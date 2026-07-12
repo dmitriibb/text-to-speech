@@ -19,6 +19,8 @@ class DialogModePanel extends StatelessWidget {
     required this.onRemoveLine,
     required this.onModelSelected,
     required this.onSpeakerSelected,
+    required this.onLanguageSelected,
+    required this.onVolumeChanged,
   });
 
   final List<DialogLineItem> lines;
@@ -36,6 +38,8 @@ class DialogModePanel extends StatelessWidget {
   final Future<void> Function(DialogLineItem line) onRemoveLine;
   final void Function(String speakerName, InstalledModel model) onModelSelected;
   final void Function(String speakerName, int speakerId) onSpeakerSelected;
+  final void Function(String speakerName, String language) onLanguageSelected;
+  final void Function(String speakerName, int volume) onVolumeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +69,8 @@ class DialogModePanel extends StatelessWidget {
           speakerSettings: speakerSettings,
           onModelSelected: onModelSelected,
           onSpeakerSelected: onSpeakerSelected,
+          onLanguageSelected: onLanguageSelected,
+          onVolumeChanged: onVolumeChanged,
         ),
         const SizedBox(height: 16),
         Wrap(
@@ -130,6 +136,8 @@ class _SpeakerSettingsList extends StatelessWidget {
     required this.speakerSettings,
     required this.onModelSelected,
     required this.onSpeakerSelected,
+    required this.onLanguageSelected,
+    required this.onVolumeChanged,
   });
 
   final List<String> speakers;
@@ -137,6 +145,8 @@ class _SpeakerSettingsList extends StatelessWidget {
   final Map<String, DialogSpeakerSettings> speakerSettings;
   final void Function(String speakerName, InstalledModel model) onModelSelected;
   final void Function(String speakerName, int speakerId) onSpeakerSelected;
+  final void Function(String speakerName, String language) onLanguageSelected;
+  final void Function(String speakerName, int volume) onVolumeChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +160,8 @@ class _SpeakerSettingsList extends StatelessWidget {
             settings: speakerSettings[speakerName],
             onModelSelected: onModelSelected,
             onSpeakerSelected: onSpeakerSelected,
+            onLanguageSelected: onLanguageSelected,
+            onVolumeChanged: onVolumeChanged,
           ),
           if (speakerName != speakers.last) const SizedBox(height: 12),
         ],
@@ -165,6 +177,8 @@ class _SpeakerSettingsRow extends StatelessWidget {
     required this.settings,
     required this.onModelSelected,
     required this.onSpeakerSelected,
+    required this.onLanguageSelected,
+    required this.onVolumeChanged,
   });
 
   final String speakerName;
@@ -172,49 +186,60 @@ class _SpeakerSettingsRow extends StatelessWidget {
   final DialogSpeakerSettings? settings;
   final void Function(String speakerName, InstalledModel model) onModelSelected;
   final void Function(String speakerName, int speakerId) onSpeakerSelected;
+  final void Function(String speakerName, String language) onLanguageSelected;
+  final void Function(String speakerName, int volume) onVolumeChanged;
 
   @override
   Widget build(BuildContext context) {
     final selectedModel = _selectedModel();
     final speakers = selectedModel?.voice.speakers ?? const <Speaker>[];
+    final languages =
+        selectedModel?.voice.generationLanguages ?? const <VoiceLanguage>[];
     final selectedSpeakerId = settings?.speakerId;
+    final hasLanguageSelection = languages.length > 1;
+    final minWidth =
+        720.0 +
+        (speakers.isNotEmpty ? 252.0 : 0.0) +
+        (hasLanguageSelection ? 192.0 : 0.0);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 640;
-        final name = _SpeakerNameLabel(name: speakerName);
-        final modelSelector = _buildModelSelector(context, selectedModel);
-        final voiceSelector = speakers.isEmpty
-            ? const SizedBox.shrink()
-            : _buildVoiceSelector(context, speakers, selectedSpeakerId);
-
-        if (compact) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              name,
-              const SizedBox(height: 8),
-              modelSelector,
-              if (speakers.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                voiceSelector,
-              ],
-            ],
-          );
-        }
-
-        return Row(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: minWidth),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(width: 160, child: name),
-            Expanded(child: modelSelector),
+            SizedBox(width: 160, child: _SpeakerNameLabel(name: speakerName)),
+            SizedBox(
+              width: 360,
+              child: _buildModelSelector(context, selectedModel),
+            ),
             if (speakers.isNotEmpty) ...[
               const SizedBox(width: 12),
-              Expanded(child: voiceSelector),
+              SizedBox(
+                width: 240,
+                child: _buildVoiceSelector(
+                  context,
+                  speakers,
+                  selectedSpeakerId,
+                ),
+              ),
             ],
+            if (hasLanguageSelection) ...[
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 180,
+                child: _buildLanguageSelector(context, languages),
+              ),
+            ],
+            const SizedBox(width: 12),
+            _VolumeStepper(
+              volume: settings?.volume ?? dialogVolumeDefault,
+              onChanged: (volume) => onVolumeChanged(speakerName, volume),
+            ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -247,7 +272,7 @@ class _SpeakerSettingsRow extends StatelessWidget {
         return DropdownMenuItem<String>(
           value: model.voice.id,
           child: Text(
-            model.voice.displayName,
+            _modelLabel(model.voice),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -302,6 +327,106 @@ class _SpeakerSettingsRow extends StatelessWidget {
         }
         onSpeakerSelected(speakerName, speakerId);
       },
+    );
+  }
+
+  Widget _buildLanguageSelector(
+    BuildContext context,
+    List<VoiceLanguage> languages,
+  ) {
+    final voice = _selectedModel()?.voice;
+    final initialLanguage = voice?.resolveGenerationLanguage(
+      settings?.generationLanguage,
+    );
+
+    return DropdownButtonFormField<String>(
+      initialValue:
+          languages.any((language) => language.code == initialLanguage)
+          ? initialLanguage
+          : null,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Language',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      ),
+      items: languages.map((language) {
+        return DropdownMenuItem<String>(
+          value: language.code,
+          child: Text(
+            language.name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        );
+      }).toList(),
+      onChanged: (language) {
+        if (language == null) {
+          return;
+        }
+        onLanguageSelected(speakerName, language);
+      },
+    );
+  }
+
+  String _modelLabel(VoiceModel voice) {
+    final languages = voice.languageDisplayLabel;
+    if (languages.isEmpty) {
+      return voice.displayName;
+    }
+    return '${voice.displayName} · $languages';
+  }
+}
+
+class _VolumeStepper extends StatelessWidget {
+  const _VolumeStepper({required this.volume, required this.onChanged});
+
+  final int volume;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedVolume = clampDialogVolume(volume);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outline),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'Decrease volume',
+              onPressed: normalizedVolume > dialogVolumeMin
+                  ? () => onChanged(normalizedVolume - 1)
+                  : null,
+              icon: const Icon(Icons.remove),
+            ),
+            SizedBox(
+              width: 24,
+              child: Text(
+                '$normalizedVolume',
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Increase volume',
+              onPressed: normalizedVolume < dialogVolumeMax
+                  ? () => onChanged(normalizedVolume + 1)
+                  : null,
+              icon: const Icon(Icons.add),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

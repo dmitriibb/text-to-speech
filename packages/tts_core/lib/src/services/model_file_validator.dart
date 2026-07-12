@@ -20,6 +20,13 @@ class ModelFileValidator {
       model.pocketVocabJson,
       model.pocketTokenScoresJson,
       model.pocketDefaultReferenceAudio,
+      model.supertonicDurationPredictor,
+      model.supertonicTextEncoder,
+      model.supertonicVectorEstimator,
+      model.supertonicVocoder,
+      model.supertonicTtsJson,
+      model.supertonicUnicodeIndexer,
+      model.supertonicVoiceStyle,
     ].where((entry) => entry.isNotEmpty).toList(growable: false);
   }
 

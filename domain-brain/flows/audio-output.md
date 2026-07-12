@@ -17,10 +17,12 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 9. Live mode exposes play or pause for the current chunk and a separate stop action that halts playback, cancels further generation, and clears temporary chunk buffers.
 10. Live-mode chunk `.wav` files are temporary playback buffers only; they are not restored into the persistent generated-audio task list.
 11. Dialog mode plays generated line `.wav` files one at a time in transcript order, pauses and resumes the current line in place, and stop resets the next sequence play to the beginning.
-12. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
-13. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
-14. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
-15. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
+12. Dialog line `.wav` files are written with the speaker's current volume setting already applied, so playback and export do not need separate per-speaker gain state.
+13. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
+14. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
+15. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
+16. When the user confirms dismissing a generated-audio task, the app removes the task metadata and deletes that generated local `.wav`.
+17. The shared task-list Clear all action pauses playback, asks for confirmation, then cancels managed work and removes every task, persisted generated-audio record, and related generated `.wav`.
 
 ## Invariants
 
@@ -48,6 +50,7 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - Desktop task-row save must open a real save target and copy the generated `.wav` there.
 - Output failures do not invalidate the already generated audio file.
 - Dismissing a generated-audio task deletes its temporary generated file.
+- Clearing all tasks deletes every persisted generated-audio file and record, and late results from cancelled tasks must not recreate a deleted `.wav`.
 - App shutdown stops playback and cancels active background work.
 
 ## Failure Modes
@@ -61,5 +64,6 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - destructive task action deletes audio without confirmation
 - task-row output action targets the wrong generated file
 - generated audio file remains on disk after its task is dismissed
+- clearing all tasks leaves a generated audio file or persistent task record behind
 - live-mode chunk buffers survive after the live session stops
 - dialog sequence playback overlaps lines or fails to reset to the first line after stop

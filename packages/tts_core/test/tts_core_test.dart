@@ -43,6 +43,15 @@ Omar: Der Termin ist am Montag.
     expect(lines.single.text, 'valid line');
   });
 
+  test('dialog speaker settings clamps volume', () {
+    const settings = DialogSpeakerSettings(speakerName: 'Omar');
+
+    expect(settings.volume, dialogVolumeDefault);
+    expect(settings.copyWith(volume: 12).volume, dialogVolumeMax);
+    expect(settings.copyWith(volume: 0).volume, dialogVolumeMin);
+    expect(dialogVolumeToGain(dialogVolumeDefault), 1);
+  });
+
   test('parses the approved model catalog shape', () {
     const rawCatalog = '''
 {
@@ -97,6 +106,86 @@ Omar: Der Termin ist am Montag.
     expect(catalog.models.single.supportedLanguages, ['English']);
     expect(catalog.models.single.description, 'Demo description');
     expect(catalog.models.single.pocketDefaultReferenceAudio, isEmpty);
+  });
+
+  test('parses Supertonic runtime metadata from the catalog', () {
+    const rawCatalog = '''
+{
+  "catalog_version": 1,
+  "default_model_id": "supertonic-3-en",
+  "models": [
+    {
+      "id": "supertonic-3-en",
+      "display_name": "Supertonic 3 English",
+      "family": "supertonic",
+      "runtime": "sherpa-onnx",
+      "status": {
+        "approved_for_distribution": false
+      },
+      "source": {
+        "archive_url": "https://example.com/supertonic.tar.bz2"
+      },
+      "install": {
+        "install_dir_name": "supertonic",
+        "archive_format": "tar.bz2"
+      },
+      "files": {
+        "supertonic_duration_predictor": "duration_predictor.int8.onnx",
+        "supertonic_text_encoder": "text_encoder.int8.onnx",
+        "supertonic_vector_estimator": "vector_estimator.int8.onnx",
+        "supertonic_vocoder": "vocoder.int8.onnx",
+        "supertonic_tts_json": "tts.json",
+        "supertonic_unicode_indexer": "unicode_indexer.bin",
+        "supertonic_voice_style": "voice.bin"
+      },
+      "defaults": {
+        "provider": "cpu",
+        "num_threads": 2,
+        "speed": 1.0,
+        "speaker_id": 0,
+        "max_num_sentences": 1,
+        "language": "en",
+        "num_steps": 8
+      },
+      "generation_languages": [
+        {"code": "en", "name": "English"},
+        {"code": "ko", "name": "Korean"},
+        {"code": "es", "name": "Spanish"},
+        {"code": "pt", "name": "Portuguese"},
+        {"code": "fr", "name": "French"}
+      ]
+    }
+  ]
+}
+''';
+
+    final catalog = ModelCatalog.fromRawJson(rawCatalog);
+    final model = catalog.models.single;
+
+    expect(model.family, 'supertonic');
+    expect(model.supertonicDurationPredictor, 'duration_predictor.int8.onnx');
+    expect(model.supertonicTextEncoder, 'text_encoder.int8.onnx');
+    expect(model.supertonicVectorEstimator, 'vector_estimator.int8.onnx');
+    expect(model.supertonicVocoder, 'vocoder.int8.onnx');
+    expect(model.supertonicTtsJson, 'tts.json');
+    expect(model.supertonicUnicodeIndexer, 'unicode_indexer.bin');
+    expect(model.supertonicVoiceStyle, 'voice.bin');
+    expect(model.generationLanguage, 'en');
+    expect(model.generationLanguages.map((language) => language.code), [
+      'en',
+      'ko',
+      'es',
+      'pt',
+      'fr',
+    ]);
+    expect(model.hasLanguageSelection, isTrue);
+    expect(
+      model.languageDisplayLabel,
+      'English, Korean, Spanish, Portuguese, French',
+    );
+    expect(model.resolveGenerationLanguage('fr'), 'fr');
+    expect(model.resolveGenerationLanguage('de'), 'en');
+    expect(model.generationNumSteps, 8);
   });
 
   test('clamps speech speed to the supported range', () {
@@ -257,6 +346,61 @@ Omar: Der Termin ist am Montag.
       );
     },
   );
+
+  test('validates Supertonic model directories', () async {
+    final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+
+    const model = VoiceModel(
+      id: 'supertonic-3-en',
+      displayName: 'Supertonic 3 English',
+      family: 'supertonic',
+      runtime: 'sherpa-onnx',
+      approvedForDistribution: false,
+      archiveUrl: 'https://example.com/supertonic.tar.bz2',
+      archiveFormat: 'tar.bz2',
+      installDirName: 'supertonic',
+      modelFile: '',
+      tokensFile: '',
+      lexiconFile: '',
+      voicesFile: '',
+      dataDir: '',
+      provider: 'cpu',
+      numThreads: 2,
+      defaultSpeed: 1,
+      defaultSpeakerId: 0,
+      maxNumSentences: 1,
+      supertonicDurationPredictor: 'duration_predictor.int8.onnx',
+      supertonicTextEncoder: 'text_encoder.int8.onnx',
+      supertonicVectorEstimator: 'vector_estimator.int8.onnx',
+      supertonicVocoder: 'vocoder.int8.onnx',
+      supertonicTtsJson: 'tts.json',
+      supertonicUnicodeIndexer: 'unicode_indexer.bin',
+      supertonicVoiceStyle: 'voice.bin',
+    );
+
+    expect(
+      await ModelFileValidator.missingEntries(tempDir.path, model),
+      containsAll(<String>[
+        'duration_predictor.int8.onnx',
+        'text_encoder.int8.onnx',
+        'vector_estimator.int8.onnx',
+        'vocoder.int8.onnx',
+        'tts.json',
+        'unicode_indexer.bin',
+        'voice.bin',
+      ]),
+    );
+
+    for (final entry in ModelFileValidator.requiredFileEntries(model)) {
+      await File('${tempDir.path}/$entry').writeAsString('stub');
+    }
+
+    expect(
+      await ModelFileValidator.getStatus(tempDir.path, model),
+      ModelStatus.ready,
+    );
+  });
 
   test('normalizes a nested extracted model directory', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
@@ -560,6 +704,120 @@ Omar: Der Termin ist am Montag.
   });
 
   test(
+    'clearing tasks deletes known output files and late task results',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+      addTearDown(() => tempDir.delete(recursive: true));
+      final executor = _FakeBackgroundTaskExecutor();
+      final manager = TaskManager(executor: executor);
+      addTearDown(manager.dispose);
+      final outputFile = File('${tempDir.path}/speech.wav');
+
+      await manager.initialize();
+      final taskId = await manager.submitSynthesis(
+        modelDir: '/tmp/demo-model',
+        voice: _demoVoiceModel,
+        text: 'hello',
+        speed: 1,
+        speakerId: 0,
+        outputPath: outputFile.path,
+      );
+      expect(manager.tasks.single.outputPath, outputFile.path);
+
+      await outputFile.writeAsString('wav');
+      await manager.clearAllTasks();
+
+      expect(manager.tasks, isEmpty);
+      expect(executor.cancelledTaskIds, contains(taskId));
+      expect(await outputFile.exists(), isFalse);
+
+      await outputFile.writeAsString('late wav');
+    executor.completeTask(
+      taskId,
+      LongRunningTaskType.synthesizeSpeech,
+      outputPath: outputFile.path,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(await outputFile.exists(), isFalse);
+    },
+  );
+
+  test('synthesis payload includes volume gain', () async {
+    final executor = _FakeBackgroundTaskExecutor();
+    final manager = TaskManager(executor: executor);
+    addTearDown(manager.dispose);
+
+    await manager.initialize();
+    await manager.submitSynthesis(
+      modelDir: '/tmp/demo-model',
+      voice: _demoVoiceModel,
+      text: 'hello',
+      speed: 1,
+      speakerId: 0,
+      volume: 10,
+      outputPath: '/tmp/generated_audio/speech.wav',
+    );
+
+    expect(
+      executor.submittedRequests.single.payload['volumeGain'],
+      closeTo(10 / dialogVolumeDefault, 0.000001),
+    );
+  });
+
+  test('synthesis payload includes resolved generation language', () async {
+    final executor = _FakeBackgroundTaskExecutor();
+    final manager = TaskManager(executor: executor);
+    addTearDown(manager.dispose);
+
+    await manager.initialize();
+    await manager.submitSynthesis(
+      modelDir: '/tmp/supertonic',
+      voice: _supertonicVoiceModel,
+      text: 'bonjour',
+      speed: 1,
+      speakerId: 0,
+      generationLanguage: 'fr',
+      outputPath: '/tmp/generated_audio/speech.wav',
+    );
+
+    expect(
+      executor.submittedRequests.single.payload['generationLanguage'],
+      'fr',
+    );
+  });
+
+  test('background executor pool fans submissions across workers', () async {
+    final executors = <_FakeBackgroundTaskExecutor>[];
+    final pool = BackgroundTaskExecutorPool(
+      workerCount: 4,
+      executorFactory: () {
+        final executor = _FakeBackgroundTaskExecutor();
+        executors.add(executor);
+        return executor;
+      },
+    );
+    addTearDown(pool.dispose);
+
+    await pool.initialize();
+    for (var index = 0; index < 4; index++) {
+      await pool.submit(
+        TaskRequest(
+          taskId: 'task-$index',
+          type: LongRunningTaskType.synthesizeSpeech,
+          payload: const <String, Object?>{},
+        ),
+      );
+    }
+
+    expect(executors, hasLength(4));
+    expect(
+      executors.map((executor) => executor.submittedRequests.length),
+      everyElement(1),
+    );
+  });
+
+  test(
     'generated audio store persists records and initializes stats',
     () async {
       final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
@@ -614,6 +872,38 @@ Omar: Der Termin ist am Montag.
       expect(statsPayload['models'], isEmpty);
     },
   );
+
+  test('generated audio store clear removes files and task records', () async {
+    final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
+    addTearDown(() => tempDir.delete(recursive: true));
+    final outputFile = File('${tempDir.path}/speech-1.wav');
+    await outputFile.writeAsString('wav');
+    final store = GeneratedAudioStore(
+      libraryFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultLibraryPath}',
+      ),
+      statsFile: File(
+        '${tempDir.path}/${GeneratedAudioStore.defaultStatsPath}',
+      ),
+    );
+
+    await store.upsertTask(
+      LongRunningTask(
+        id: 'task-1',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'speech-1',
+        startedAt: DateTime(2026, 4, 6, 10, 0, 0),
+        status: LongRunningTaskStatus.completed,
+        finishedAt: DateTime(2026, 4, 6, 10, 0, 4),
+        outputPath: outputFile.path,
+      ),
+    );
+
+    await store.clearAllAudio();
+
+    expect(await outputFile.exists(), isFalse);
+    expect(await store.loadTasks(), isEmpty);
+  });
 
   test('generated audio store updates per-model statistics', () async {
     final tempDir = await Directory.systemTemp.createTemp('tts-core-test');
@@ -807,6 +1097,67 @@ Omar: Der Termin ist am Montag.
     expect(decoded.defaultSpeakerId, 7);
     expect(decoded.pocketDefaultReferenceAudio, 'test_wavs/bria.wav');
     expect(decoded.pocketTokenScoresJson, 'token_scores.json');
+  });
+
+  test('voice model task payload preserves Supertonic runtime metadata', () {
+    const supertonicModel = VoiceModel(
+      id: 'supertonic-3-en',
+      displayName: 'Supertonic 3 English',
+      family: 'supertonic',
+      runtime: 'sherpa-onnx',
+      approvedForDistribution: false,
+      archiveUrl: 'https://example.com/supertonic.tar.bz2',
+      archiveFormat: 'tar.bz2',
+      installDirName: 'supertonic',
+      modelFile: '',
+      tokensFile: '',
+      lexiconFile: '',
+      voicesFile: '',
+      dataDir: '',
+      provider: 'cpu',
+      numThreads: 2,
+      defaultSpeed: 1,
+      defaultSpeakerId: 4,
+      maxNumSentences: 1,
+      supertonicDurationPredictor: 'duration_predictor.int8.onnx',
+      supertonicTextEncoder: 'text_encoder.int8.onnx',
+      supertonicVectorEstimator: 'vector_estimator.int8.onnx',
+      supertonicVocoder: 'vocoder.int8.onnx',
+      supertonicTtsJson: 'tts.json',
+      supertonicUnicodeIndexer: 'unicode_indexer.bin',
+      supertonicVoiceStyle: 'voice.bin',
+      generationLanguage: 'en',
+      generationLanguages: [
+        VoiceLanguage(code: 'en', name: 'English'),
+        VoiceLanguage(code: 'fr', name: 'French'),
+      ],
+      generationNumSteps: 8,
+    );
+
+    final payload = VoiceModelTaskPayload.build(
+      modelDir: '/tmp/supertonic',
+      voice: supertonicModel,
+    );
+    final decoded = VoiceModelTaskPayload.decode(payload);
+
+    expect(
+      payload['supertonicDurationPredictor'],
+      'duration_predictor.int8.onnx',
+    );
+    expect(payload['generationLanguage'], 'en');
+    expect(payload['generationLanguages'], [
+      {'code': 'en', 'name': 'English'},
+      {'code': 'fr', 'name': 'French'},
+    ]);
+    expect(payload['generationNumSteps'], 8);
+    expect(decoded.defaultSpeakerId, 4);
+    expect(decoded.supertonicVoiceStyle, 'voice.bin');
+    expect(decoded.generationLanguage, 'en');
+    expect(decoded.generationLanguages.map((language) => language.code), [
+      'en',
+      'fr',
+    ]);
+    expect(decoded.generationNumSteps, 8);
   });
 
   test('live text chunker rounds chunks up to sentence boundaries', () {
@@ -1066,6 +1417,7 @@ class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {
   final StreamController<TaskResult> _controller =
       StreamController<TaskResult>.broadcast();
   final List<TaskRequest> submittedRequests = <TaskRequest>[];
+  final List<String> cancelledTaskIds = <String>[];
 
   @override
   Stream<TaskResult> get results => _controller.stream;
@@ -1079,7 +1431,9 @@ class _FakeBackgroundTaskExecutor implements BackgroundTaskExecutor {
   }
 
   @override
-  void requestCancel(String taskId) {}
+  void requestCancel(String taskId) {
+    cancelledTaskIds.add(taskId);
+  }
 
   void completeTask(
     String taskId,
@@ -1132,4 +1486,38 @@ const VoiceModel _demoVoiceModel = VoiceModel(
   defaultSpeed: 1,
   defaultSpeakerId: 0,
   maxNumSentences: 1,
+);
+
+const VoiceModel _supertonicVoiceModel = VoiceModel(
+  id: 'supertonic-3-multilingual',
+  displayName: 'Supertonic 3 Multilingual',
+  family: 'supertonic',
+  runtime: 'sherpa-onnx',
+  approvedForDistribution: false,
+  archiveUrl: 'https://example.com/supertonic.tar.bz2',
+  archiveFormat: 'tar.bz2',
+  installDirName: 'supertonic',
+  modelFile: '',
+  tokensFile: '',
+  lexiconFile: '',
+  voicesFile: '',
+  dataDir: '',
+  provider: 'cpu',
+  numThreads: 2,
+  defaultSpeed: 1,
+  defaultSpeakerId: 0,
+  maxNumSentences: 1,
+  supertonicDurationPredictor: 'duration_predictor.int8.onnx',
+  supertonicTextEncoder: 'text_encoder.int8.onnx',
+  supertonicVectorEstimator: 'vector_estimator.int8.onnx',
+  supertonicVocoder: 'vocoder.int8.onnx',
+  supertonicTtsJson: 'tts.json',
+  supertonicUnicodeIndexer: 'unicode_indexer.bin',
+  supertonicVoiceStyle: 'voice.bin',
+  generationLanguage: 'en',
+  generationLanguages: <VoiceLanguage>[
+    VoiceLanguage(code: 'en', name: 'English'),
+    VoiceLanguage(code: 'fr', name: 'French'),
+  ],
+  generationNumSteps: 8,
 );
