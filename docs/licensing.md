@@ -212,7 +212,7 @@ This file records what is currently approved, what is blocked, and what is still
 ### `openbmb/VoxCPM2`
 
 - Upstream code and model weights identify Apache-2.0 licensing.
-- The model is integrated as a separately installed desktop backend and is not bundled with either app.
+- The model is integrated as a separately installed desktop backend and is not bundled with either app. Its Dialog selector metadata remains explicitly unapproved for asset redistribution and is injected only on desktop, outside the ONNX installation catalog.
 - Before distributing cached model assets, capture the exact checkpoint license and attribution files from the pinned release.
 
 ## Rule for the repo

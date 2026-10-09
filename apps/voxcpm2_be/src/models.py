@@ -25,6 +25,7 @@ class HealthResponse(BaseModel):
     jobs_in_progress: int
     current_model_id: str
     current_model_name: str
+    current_model_revision: str | None = None
     runtime_assets_ready: bool
     initialization_error: str | None = None
     features: list[str] = Field(default_factory=list)

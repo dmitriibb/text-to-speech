@@ -61,11 +61,22 @@ class AppState extends ChangeNotifier {
   LiveTtsSession? _liveTtsSession;
   bool _isStartingLivePlayback = false;
   bool _isStoppingLiveTts = false;
-  final DialogModeParser _dialogParser = const DialogModeParser();
-  List<DialogLineItem> _dialogLines = const <DialogLineItem>[];
-  Map<String, DialogSpeakerSettings> _dialogSpeakerSettings =
-      const <String, DialogSpeakerSettings>{};
-  String? _dialogErrorMessage;
+  late final DialogWorkspace dialog = DialogWorkspace(
+    directoryProvider: () async => Directory(
+      p.join((await _generatedAudioDirectory()).parent.path, 'dialog_project'),
+    ),
+    generate: _generateDialogTurn,
+  )..addListener(notifyListeners);
+  DialogGenerator? backendDialogGenerator;
+  List<DialogLineItem> get _dialogLines => dialog.lines;
+  Map<String, DialogSpeakerSettings> get _dialogSpeakerSettings =>
+      dialog.actors;
+  String? get _dialogErrorMessage => dialog.error;
+  set _dialogErrorMessage(String? value) {
+    dialog.error = value;
+  }
+
+  List<DialogImportIssue> get _dialogImportIssues => dialog.importIssues;
   int? _dialogPlaybackIndex;
   bool _dialogAutoAdvance = false;
   bool _dialogPlaybackStarted = false;
@@ -120,11 +131,8 @@ class AppState extends ChangeNotifier {
   Map<String, DialogSpeakerSettings> get dialogSpeakerSettings =>
       _dialogSpeakerSettings;
   String? get dialogErrorMessage => _dialogErrorMessage;
-  bool get isDialogGenerating => _dialogLines.any(
-    (line) =>
-        line.status == DialogLineStatus.queued ||
-        line.status == DialogLineStatus.generating,
-  );
+  List<DialogImportIssue> get dialogImportIssues => _dialogImportIssues;
+  bool get isDialogGenerating => dialog.isGenerating;
   bool get isDialogPlaying =>
       _dialogPlaybackIndex != null && _playbackState == PlaybackState.playing;
   String? get activeDialogLineId {
@@ -202,6 +210,7 @@ class AppState extends ChangeNotifier {
     await taskManager.initialize();
     await _restoreGeneratedAudioTasks();
     await refreshModels();
+    await dialog.load();
   }
 
   Future<void> refreshModels() async {
@@ -653,107 +662,131 @@ class AppState extends ChangeNotifier {
   // ---- Dialog mode ----
 
   Future<void> pasteDialogFromClipboard() async {
+    if (isDialogGenerating) return;
     final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final parsedLines = _dialogParser.parse(data?.text ?? '');
-    if (parsedLines.isEmpty) {
-      _dialogErrorMessage =
-          'Clipboard does not contain lines in the form "Speaker: text".';
-      notifyListeners();
-      return;
-    }
-
+    if (isDialogGenerating) return;
     await stopDialogPlayback();
-    _dialogLines = parsedLines;
-    _dialogSpeakerSettings = _buildDialogSpeakerSettings(parsedLines);
-    _dialogErrorMessage = null;
-    notifyListeners();
+    dialog.importText(data?.text ?? '', _defaultDialogSpeakerSettings);
   }
 
   Future<void> generateDialog() async {
-    final linesToGenerate = _dialogLines
-        .where((line) => line.hasText)
-        .toList(growable: false);
-    if (linesToGenerate.isEmpty) {
-      _dialogErrorMessage = 'Keep at least one dialog line with text.';
-      notifyListeners();
-      return;
-    }
+    await stopLiveTts();
+    await stopDialogPlayback();
+    await dialog.generateMissing();
+  }
 
-    if (isLiveTtsStreaming) {
-      await stopLiveTts();
-    }
-    if (_dialogPlaybackIndex != null) {
-      await stopDialogPlayback();
-    }
-    await _audioService.stop();
+  Future<void> retryDialogLine(DialogLineItem line) async {
+    await stopLiveTts();
+    await stopDialogPlayback();
+    await dialog.generateMissing(onlyTurnId: line.id);
+  }
 
-    final taskUpdates = <String, DialogLineItem>{};
-    for (final line in linesToGenerate) {
-      final model = _dialogModelForSpeaker(line.speakerName);
-      if (model?.modelDir == null || model?.status != ModelStatus.ready) {
-        _dialogErrorMessage =
-            'Select a ready AI model for ${line.speakerName}.';
-        notifyListeners();
-        return;
+  Future<void> _generateDialogTurn(DialogGenerationRequest request) async {
+    if (request.actor.effectiveTarget?.kind == SynthesisTargetKind.backend) {
+      final backend = backendDialogGenerator;
+      if (backend == null) {
+        throw StateError(
+          'This backend is available on desktop only. Select a local installed model.',
+        );
       }
-      taskUpdates[line.id] = line.copyWith(
-        status: DialogLineStatus.queued,
-        taskId: null,
-        outputPath: null,
-        errorMessage: null,
+      return backend(request);
+    }
+    final model = readyModels
+        .where((model) => model.voice.id == request.actor.modelId)
+        .firstOrNull;
+    if (model?.modelDir == null) {
+      throw StateError(
+        'Install/select a ready model for ${request.actor.speakerName}.',
       );
     }
-    _dialogLines = _dialogLines
-        .map((line) => taskUpdates[line.id] ?? line)
-        .toList(growable: false);
-    _dialogErrorMessage = null;
-    notifyListeners();
-
-    for (final line in linesToGenerate) {
-      final current = _dialogLineById(line.id);
-      if (current == null || !current.hasText) {
-        continue;
+    final settings = request.actor.synthesisSettings;
+    request.cancellation.check();
+    final temporary = await createGeneratedAudioOutputPath(
+      prefix: 'dialog-turn',
+    );
+    final taskId = await taskManager.submitSynthesis(
+      modelDir: model!.modelDir!,
+      voice: model.voice,
+      text: request.line.effectiveText,
+      speed: settings.speed,
+      speakerId: settings.speakerId,
+      generationLanguage: settings.generationLanguage,
+      volumeGain: settings.volume,
+      outputPath: temporary,
+      providerOverride: _selectedInferenceProvider,
+    );
+    try {
+      final deadline = DateTime.now().add(const Duration(minutes: 30));
+      while (true) {
+        request.cancellation.check();
+        if (DateTime.now().isAfter(deadline)) {
+          throw StateError('Local synthesis timed out.');
+        }
+        final task = taskManager.tasks
+            .where((task) => task.id == taskId)
+            .firstOrNull;
+        if (task == null) throw StateError('Generation task was removed.');
+        if (task.status == LongRunningTaskStatus.completed) {
+          request.cancellation.check();
+          await File(temporary).copy(request.outputPath);
+          return;
+        }
+        if (!task.isActive) {
+          throw StateError(task.errorMessage ?? 'Generation cancelled.');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 100));
       }
-
-      final model = _dialogModelForSpeaker(current.speakerName);
-      if (model?.modelDir == null) {
-        continue;
-      }
-
-      try {
-        final taskId = await taskManager.submitSynthesis(
-          modelDir: model!.modelDir!,
-          voice: model.voice,
-          text: current.text.trim(),
-          speed: _speed,
-          speakerId: _dialogSpeakerIdFor(current.speakerName, model.voice),
-          generationLanguage: _dialogGenerationLanguageFor(
-            current.speakerName,
-            model.voice,
-          ),
-          volume: _dialogVolumeForSpeaker(current.speakerName),
-          outputPath: await createGeneratedAudioOutputPath(prefix: 'dialog'),
-          providerOverride: _selectedInferenceProvider,
-        );
-        _replaceDialogLine(
-          current.id,
-          current.copyWith(
-            taskId: taskId,
-            status: DialogLineStatus.queued,
-            errorMessage: null,
-          ),
-        );
-      } catch (error) {
-        _replaceDialogLine(
-          current.id,
-          current.copyWith(
-            status: DialogLineStatus.failed,
-            errorMessage: 'Failed to start synthesis: $error',
-          ),
-        );
-      }
+    } catch (_) {
+      await taskManager.cancelTask(taskId);
+      rethrow;
     }
+  }
+
+  Future<void> renderDialogConversation() async {
+    await stopLiveTts();
+    await stopDialogPlayback();
+    final previousMaster = dialog.masterPath;
+    await dialog.render();
+    if (!dialog.masterIsCurrent || dialog.masterPath == previousMaster) return;
+    // Task-list copies are independent of the project-owned master and clips.
+    final output = await createGeneratedAudioOutputPath(prefix: 'conversation');
+    await File(dialog.masterPath!).copy(output);
+    taskManager.restoreTasks([
+      LongRunningTask(
+        id: 'conversation-${DateTime.now().microsecondsSinceEpoch}',
+        type: LongRunningTaskType.synthesizeSpeech,
+        label: 'Conversation master',
+        startedAt: dialog.startedAt ?? DateTime.now(),
+        finishedAt: DateTime.now(),
+        status: LongRunningTaskStatus.completed,
+        modelName: 'Conversation render',
+        outputPath: output,
+        // No inputCharacterCount/modelId: assembly does not record TTS statistics.
+      ),
+    ]);
     notifyListeners();
+  }
+
+  Future<void> previewDialogConversation() async {
+    if (!dialog.masterIsCurrent) return;
+    await stopLiveTts();
+    if (_generatedWavPath == dialog.masterPath &&
+        _playbackState == PlaybackState.playing) {
+      await pausePlayback();
+      return;
+    }
+    if (_generatedWavPath == dialog.masterPath &&
+        _playbackState == PlaybackState.paused) {
+      await playTaskAudio(dialog.masterPath!);
+      return;
+    }
+    await stopDialogPlayback();
+    _generatedWavPath = dialog.masterPath;
+    await playTaskAudio(dialog.masterPath!);
+  }
+
+  Future<void> exportDialogConversation() async {
+    if (dialog.masterIsCurrent) await shareTaskAudio(dialog.masterPath!);
   }
 
   Future<void> playPauseDialog() async {
@@ -810,33 +843,12 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> removeDialogLine(DialogLineItem line) async {
-    if (activeDialogLineId == line.id) {
-      await stopDialogPlayback();
-    }
-    _dialogLines = _dialogLines
-        .where((item) => item.id != line.id)
-        .toList(growable: false);
-    _removeUnusedDialogSpeakerSettings();
-    notifyListeners();
+    await stopDialogPlayback();
+    dialog.remove(line.id);
   }
 
-  void clearDialogLineText(DialogLineItem line) {
-    final current = _dialogLineById(line.id);
-    if (current == null) {
-      return;
-    }
-    _replaceDialogLine(
-      line.id,
-      current.copyWith(
-        text: '',
-        taskId: null,
-        outputPath: null,
-        status: DialogLineStatus.idle,
-        errorMessage: null,
-      ),
-    );
-    notifyListeners();
-  }
+  void clearDialogLineText(DialogLineItem line) =>
+      dialog.edit(line.copyWith(text: '', textOverride: null));
 
   void setDialogSpeakerModel(String speakerName, InstalledModel model) {
     if (model.status != ModelStatus.ready || model.modelDir == null) {
@@ -845,21 +857,12 @@ class AppState extends ChangeNotifier {
     final settings =
         _dialogSpeakerSettings[speakerName] ??
         _defaultDialogSpeakerSettings(speakerName);
-    final speakerId = _resolveSpeakerId(
-      model.voice,
-      preferredSpeakerId: model.voice.defaultSpeakerId,
-    );
-    _dialogSpeakerSettings = {
-      ..._dialogSpeakerSettings,
-      speakerName: settings.copyWith(
-        modelId: model.voice.id,
-        speakerId: speakerId,
-        generationLanguage: model.voice.resolveGenerationLanguage(
-          settings.generationLanguage,
-        ),
+    dialog.setActor(
+      settings.selectTarget(
+        SynthesisTarget.local(model.voice.id),
+        _settingsFor(model.voice),
       ),
-    };
-    _resetDialogLinesForSpeaker(speakerName);
+    );
     notifyListeners();
 
     unawaited(
@@ -871,51 +874,22 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  void setDialogSpeakerVoice(String speakerName, int speakerId) {
-    final settings =
-        _dialogSpeakerSettings[speakerName] ??
-        _defaultDialogSpeakerSettings(speakerName);
-    _dialogSpeakerSettings = {
-      ..._dialogSpeakerSettings,
-      speakerName: settings.copyWith(speakerId: speakerId),
-    };
-    _resetDialogLinesForSpeaker(speakerName);
-    notifyListeners();
-  }
-
-  void setDialogSpeakerLanguage(String speakerName, String language) {
-    final settings =
-        _dialogSpeakerSettings[speakerName] ??
-        _defaultDialogSpeakerSettings(speakerName);
+  void setDialogSpeakerSettings(
+    String speakerName,
+    ModelSynthesisSettings next,
+  ) {
+    final current = _dialogSpeakerSettings[speakerName];
     final model = _dialogModelForSpeaker(speakerName);
-    final nextLanguage =
-        model?.voice.resolveGenerationLanguage(language) ?? language;
-    if (settings.generationLanguage == nextLanguage) {
+    if (current == null || model == null) return;
+    final normalized = ModelSynthesisSettings.fromJson(
+      next.toJson(),
+      model.voice,
+    );
+    if (jsonEncode(normalized.toJson()) ==
+        jsonEncode(current.synthesisSettings.toJson())) {
       return;
     }
-
-    _dialogSpeakerSettings = {
-      ..._dialogSpeakerSettings,
-      speakerName: settings.copyWith(generationLanguage: nextLanguage),
-    };
-    _resetDialogLinesForSpeaker(speakerName);
-    notifyListeners();
-  }
-
-  void setDialogSpeakerVolume(String speakerName, int volume) {
-    final settings =
-        _dialogSpeakerSettings[speakerName] ??
-        _defaultDialogSpeakerSettings(speakerName);
-    final nextSettings = settings.copyWith(volume: volume);
-    if (nextSettings.volume == settings.volume) {
-      return;
-    }
-
-    _dialogSpeakerSettings = {
-      ..._dialogSpeakerSettings,
-      speakerName: nextSettings,
-    };
-    _resetDialogLinesForSpeaker(speakerName);
+    dialog.setActor(current.withSynthesisSettings(normalized));
     notifyListeners();
   }
 
@@ -1105,16 +1079,6 @@ class AppState extends ChangeNotifier {
       _dialogPlaybackIndex = null;
       _dialogAutoAdvance = false;
       _dialogPlaybackStarted = false;
-      _dialogLines = _dialogLines
-          .map(
-            (line) => line.copyWith(
-              taskId: null,
-              outputPath: null,
-              status: DialogLineStatus.idle,
-              errorMessage: null,
-            ),
-          )
-          .toList(growable: false);
       _errorMessage = null;
       notifyListeners();
     } catch (error) {
@@ -1243,7 +1207,6 @@ class AppState extends ChangeNotifier {
 
   void _handleTaskManagerChanged() {
     unawaited(_persistCompletedGeneratedAudioTasks());
-    _syncDialogLinesWithTasks();
     final hasSynthesis = taskManager.hasActiveSynthesisTasks;
     if (hasSynthesis) {
       _synthesisStatus = SynthesisStatus.generating;
@@ -1340,44 +1303,20 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Map<String, DialogSpeakerSettings> _buildDialogSpeakerSettings(
-    List<DialogLineItem> lines,
-  ) {
-    final settings = <String, DialogSpeakerSettings>{};
-    for (final line in lines) {
-      settings.putIfAbsent(
-        line.speakerName,
-        () =>
-            _dialogSpeakerSettings[line.speakerName] ??
-            _defaultDialogSpeakerSettings(line.speakerName),
-      );
-    }
-    return settings;
-  }
-
   DialogSpeakerSettings _defaultDialogSpeakerSettings(String speakerName) {
     final model = _selectedModel?.status == ModelStatus.ready
         ? _selectedModel
         : (readyModels.isNotEmpty ? readyModels.first : null);
-    return DialogSpeakerSettings(
-      speakerName: speakerName,
-      modelId: model?.voice.id,
-      generationLanguage: model?.voice.resolveGenerationLanguage(null),
-      speakerId: model == null
-          ? null
-          : _resolveSpeakerId(
-              model.voice,
-              preferredSpeakerId: model.voice.defaultSpeakerId,
-            ),
-    );
+    final profile = DialogSpeakerSettings(speakerName: speakerName);
+    return model == null
+        ? profile
+        : profile.selectTarget(
+            SynthesisTarget.local(model.voice.id),
+            _settingsFor(model.voice),
+          );
   }
 
-  void _normalizeDialogSpeakerSettings() {
-    if (_dialogLines.isEmpty) {
-      return;
-    }
-    _dialogSpeakerSettings = _buildDialogSpeakerSettings(_dialogLines);
-  }
+  void _normalizeDialogSpeakerSettings() {}
 
   InstalledModel? _dialogModelForSpeaker(String speakerName) {
     final modelId = _dialogSpeakerSettings[speakerName]?.modelId;
@@ -1390,110 +1329,6 @@ class AppState extends ChangeNotifier {
       }
     }
     return null;
-  }
-
-  int _dialogSpeakerIdFor(String speakerName, VoiceModel voice) {
-    return _resolveSpeakerId(
-      voice,
-      preferredSpeakerId: _dialogSpeakerSettings[speakerName]?.speakerId,
-    );
-  }
-
-  String _dialogGenerationLanguageFor(String speakerName, VoiceModel voice) {
-    return voice.resolveGenerationLanguage(
-      _dialogSpeakerSettings[speakerName]?.generationLanguage,
-    );
-  }
-
-  int _dialogVolumeForSpeaker(String speakerName) {
-    return clampDialogVolume(
-      _dialogSpeakerSettings[speakerName]?.volume ?? dialogVolumeDefault,
-    );
-  }
-
-  DialogLineItem? _dialogLineById(String id) {
-    for (final line in _dialogLines) {
-      if (line.id == id) {
-        return line;
-      }
-    }
-    return null;
-  }
-
-  void _replaceDialogLine(String id, DialogLineItem replacement) {
-    _dialogLines = _dialogLines
-        .map((line) => line.id == id ? replacement : line)
-        .toList(growable: false);
-  }
-
-  void _resetDialogLinesForSpeaker(String speakerName) {
-    _dialogLines = _dialogLines
-        .map(
-          (line) => line.speakerName == speakerName
-              ? line.copyWith(
-                  taskId: null,
-                  outputPath: null,
-                  status: DialogLineStatus.idle,
-                  errorMessage: null,
-                )
-              : line,
-        )
-        .toList(growable: false);
-  }
-
-  void _removeUnusedDialogSpeakerSettings() {
-    final activeSpeakers = _dialogLines.map((line) => line.speakerName).toSet();
-    _dialogSpeakerSettings = Map<String, DialogSpeakerSettings>.fromEntries(
-      _dialogSpeakerSettings.entries.where(
-        (entry) => activeSpeakers.contains(entry.key),
-      ),
-    );
-  }
-
-  bool _syncDialogLinesWithTasks() {
-    final tasksById = {for (final task in taskManager.tasks) task.id: task};
-    var changed = false;
-    final nextLines = <DialogLineItem>[];
-    for (final line in _dialogLines) {
-      final taskId = line.taskId;
-      final task = taskId == null ? null : tasksById[taskId];
-      if (task == null) {
-        nextLines.add(line);
-        continue;
-      }
-
-      final nextLine = switch (task.status) {
-        LongRunningTaskStatus.queued => line.copyWith(
-          status: DialogLineStatus.queued,
-        ),
-        LongRunningTaskStatus.running || LongRunningTaskStatus.cancelling =>
-          line.copyWith(status: DialogLineStatus.generating),
-        LongRunningTaskStatus.completed => line.copyWith(
-          status: DialogLineStatus.ready,
-          outputPath: task.outputPath,
-          errorMessage: null,
-        ),
-        LongRunningTaskStatus.failed => line.copyWith(
-          status: DialogLineStatus.failed,
-          errorMessage: task.errorMessage ?? 'Generation failed.',
-        ),
-        LongRunningTaskStatus.cancelled => line.copyWith(
-          status: DialogLineStatus.failed,
-          errorMessage: 'Generation cancelled.',
-        ),
-      };
-      changed =
-          changed ||
-          nextLine.status != line.status ||
-          nextLine.outputPath != line.outputPath ||
-          nextLine.errorMessage != line.errorMessage;
-      nextLines.add(nextLine);
-    }
-
-    if (changed) {
-      _dialogLines = nextLines;
-    }
-    return changed;
   }
 
   Future<bool> _playDialogFromIndex(
@@ -1793,6 +1628,7 @@ class AppState extends ChangeNotifier {
     unawaited(_audioPositionSubscription?.cancel());
     unawaited(_audioDurationSubscription?.cancel());
     unawaited(_audioErrorSubscription?.cancel());
+    dialog.dispose();
     taskManager.dispose();
     _modelService.dispose();
     unawaited(_audioService.dispose());

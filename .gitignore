@@ -4,6 +4,7 @@ artifacts/
 /models/
 /apps/open_voice_be/models/
 /apps/open_voice_be/storage/
+/apps/voxcpm2_be/storage/
 __pycache__/
 *.pyc
 # task.checkpoint.md

@@ -20,6 +20,23 @@ conventions:
   portable_model_install: pure Dart archive extraction
 
 flows:
+  dialog_project_and_render:
+    docs:
+      - domain-brain/flows/dialog-project-and-render.md
+      - domain-brain/flows/local-synthesis.md
+      - domain-brain/flows/audio-output.md
+    paths:
+      - packages/tts_core/lib/src/services/dialog_workspace.dart
+      - packages/tts_core/lib/src/services/conversation_renderer.dart
+      - packages/tts_core/lib/src/models/dialog_mode.dart
+      - packages/shared_ui/lib/src/widgets/dialog_mode_panel.dart
+      - apps/desktop_app/lib/services/dialog_backend_adapter.dart
+      - apps/desktop_app/lib/widgets/dialog_backend_settings.dart
+      - apps/android_app/lib/screens/dialog_screen.dart
+      - apps/desktop_app/lib/screens/dialog_screen.dart
+      - docs/russian-phone-call-workflow.md
+      - docs/presets/russian-phone-call.txt
+      - tools/benchmark/audacity_phone_preset.py
   app_navigation:
     docs:
       - domain-brain/flows/app-navigation.md
@@ -77,6 +94,7 @@ flows:
       - packages/tts_core/lib/src/services/isolate_task_executor.dart
       - packages/tts_core/lib/src/services/text_input_validator.dart
       - packages/tts_core/lib/src/models/dialog_mode.dart
+      - packages/tts_core/lib/src/models/synthesis_target.dart
       - packages/shared_ui/lib/src/widgets/live_text_input_editor.dart
       - packages/shared_ui/lib/src/widgets/dialog_mode_panel.dart
       - packages/shared_ui/lib/src/widgets/model_selector.dart
@@ -100,6 +118,8 @@ flows:
       - domain-brain/flows/model-settings.md
     paths:
       - packages/tts_core/lib/src/models/model_synthesis_settings.dart
+      - packages/tts_core/lib/src/models/dialog_mode.dart
+      - packages/tts_core/lib/src/models/synthesis_target.dart
       - packages/tts_core/lib/src/services/synthesis_settings.dart
       - packages/shared_ui/lib/src/widgets/model_selector.dart
       - packages/shared_ui/lib/src/widgets/dialog_mode_panel.dart
@@ -134,6 +154,8 @@ flows:
     docs:
       - domain-brain/flows/voice-cloning.md
     paths:
+      - packages/tts_core/lib/src/models/synthesis_target.dart
+      - packages/tts_core/lib/src/services/dialog_reference_store.dart
       - apps/desktop_app/lib/models/cloned_voice.dart
       - apps/desktop_app/lib/screens/backend_models_screen.dart
       - packages/shared_ui/lib/src/widgets/model_selector.dart
@@ -164,9 +186,14 @@ flows:
       - domain-brain/flows/benchmark-validation.md
     paths:
       - tools/benchmark/run_phase0_validation.py
+      - tools/benchmark/evaluate_russian_dialogue.py
+      - tools/benchmark/prepare_russian_listening_preview.py
+      - packages/quality_suite/russian_phone_dialogue.json
+      - tests/test_russian_dialogue_evaluation.py
       - tests/test_model_catalog.py
       - tests/test_quality_suite.py
       - artifacts/phase0
+      - artifacts/russian-dialogue
     entities:
       - ModelCatalog
       - VoiceModel

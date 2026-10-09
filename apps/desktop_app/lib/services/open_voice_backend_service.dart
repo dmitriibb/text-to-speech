@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'dart:typed_data';
 
 enum OpenVoiceBackendConnectionState {
   disconnected,
@@ -38,6 +39,8 @@ class OpenVoiceHealth {
     required this.features,
     required this.supportedJobModes,
     required this.voicesEndpoint,
+    this.currentModelId,
+    this.currentModelRevision,
   });
 
   final String backend;
@@ -49,6 +52,8 @@ class OpenVoiceHealth {
   final List<String> features;
   final List<ExternalBackendVoiceMode> supportedJobModes;
   final String? voicesEndpoint;
+  final String? currentModelId;
+  final String? currentModelRevision;
 
   factory OpenVoiceHealth.fromJson(Map<String, Object?> json) {
     final supportedJobModesJson =
@@ -66,6 +71,8 @@ class OpenVoiceHealth {
           .map((value) => _voiceModeFromString(value as String? ?? 'clone'))
           .toList(growable: false),
       voicesEndpoint: json['voices_endpoint'] as String?,
+      currentModelId: json['current_model_id'] as String?,
+      currentModelRevision: json['current_model_revision'] as String?,
     );
   }
 }
@@ -194,7 +201,9 @@ class OpenVoiceBackendService {
   }
 
   Future<OpenVoiceHealth> fetchHealth(Uri baseUri) async {
-    final response = await _client.get(_endpoint(baseUri, '/health'));
+    final response = await _client
+        .get(_endpoint(baseUri, '/health'))
+        .timeout(const Duration(seconds: 15));
     final json = _decodeJson(response);
     return OpenVoiceHealth.fromJson(json);
   }
@@ -216,6 +225,7 @@ class OpenVoiceBackendService {
     required String text,
     String? voiceId,
     String? referenceAudioPath,
+    Uint8List? referenceAudioBytes,
     String? referenceText,
     String? instruct,
     String language = 'en',
@@ -244,7 +254,16 @@ class OpenVoiceBackendService {
     if (numStep != null) {
       request.fields['num_step'] = numStep.toString();
     }
-    if (referenceAudioPath != null && referenceAudioPath.trim().isNotEmpty) {
+    if (referenceAudioBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'reference_audio',
+          referenceAudioBytes,
+          filename: 'reference.wav',
+        ),
+      );
+    } else if (referenceAudioPath != null &&
+        referenceAudioPath.trim().isNotEmpty) {
       request.files.add(
         await http.MultipartFile.fromPath(
           'reference_audio',
@@ -254,14 +273,20 @@ class OpenVoiceBackendService {
       );
     }
 
-    final streamed = await _client.send(request);
-    final response = await http.Response.fromStream(streamed);
+    final streamed = await _client
+        .send(request)
+        .timeout(const Duration(seconds: 30));
+    final response = await http.Response.fromStream(
+      streamed,
+    ).timeout(const Duration(seconds: 30));
     final json = _decodeJson(response, acceptedStatusCodes: const {202});
     return OpenVoiceJobSubmission.fromJson(json);
   }
 
   Future<OpenVoiceJob> fetchJob(Uri baseUri, String jobId) async {
-    final response = await _client.get(_endpoint(baseUri, '/jobs/$jobId'));
+    final response = await _client
+        .get(_endpoint(baseUri, '/jobs/$jobId'))
+        .timeout(const Duration(seconds: 15));
     final json = _decodeJson(response);
     return OpenVoiceJob.fromJson(json);
   }
@@ -269,7 +294,24 @@ class OpenVoiceBackendService {
   Future<OpenVoiceJob> waitForJobCompletion({
     required Uri baseUri,
     required String jobId,
+    bool Function()? isCancelled,
+    Duration deadline = const Duration(minutes: 30),
   }) async {
+    final watch = Stopwatch()..start();
+    void check() {
+      if (isCancelled?.call() ?? false) {
+        throw OpenVoiceBackendException(
+          'Polling cancelled; server computation may finish.',
+        );
+      }
+      if (watch.elapsed >= deadline) {
+        throw OpenVoiceBackendException(
+          'Backend job timed out. Check server logs and retry.',
+        );
+      }
+    }
+
+    check();
     var attempt = 0;
     var current = await fetchJob(baseUri, jobId);
     while (!current.isTerminal) {
@@ -278,10 +320,19 @@ class OpenVoiceBackendService {
             1,
             maxPollingSeconds,
           );
-      await _delay(Duration(seconds: waitSeconds));
+      if (isCancelled == null) {
+        await _delay(Duration(seconds: waitSeconds));
+      } else {
+        for (var tick = 0; tick < waitSeconds * 5; tick++) {
+          check();
+          await _delay(const Duration(milliseconds: 200));
+        }
+      }
+      check();
       current = await fetchJob(baseUri, jobId);
       attempt += 1;
     }
+    check();
     return current;
   }
 
@@ -289,22 +340,57 @@ class OpenVoiceBackendService {
     required Uri baseUri,
     required String jobId,
     required String outputPath,
+    bool Function()? isCancelled,
   }) async {
-    final response = await _client.get(
-      _endpoint(baseUri, '/jobs/$jobId/result'),
-    );
+    final response = await _client
+        .send(http.Request('GET', _endpoint(baseUri, '/jobs/$jobId/result')))
+        .timeout(const Duration(seconds: 60));
     if (response.statusCode != 200) {
-      throw OpenVoiceBackendException(_decodeError(response));
+      throw OpenVoiceBackendException(
+        'Result download failed with HTTP ${response.statusCode}.',
+      );
     }
 
     final outputFile = File(outputPath);
     await outputFile.parent.create(recursive: true);
-    await outputFile.writeAsBytes(response.bodyBytes, flush: true);
+    final partial = File('$outputPath.part');
+    final sink = await partial.open(mode: FileMode.write);
+    var bytes = 0;
+    try {
+      await for (final chunk in response.stream.timeout(
+        const Duration(seconds: 60),
+      )) {
+        if (isCancelled?.call() ?? false) {
+          throw OpenVoiceBackendException('Download cancelled.');
+        }
+        bytes += chunk.length;
+        if (bytes > 128 * 1024 * 1024) {
+          throw OpenVoiceBackendException('Result exceeds 128 MiB.');
+        }
+        await sink.writeFrom(chunk);
+      }
+      await sink.flush();
+    } catch (_) {
+      await sink.close();
+      if (await partial.exists()) await partial.delete();
+      rethrow;
+    }
+    await sink.close();
+    await partial.rename(outputPath);
     return outputFile;
   }
 
   void dispose() {
     _client.close();
+  }
+
+  Future<void> deleteJob(Uri baseUri, String jobId) async {
+    final response = await _client
+        .delete(_endpoint(baseUri, '/jobs/$jobId'))
+        .timeout(const Duration(seconds: 15));
+    if (response.statusCode != 204 && response.statusCode != 404) {
+      throw OpenVoiceBackendException(_decodeError(response));
+    }
   }
 
   Uri _endpoint(Uri baseUri, String path) {

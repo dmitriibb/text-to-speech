@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tts_core/tts_core.dart';
 
 import 'model_selector.dart';
+import 'audio_playback_controls.dart';
 
 class DialogModePanel extends StatelessWidget {
   const DialogModePanel({
@@ -20,11 +21,18 @@ class DialogModePanel extends StatelessWidget {
     required this.onPlayLine,
     required this.onRemoveLine,
     required this.onModelSelected,
-    required this.onSpeakerSelected,
-    required this.onLanguageSelected,
-    required this.onVolumeChanged,
-    required this.speed,
-    required this.onSpeedChanged,
+    required this.onSettingsChanged,
+    this.importIssues = const [],
+    this.workspace,
+    this.onRetryLine,
+    this.onRenderConversation,
+    this.onPreviewConversation,
+    this.onExportConversation,
+    this.extensionBuilderForSpeaker,
+    this.masterIsPlaying = false,
+    this.masterPosition = Duration.zero,
+    this.masterDuration,
+    this.onSeekMaster,
   });
 
   final List<DialogLineItem> lines;
@@ -41,24 +49,45 @@ class DialogModePanel extends StatelessWidget {
   final Future<void> Function(DialogLineItem line) onPlayLine;
   final Future<void> Function(DialogLineItem line) onRemoveLine;
   final void Function(String speakerName, InstalledModel model) onModelSelected;
-  final void Function(String speakerName, int speakerId) onSpeakerSelected;
-  final void Function(String speakerName, String language) onLanguageSelected;
-  final void Function(String speakerName, int volume) onVolumeChanged;
-  final double speed;
-  final ValueChanged<double> onSpeedChanged;
+  final void Function(String speakerName, ModelSynthesisSettings settings)
+  onSettingsChanged;
+  final List<DialogImportIssue> importIssues;
+  final DialogWorkspace? workspace;
+  final bool masterIsPlaying;
+  final Duration masterPosition;
+  final Duration? masterDuration;
+  final ValueChanged<Duration>? onSeekMaster;
+  final Future<void> Function(DialogLineItem)? onRetryLine;
+  final Future<void> Function()? onRenderConversation,
+      onPreviewConversation,
+      onExportConversation;
+  final ModelSettingsExtensionBuilder Function(String)?
+  extensionBuilderForSpeaker;
 
   @override
   Widget build(BuildContext context) {
     if (lines.isEmpty) {
-      return Center(
-        child: SizedBox(
-          height: 48,
-          child: FilledButton.icon(
-            onPressed: onPasteFromClipboard,
-            icon: const Icon(Icons.content_paste),
-            label: const Text('Paste from buffer'),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (workspace != null) _ProjectControls(workspace: workspace!),
+          Center(
+            child: SizedBox(
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: onPasteFromClipboard,
+                icon: const Icon(Icons.content_paste),
+                label: const Text('Paste from buffer'),
+              ),
+            ),
           ),
-        ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 12),
+            _DialogErrorBanner(message: errorMessage!),
+          ],
+          if (importIssues.isNotEmpty)
+            _DialogImportIssues(issues: importIssues),
+        ],
       );
     }
 
@@ -69,28 +98,40 @@ class DialogModePanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (workspace != null) ...[
+          _ProjectControls(workspace: workspace!),
+          const SizedBox(height: 12),
+        ],
+        if (importIssues.isNotEmpty) ...[
+          _DialogImportIssues(issues: importIssues),
+          const SizedBox(height: 12),
+        ],
         _SpeakerSettingsList(
           speakers: speakers,
           readyModels: readyModels,
           speakerSettings: speakerSettings,
           onModelSelected: onModelSelected,
-          onSpeakerSelected: onSpeakerSelected,
-          onLanguageSelected: onLanguageSelected,
-          onVolumeChanged: onVolumeChanged,
-          speed: speed,
-          onSpeedChanged: onSpeedChanged,
+          onSettingsChanged: onSettingsChanged,
+          extensionBuilderForSpeaker: extensionBuilderForSpeaker,
         ),
         const SizedBox(height: 16),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
+            OutlinedButton.icon(
+              onPressed: isGenerating ? null : onPasteFromClipboard,
+              icon: const Icon(Icons.content_paste),
+              label: const Text('Paste from buffer'),
+            ),
             FilledButton.icon(
               onPressed: hasTextLines && !isGenerating ? onGenerate : null,
               icon: Icon(
                 isGenerating ? Icons.hourglass_top : Icons.auto_awesome,
               ),
-              label: Text(isGenerating ? 'Generating' : 'Generate'),
+              label: Text(
+                isGenerating ? 'Generating' : 'Generate missing / changed',
+              ),
             ),
             FilledButton.tonalIcon(
               onPressed: hasPlayableLines ? onPlayPauseSequence : null,
@@ -104,6 +145,26 @@ class DialogModePanel extends StatelessWidget {
             ),
           ],
         ),
+        if (workspace != null) ...[
+          const SizedBox(height: 12),
+          _ConversationControls(
+            workspace: workspace!,
+            onRender: onRenderConversation,
+            onPreview: onPreviewConversation,
+            onExport: onExportConversation,
+          ),
+        ],
+        if (workspace?.masterIsCurrent == true &&
+            onPreviewConversation != null) ...[
+          const SizedBox(height: 12),
+          AudioPlaybackControls(
+            isPlaying: masterIsPlaying,
+            position: masterPosition,
+            duration: masterDuration,
+            onTogglePlayback: onPreviewConversation!,
+            onSeek: onSeekMaster,
+          ),
+        ],
         if (errorMessage != null) ...[
           const SizedBox(height: 12),
           _DialogErrorBanner(message: errorMessage!),
@@ -118,6 +179,12 @@ class DialogModePanel extends StatelessWidget {
               isPlaying: activeLineId == line.id && isSequencePlaying,
               onPlay: () => onPlayLine(line),
               onRemove: () => onRemoveLine(line),
+              onEdit: workspace == null
+                  ? null
+                  : () => _editTurn(context, workspace!, line),
+              onRetry: onRetryLine == null || isGenerating
+                  ? null
+                  : () => onRetryLine!(line),
             ),
           ),
         ),
@@ -137,28 +204,51 @@ class DialogModePanel extends StatelessWidget {
   }
 }
 
+class _DialogImportIssues extends StatelessWidget {
+  const _DialogImportIssues({required this.issues});
+
+  final List<DialogImportIssue> issues;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ExpansionTile(
+        leading: const Icon(Icons.warning_amber),
+        title: Text(
+          'Skipped ${issues.length} transcript ${issues.length == 1 ? 'row' : 'rows'}',
+        ),
+        subtitle: const Text('Review these rows before generating.'),
+        children: [
+          for (final issue in issues)
+            ListTile(
+              title: Text('Line ${issue.sourceLineNumber}: ${issue.message}'),
+              subtitle: SelectableText(issue.sourceText),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SpeakerSettingsList extends StatelessWidget {
   const _SpeakerSettingsList({
     required this.speakers,
     required this.readyModels,
     required this.speakerSettings,
     required this.onModelSelected,
-    required this.onSpeakerSelected,
-    required this.onLanguageSelected,
-    required this.onVolumeChanged,
-    required this.speed,
-    required this.onSpeedChanged,
+    required this.onSettingsChanged,
+    this.extensionBuilderForSpeaker,
   });
 
   final List<String> speakers;
   final List<InstalledModel> readyModels;
   final Map<String, DialogSpeakerSettings> speakerSettings;
   final void Function(String speakerName, InstalledModel model) onModelSelected;
-  final void Function(String speakerName, int speakerId) onSpeakerSelected;
-  final void Function(String speakerName, String language) onLanguageSelected;
-  final void Function(String speakerName, int volume) onVolumeChanged;
-  final double speed;
-  final ValueChanged<double> onSpeedChanged;
+  final void Function(String speakerName, ModelSynthesisSettings settings)
+  onSettingsChanged;
+
+  final ModelSettingsExtensionBuilder Function(String)?
+  extensionBuilderForSpeaker;
 
   @override
   Widget build(BuildContext context) {
@@ -171,11 +261,8 @@ class _SpeakerSettingsList extends StatelessWidget {
             readyModels: readyModels,
             settings: speakerSettings[speakerName],
             onModelSelected: onModelSelected,
-            onSpeakerSelected: onSpeakerSelected,
-            onLanguageSelected: onLanguageSelected,
-            onVolumeChanged: onVolumeChanged,
-            speed: speed,
-            onSpeedChanged: onSpeedChanged,
+            onSettingsChanged: onSettingsChanged,
+            extensionBuilderForSpeaker: extensionBuilderForSpeaker,
           ),
           if (speakerName != speakers.last) const SizedBox(height: 12),
         ],
@@ -190,34 +277,28 @@ class _SpeakerSettingsRow extends StatelessWidget {
     required this.readyModels,
     required this.settings,
     required this.onModelSelected,
-    required this.onSpeakerSelected,
-    required this.onLanguageSelected,
-    required this.onVolumeChanged,
-    required this.speed,
-    required this.onSpeedChanged,
+    required this.onSettingsChanged,
+    this.extensionBuilderForSpeaker,
   });
 
   final String speakerName;
   final List<InstalledModel> readyModels;
   final DialogSpeakerSettings? settings;
   final void Function(String speakerName, InstalledModel model) onModelSelected;
-  final void Function(String speakerName, int speakerId) onSpeakerSelected;
-  final void Function(String speakerName, String language) onLanguageSelected;
-  final void Function(String speakerName, int volume) onVolumeChanged;
-  final double speed;
-  final ValueChanged<double> onSpeedChanged;
+  final void Function(String speakerName, ModelSynthesisSettings settings)
+  onSettingsChanged;
+
+  final ModelSettingsExtensionBuilder Function(String)?
+  extensionBuilderForSpeaker;
 
   @override
   Widget build(BuildContext context) {
     final selectedModel = _selectedModel();
-    final modelSettings = selectedModel == null
-        ? const ModelSynthesisSettings()
-        : ModelSynthesisSettings.defaultsFor(selectedModel.voice).copyWith(
-            speed: speed,
-            volume: dialogVolumeToGain(settings?.volume ?? dialogVolumeDefault),
-            speakerId: settings?.speakerId,
-            generationLanguage: settings?.generationLanguage,
-          );
+    final modelSettings =
+        settings?.synthesisSettings ??
+        (selectedModel == null
+            ? const ModelSynthesisSettings()
+            : ModelSynthesisSettings.defaultsFor(selectedModel.voice));
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,19 +308,14 @@ class _SpeakerSettingsRow extends StatelessWidget {
         Expanded(
           child: ModelSelector(
             readyModels: readyModels,
+            extensionBuilder: extensionBuilderForSpeaker?.call(speakerName),
+            supportsSpeed: selectedModel?.voice.runtime != 'voxcpm2',
+
             selectedModel: selectedModel,
             settings: modelSettings,
             enabled: readyModels.isNotEmpty,
             onModelSelected: (model) => onModelSelected(speakerName, model),
-            onSettingsChanged: (next) {
-              onSpeedChanged(next.speed);
-              onSpeakerSelected(speakerName, next.speakerId);
-              onLanguageSelected(speakerName, next.generationLanguage);
-              onVolumeChanged(
-                speakerName,
-                (next.volume * dialogVolumeDefault).round(),
-              );
-            },
+            onSettingsChanged: (next) => onSettingsChanged(speakerName, next),
           ),
         ),
       ],
@@ -257,184 +333,6 @@ class _SpeakerSettingsRow extends StatelessWidget {
       }
     }
     return null;
-  }
-
-  // ignore: unused_element
-  Widget _buildModelSelector(
-    BuildContext context,
-    InstalledModel? selectedModel,
-  ) {
-    return DropdownButtonFormField<String>(
-      initialValue: selectedModel?.voice.id,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'AI model',
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      ),
-      items: readyModels.map((model) {
-        return DropdownMenuItem<String>(
-          value: model.voice.id,
-          child: Text(
-            _modelLabel(model.voice),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-      onChanged: readyModels.isEmpty
-          ? null
-          : (modelId) {
-              if (modelId == null) {
-                return;
-              }
-              final model = readyModels.firstWhere(
-                (item) => item.voice.id == modelId,
-              );
-              onModelSelected(speakerName, model);
-            },
-      hint: Text(readyModels.isEmpty ? 'No models available' : 'Select model'),
-    );
-  }
-
-  // ignore: unused_element
-  Widget _buildVoiceSelector(
-    BuildContext context,
-    List<Speaker> speakers,
-    int? selectedSpeakerId,
-  ) {
-    final initialSpeakerId =
-        speakers.any((speaker) => speaker.id == selectedSpeakerId)
-        ? selectedSpeakerId
-        : null;
-
-    return DropdownButtonFormField<int>(
-      initialValue: initialSpeakerId,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Voice',
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      ),
-      items: speakers.map((speaker) {
-        return DropdownMenuItem<int>(
-          value: speaker.id,
-          child: Text(
-            speaker.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-      onChanged: (speakerId) {
-        if (speakerId == null) {
-          return;
-        }
-        onSpeakerSelected(speakerName, speakerId);
-      },
-    );
-  }
-
-  // ignore: unused_element
-  Widget _buildLanguageSelector(
-    BuildContext context,
-    List<VoiceLanguage> languages,
-  ) {
-    final voice = _selectedModel()?.voice;
-    final initialLanguage = voice?.resolveGenerationLanguage(
-      settings?.generationLanguage,
-    );
-
-    return DropdownButtonFormField<String>(
-      initialValue:
-          languages.any((language) => language.code == initialLanguage)
-          ? initialLanguage
-          : null,
-      isExpanded: true,
-      decoration: const InputDecoration(
-        labelText: 'Language',
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      ),
-      items: languages.map((language) {
-        return DropdownMenuItem<String>(
-          value: language.code,
-          child: Text(
-            language.name,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        );
-      }).toList(),
-      onChanged: (language) {
-        if (language == null) {
-          return;
-        }
-        onLanguageSelected(speakerName, language);
-      },
-    );
-  }
-
-  String _modelLabel(VoiceModel voice) {
-    final languages = voice.languageDisplayLabel;
-    if (languages.isEmpty) {
-      return voice.displayName;
-    }
-    return '${voice.displayName} · $languages';
-  }
-}
-
-// ignore: unused_element
-class _VolumeStepper extends StatelessWidget {
-  const _VolumeStepper({required this.volume, required this.onChanged});
-
-  final int volume;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final normalizedVolume = clampDialogVolume(volume);
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 2),
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          border: Border.all(color: colorScheme.outline),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              tooltip: 'Decrease volume',
-              onPressed: normalizedVolume > dialogVolumeMin
-                  ? () => onChanged(normalizedVolume - 1)
-                  : null,
-              icon: const Icon(Icons.remove),
-            ),
-            SizedBox(
-              width: 24,
-              child: Text(
-                '$normalizedVolume',
-                textAlign: TextAlign.center,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-            ),
-            IconButton(
-              tooltip: 'Increase volume',
-              onPressed: normalizedVolume < dialogVolumeMax
-                  ? () => onChanged(normalizedVolume + 1)
-                  : null,
-              icon: const Icon(Icons.add),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
@@ -466,69 +364,74 @@ class _DialogLineCard extends StatelessWidget {
     required this.isPlaying,
     required this.onPlay,
     required this.onRemove,
+    this.onEdit,
+    this.onRetry,
   });
-
   final DialogLineItem line;
-  final bool isActive;
-  final bool isPlaying;
-  final VoidCallback onPlay;
-  final VoidCallback onRemove;
-
+  final bool isActive, isPlaying;
+  final VoidCallback onPlay, onRemove;
+  final VoidCallback? onEdit, onRetry;
   @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textStyle = line.hasText
-        ? Theme.of(context).textTheme.bodyMedium
-        : Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-            fontStyle: FontStyle.italic,
-          );
-
-    return Card(
-      elevation: isActive ? 2 : 0,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 132,
-              child: Text(
-                line.speakerName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) => Card(
+    elevation: isActive ? 2 : 0,
+    child: Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  line.speakerName,
+                  style: Theme.of(context).textTheme.labelLarge,
                 ),
               ),
+              if (!line.included) const Text('Excluded'),
+              _LineStatusIcon(status: line.status),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            line.hasText ? line.effectiveText : 'Text removed',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (line.errorMessage != null)
+            Text(
+              line.errorMessage!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                line.hasText ? line.text : 'Text removed',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: textStyle,
+          Wrap(
+            spacing: 4,
+            children: [
+              if (onEdit != null)
+                IconButton(
+                  tooltip: 'Edit text / timing / inclusion',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              IconButton(
+                tooltip: 'Retry this line',
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              tooltip: 'Remove line',
-              onPressed: onRemove,
-              icon: const Icon(Icons.delete_outline),
-            ),
-            IconButton.filledTonal(
-              tooltip: isPlaying ? 'Pause line' : 'Play line',
-              onPressed: line.hasPlayableAudio ? onPlay : null,
-              icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-            ),
-            const SizedBox(width: 4),
-            _LineStatusIcon(status: line.status),
-          ],
-        ),
+              IconButton(
+                tooltip: 'Remove line',
+                onPressed: onRemove,
+                icon: const Icon(Icons.delete_outline),
+              ),
+              IconButton.filledTonal(
+                tooltip: isPlaying ? 'Pause line' : 'Play line',
+                onPressed: line.hasPlayableAudio ? onPlay : null,
+                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+              ),
+            ],
+          ),
+        ],
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _LineStatusIcon extends StatelessWidget {
@@ -601,5 +504,238 @@ class _DialogErrorBanner extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ProjectControls extends StatelessWidget {
+  const _ProjectControls({required this.workspace});
+  final DialogWorkspace workspace;
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 12,
+    runSpacing: 8,
+    children: [
+      OutlinedButton.icon(
+        onPressed: workspace.isGenerating || workspace.isRendering
+            ? null
+            : workspace.save,
+        icon: const Icon(Icons.save_outlined),
+        label: const Text('Save project'),
+      ),
+      OutlinedButton.icon(
+        onPressed: workspace.isGenerating || workspace.isRendering
+            ? null
+            : workspace.load,
+        icon: const Icon(Icons.folder_open),
+        label: const Text('Reload saved project'),
+      ),
+      OutlinedButton.icon(
+        onPressed: () => _editTiming(context, workspace),
+        icon: const Icon(Icons.timer_outlined),
+        label: Text('Default pause: ${workspace.defaultPauseMs} ms'),
+      ),
+    ],
+  );
+}
+
+class _ConversationControls extends StatelessWidget {
+  const _ConversationControls({
+    required this.workspace,
+    this.onRender,
+    this.onPreview,
+    this.onExport,
+  });
+  final DialogWorkspace workspace;
+  final Future<void> Function()? onRender, onPreview, onExport;
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Wrap(
+        spacing: 12,
+        runSpacing: 8,
+        children: [
+          FilledButton.icon(
+            onPressed: workspace.isRendering || workspace.isGenerating
+                ? null
+                : onRender,
+            icon: const Icon(Icons.multitrack_audio),
+            label: const Text('Render conversation'),
+          ),
+          OutlinedButton.icon(
+            onPressed: workspace.masterIsCurrent ? onPreview : null,
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Preview master'),
+          ),
+          OutlinedButton.icon(
+            onPressed: workspace.masterIsCurrent ? onExport : null,
+            icon: const Icon(Icons.ios_share),
+            label: const Text('Save / share WAV'),
+          ),
+          if (workspace.isGenerating || workspace.isRendering)
+            OutlinedButton.icon(
+              onPressed: workspace.cancel,
+              icon: const Icon(Icons.cancel_outlined),
+              label: const Text('Cancel'),
+            ),
+        ],
+      ),
+      if (workspace.isGenerating || workspace.isRendering) ...[
+        const SizedBox(height: 8),
+        LinearProgressIndicator(value: workspace.progress),
+        Text(
+          '${workspace.isRendering ? 'Rendering conversation' : 'Generating turns sequentially'} · ${workspace.elapsed}',
+        ),
+      ],
+      if (workspace.masterPath != null)
+        Text(
+          workspace.masterIsCurrent
+              ? 'Clean master ready · mono 48 kHz PCM WAV'
+              : 'Previous master retained; render again after changes.',
+        ),
+    ],
+  );
+}
+
+Future<void> _editTiming(
+  BuildContext context,
+  DialogWorkspace workspace,
+) async {
+  var pause = workspace.defaultPauseMs.toDouble();
+  var trim = workspace.trimSilence;
+  await showDialog<void>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: const Text('Conversation timing'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Default pause: ${pause.round()} ms'),
+            Slider(
+              value: pause,
+              min: 0,
+              max: 2000,
+              divisions: 80,
+              onChanged: (value) => setState(() => pause = value),
+            ),
+            SwitchListTile(
+              title: const Text('Trim digital silence'),
+              subtitle: const Text(
+                'Conservative; preserves 20 ms at each boundary.',
+              ),
+              value: trim,
+              onChanged: (value) => setState(() => trim = value),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              workspace.setTiming(pause.round(), trim);
+              Navigator.pop(context);
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Future<void> _editTurn(
+  BuildContext context,
+  DialogWorkspace workspace,
+  DialogLineItem line,
+) async {
+  final text = TextEditingController(text: line.text);
+  final pronunciation = TextEditingController(text: line.textOverride ?? '');
+  var pause = (line.pauseAfterMs ?? workspace.defaultPauseMs).toDouble();
+  var useDefault = line.pauseAfterMs == null;
+  var included = line.included;
+  final route = DialogRoute<void>(
+    context: context,
+    builder: (context) => StatefulBuilder(
+      builder: (context, setState) => AlertDialog(
+        title: Text('Edit ${line.speakerName} turn'),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: text,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Original spoken text',
+                  ),
+                ),
+                TextField(
+                  controller: pronunciation,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Explicit pronunciation override (optional)',
+                  ),
+                ),
+                SwitchListTile(
+                  title: const Text('Include in conversation'),
+                  value: included,
+                  onChanged: (value) => setState(() => included = value),
+                ),
+                SwitchListTile(
+                  title: const Text('Use default pause'),
+                  value: useDefault,
+                  onChanged: (value) => setState(() => useDefault = value),
+                ),
+                if (!useDefault) ...[
+                  Text('Pause after turn: ${pause.round()} ms'),
+                  Slider(
+                    value: pause,
+                    min: 0,
+                    max: 2000,
+                    divisions: 80,
+                    onChanged: (value) => setState(() => pause = value),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              workspace.edit(
+                line.copyWith(
+                  text: text.text,
+                  textOverride: pronunciation.text.trim().isEmpty
+                      ? null
+                      : pronunciation.text,
+                  included: included,
+                  pauseAfterMs: useDefault ? null : pause.round(),
+                ),
+              );
+              Navigator.pop(context);
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    ),
+  );
+  try {
+    await Navigator.of(context, rootNavigator: true).push(route);
+    await route.completed;
+  } finally {
+    text.dispose();
+    pronunciation.dispose();
   }
 }

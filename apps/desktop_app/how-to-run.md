@@ -37,6 +37,7 @@ sudo apt-get install -y \
 ### Windows
 
 - Install Visual Studio 2022 with `Desktop development with C++`
+- Enable Windows Developer Mode for Flutter plugin symlinks
 - Follow any remaining `flutter doctor` prompts
 
 ### macOS
@@ -96,3 +97,7 @@ flutter build macos
 - Ubuntu playback issue: install `ffmpeg`
 - Ubuntu save dialog missing: install `zenity`
 - macOS support is expected to work through Flutter desktop support, but it is less validated than Linux
+
+## Russian Dialog and complete export
+
+See the [Russian phone-call workflow](../../docs/russian-phone-call-workflow.md). VoxCPM2 is an explicitly enabled desktop backend; the ONNX installer does not install it. Backend references and settings belong to each actor.

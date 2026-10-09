@@ -33,3 +33,12 @@
 - `done` implies a local generated `.wav` exists.
 - Android may keep multiple synthesis tasks queued, but generated-audio UI currently promotes the most recently completed output.
 - Task execution happens outside the main UI isolate via the shared isolate executor so the app can stay responsive while work is in progress.
+
+## Dialog lifecycle
+
+A stable project/turn request advances idle -> queued -> generating -> ready or
+failed. Edits/cancel reset only affected turns; stale results are deleted.
+Generate missing/changed and Retry selected preserve other current clips.
+A separate render state advances idle -> rendering -> current master, with
+cancel/failure retaining the previous artifact. Any project timing/text/actor
+revision change makes the previous master historical until a successful render.

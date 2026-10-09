@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -26,6 +28,13 @@ class JobStore:
         self._engine = engine
         self._lock = asyncio.Lock()
         self._jobs: dict[str, JobRecord] = {}
+        self._inference_queue = asyncio.Lock()
+        self._deleted: set[str] = set()
+        # Crash leftovers and abandoned server results expire after seven days.
+        for directory in (settings.jobs_dir, settings.results_dir, settings.reference_audio_dir):
+            for path in directory.iterdir():
+                if path.is_file() and time.time() - path.stat().st_mtime > 7 * 86400:
+                    path.unlink(missing_ok=True)
 
     async def count_in_progress(self) -> int:
         jobs = await self.list_jobs()
@@ -59,6 +68,8 @@ class JobStore:
         return job
 
     async def get_job(self, job_id: str) -> JobRecord | None:
+        if not re.fullmatch(r'job-[a-f0-9-]{36}', job_id) or job_id in self._deleted:
+            return None
         async with self._lock:
             cached = self._jobs.get(job_id)
         if cached is not None:
@@ -83,6 +94,29 @@ class JobStore:
         return jobs
 
     async def _run_job(self, job_id: str) -> None:
+        async with self._inference_queue:
+            try:
+                await self._run_serial_job(job_id)
+            finally:
+                if job_id in self._deleted:
+                    await self._cleanup(job_id)
+
+    async def delete_job(self, job_id: str) -> bool:
+        job = await self.get_job(job_id)
+        if job is None:
+            return False
+        self._deleted.add(job_id)
+        if job.status != JobStatus.running:
+            await self._cleanup(job_id)
+        return True
+
+    async def _cleanup(self, job_id: str) -> None:
+        async with self._lock:
+            self._jobs.pop(job_id, None)
+        for path in (self._storage.job_path(job_id), self._storage.reference_audio_path(job_id), self._storage.result_audio_path(job_id)):
+            await asyncio.to_thread(path.unlink, missing_ok=True)
+
+    async def _run_serial_job(self, job_id: str) -> None:
         job = await self.get_job(job_id)
         if job is None:
             return
@@ -114,6 +148,8 @@ class JobStore:
 
     async def _write_job(self, job: JobRecord) -> None:
         async with self._lock:
+            if job.job_id in self._deleted:
+                return
             self._jobs[job.job_id] = job
             payload = job.model_dump_json(indent=2)
         await asyncio.to_thread(self._storage.job_path(job.job_id).write_text, payload, encoding='utf-8')
@@ -122,7 +158,11 @@ class JobStore:
         if upload is None:
             return None
         destination = self._storage.reference_audio_path(job_id)
-        data = await upload.read()
+        data = bytearray()
+        while chunk := await upload.read(1024 * 1024):
+            data.extend(chunk)
+            if len(data) > 64 * 1024 * 1024:
+                raise ValueError('Reference exceeds 64 MiB.')
         if not data:
             raise ValueError('Reference audio is empty.')
         await asyncio.to_thread(destination.write_bytes, data)

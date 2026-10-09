@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 import uvicorn
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, RedirectResponse
+from fastapi import Response
 
 from .config import Settings, load_settings
 from .engine import VoxCPM2Engine
@@ -45,6 +47,7 @@ def create_app(
             jobs_in_progress=await job_store.count_in_progress(),
             current_model_id=settings.model_id,
             current_model_name='OpenBMB VoxCPM2',
+            current_model_revision=settings.model_revision,
             runtime_assets_ready=engine.is_loaded,
             initialization_error=engine.initialization_error,
             features=['multilingual', 'voice_design', 'voice_cloning', 'model_settings', 'cpu_fallback'],
@@ -63,9 +66,12 @@ def create_app(
     ) -> CreateJobResponse:
         if not text.strip():
             raise HTTPException(status_code=400, detail='Text is required.')
-        if speed < 0.5 or speed > 2.0:
-            raise HTTPException(status_code=400, detail='Speed must be between 0.5 and 2.0.')
+        if not math.isfinite(speed) or speed != 1.0:
+            raise HTTPException(status_code=400, detail='VoxCPM2 currently supports speed=1.0 only; speed control is not implemented.')
         model_settings = _parse_settings(settings_json)
+        expected_revision = model_settings.get('model_revision')
+        if expected_revision and expected_revision != settings.model_revision:
+            raise HTTPException(status_code=409, detail='Backend model revision changed; select the matching pinned checkpoint.')
         _validate_settings(model_settings, reference_audio is not None)
         try:
             job = await job_store.create_job(
@@ -99,6 +105,12 @@ def create_app(
         if job.status != JobStatus.succeeded or job.result_audio_path is None:
             raise HTTPException(status_code=409, detail='Job result is not ready.')
         return FileResponse(job.result_audio_path, media_type='audio/wav')
+
+    @app.delete('/jobs/{job_id}', status_code=204)
+    async def delete_job(job_id: str):
+        if not await job_store.delete_job(job_id):
+            raise HTTPException(status_code=404, detail='Job not found.')
+        return Response(status_code=204)
 
     return app
 

@@ -8,6 +8,7 @@ import 'package:tts_core/tts_core.dart';
 import '../models/cloned_voice.dart';
 import '../services/audio_service.dart';
 import '../services/open_voice_backend_service.dart';
+import '../services/dialog_backend_adapter.dart';
 import '../services/open_voice_preferences_service.dart';
 import '../services/voice_library_service.dart';
 import 'app_state.dart';
@@ -503,8 +504,9 @@ class VoiceLabState extends ChangeNotifier {
       final health = await _openVoiceBackendService.fetchHealth(baseUri);
       if (health.engineReady && health.engine == 'voxcpm2') {
         _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.connected;
-        _voxCpm2BackendMessage =
-            '${health.engineDisplayName ?? 'VoxCPM2'} is healthy at ${_voxCpm2BackendUrl.trim()}.';
+        _voxCpm2BackendMessage = health.modelsLoaded
+            ? 'VoxCPM2 model loaded at ${_voxCpm2BackendUrl.trim()}.'
+            : 'VoxCPM2 server reachable at ${_voxCpm2BackendUrl.trim()}; first generation loads the model.';
         if (showAsError) _errorMessage = null;
       } else {
         _voxCpm2ConnectionState = OpenVoiceBackendConnectionState.error;
@@ -527,6 +529,34 @@ class VoiceLabState extends ChangeNotifier {
       if (showAsError) _errorMessage = error.toString();
     }
     notifyListeners();
+  }
+
+  Future<void> generateDialogTurn(DialogGenerationRequest request) async {
+    if (!_isVoxCpm2Enabled) {
+      throw StateError('Enable VoxCPM2 in Backend models.');
+    }
+    final startedAt = DateTime.now();
+    await DialogBackendAdapter(
+      _openVoiceBackendService,
+    ).generate(request, _voxCpm2BackendUrl);
+    request.cancellation.check();
+    final libraryPath = await _appState.createGeneratedAudioOutputPath(
+      prefix: 'voxcpm2-turn',
+    );
+    await File(request.outputPath).copy(libraryPath);
+    if (request.cancellation.cancelled) {
+      await File(libraryPath).delete();
+      request.cancellation.check();
+    }
+    _appState.registerExternalGeneratedAudio(
+      label: 'VoxCPM2 · ${request.actor.speakerName}',
+      modelId: request.actor.modelId!,
+      modelName: 'VoxCPM2',
+      inputCharacterCount: request.line.effectiveText.length,
+      speechSpeed: 1,
+      outputPath: libraryPath,
+      startedAt: startedAt,
+    );
   }
 
   Future<void> loadVoices() async {

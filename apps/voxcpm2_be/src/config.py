@@ -20,6 +20,7 @@ class Settings:
     jobs_dir: Path
     reference_audio_dir: Path
     results_dir: Path
+    model_revision: str | None = None
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -46,5 +47,6 @@ def load_settings() -> Settings:
         jobs_dir=storage_dir / 'jobs',
         reference_audio_dir=storage_dir / 'reference_audio',
         results_dir=storage_dir / 'results',
+        model_revision=os.getenv('VOXCPM_MODEL_REVISION', '32279effe8c19989596f05d353d1447f51d9e915') or None,
     )
 

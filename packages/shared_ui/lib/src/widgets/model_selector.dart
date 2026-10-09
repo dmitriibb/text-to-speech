@@ -21,6 +21,7 @@ class ModelSelector extends StatelessWidget {
     this.enabled = true,
     this.extensionBuilder,
     this.label = 'AI model',
+    this.supportsSpeed = true,
   });
 
   final List<InstalledModel> readyModels;
@@ -31,6 +32,7 @@ class ModelSelector extends StatelessWidget {
   final bool enabled;
   final ModelSettingsExtensionBuilder? extensionBuilder;
   final String label;
+  final bool supportsSpeed;
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +98,7 @@ class ModelSelector extends StatelessWidget {
         model: model,
         initialSettings: settings,
         extensionBuilder: extensionBuilder,
+        supportsSpeed: supportsSpeed,
       ),
     );
     if (result != null) {
@@ -116,11 +119,13 @@ class _ModelSettingsDialog extends StatefulWidget {
     required this.model,
     required this.initialSettings,
     this.extensionBuilder,
+    this.supportsSpeed = true,
   });
 
   final InstalledModel model;
   final ModelSynthesisSettings initialSettings;
   final ModelSettingsExtensionBuilder? extensionBuilder;
+  final bool supportsSpeed;
 
   @override
   State<_ModelSettingsDialog> createState() => _ModelSettingsDialogState();
@@ -158,15 +163,21 @@ class _ModelSettingsDialogState extends State<_ModelSettingsDialog> {
                     _update(_settings.copyWith(volume: value)),
               ),
               const SizedBox(height: 16),
-              _slider(
-                label: 'Speed',
-                value: _settings.speed,
-                min: speechSpeedMin,
-                max: speechSpeedMax,
-                divisions: speechSpeedDivisions,
-                valueLabel: '${_settings.speed.toStringAsFixed(2)}×',
-                onChanged: (value) => _update(_settings.copyWith(speed: value)),
-              ),
+              if (widget.supportsSpeed)
+                _slider(
+                  label: 'Speed',
+                  value: _settings.speed,
+                  min: speechSpeedMin,
+                  max: speechSpeedMax,
+                  divisions: speechSpeedDivisions,
+                  valueLabel: '${_settings.speed.toStringAsFixed(2)}×',
+                  onChanged: (value) =>
+                      _update(_settings.copyWith(speed: value)),
+                ),
+              if (!widget.supportsSpeed)
+                const Text(
+                  'Speed is fixed at 1.0 for this backend. Language is inferred from the text.',
+                ),
               if (voice.speakers.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 DropdownButtonFormField<int>(

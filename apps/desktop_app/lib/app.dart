@@ -25,6 +25,7 @@ class _AppState extends State<App> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _appState = AppState();
     _voiceLabState = VoiceLabState(appState: _appState);
+    _appState.backendDialogGenerator = _voiceLabState.generateDialogTurn;
     unawaited(_appState.initialize());
     unawaited(_voiceLabState.initialize());
   }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -14,10 +15,12 @@ class VoxCPM2Engine:
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or load_settings()
         self._lock = threading.Lock()
+        self._inference_lock = threading.Lock()
         self._initialized = False
         self._initialization_error: str | None = None
         self._model = None
         self._soundfile = None
+        self._torch = None
         self._device = 'cpu'
         self._device_backend = 'cpu'
 
@@ -49,6 +52,17 @@ class VoxCPM2Engine:
         reference_audio_path: Path | None,
         output_path: Path,
     ) -> int:
+        # The loaded model and Torch RNG are shared by every background job.
+        with self._inference_lock:
+            return self._generate_locked(
+                text=text, settings=settings,
+                reference_audio_path=reference_audio_path, output_path=output_path,
+            )
+
+    def _generate_locked(
+        self, *, text: str, settings: dict[str, Any],
+        reference_audio_path: Path | None, output_path: Path,
+    ) -> int:
         self._ensure_initialized()
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -58,27 +72,54 @@ class VoxCPM2Engine:
         use_reference_as_prompt = bool(settings.get('use_reference_as_prompt', False))
         reference_path = str(reference_audio_path) if reference_audio_path else None
 
-        wav = self._model.generate(
-            text=effective_text,
-            prompt_wav_path=reference_path if use_reference_as_prompt else None,
-            prompt_text=prompt_text if use_reference_as_prompt else None,
-            reference_wav_path=reference_path,
-            cfg_value=float(settings.get('cfg_value', 2.0)),
-            inference_timesteps=int(settings.get('inference_timesteps', 10)),
-            normalize=bool(settings.get('normalize', True)),
-            denoise=bool(settings.get('denoise', False)),
-            retry_badcase=bool(settings.get('retry_badcase', True)),
-            retry_badcase_max_times=int(settings.get('retry_badcase_max_times', 3)),
-            retry_badcase_ratio_threshold=float(
-                settings.get('retry_badcase_ratio_threshold', 6.0)
-            ),
-            seed=_optional_int(settings, 'seed'),
-        )
+        seed = _optional_int(settings, 'seed')
+        # voxcpm==2.0.3 predates the upstream generate(seed=...) argument.
+        # Fork/restore CPU and the selected CUDA/ROCm RNG instead.
+        with self._seed_scope(seed):
+            wav = self._model.generate(
+                text=effective_text,
+                prompt_wav_path=reference_path if use_reference_as_prompt else None,
+                prompt_text=prompt_text if use_reference_as_prompt else None,
+                reference_wav_path=reference_path,
+                cfg_value=float(settings.get('cfg_value', 2.0)),
+                inference_timesteps=int(settings.get('inference_timesteps', 10)),
+                normalize=bool(settings.get('normalize', False)),
+                denoise=bool(settings.get('denoise', False)),
+                retry_badcase=bool(settings.get('retry_badcase', True)),
+                retry_badcase_max_times=int(settings.get('retry_badcase_max_times', 3)),
+                retry_badcase_ratio_threshold=float(
+                    settings.get('retry_badcase_ratio_threshold', 6.0)
+                ),
+            )
         sample_rate = int(self._model.tts_model.sample_rate)
         self._soundfile.write(str(output_path), wav, sample_rate)
         if not output_path.exists():
             raise RuntimeError('VoxCPM2 did not create output audio.')
         return sample_rate
+
+    @contextmanager
+    def _seed_scope(self, seed: int | None):
+        if seed is None:
+            yield
+            return
+        torch = self._torch
+        is_cuda = self._device.startswith('cuda')
+        devices = [torch.device(self._device)] if is_cuda else []
+        mps_state = torch.mps.get_rng_state() if self._device == 'mps' else None
+        try:
+            with torch.random.fork_rng(devices=devices):
+                # manual_seed() seeds every GPU too; only touch this engine's
+                # generators so unrelated devices retain their random state.
+                torch.random.default_generator.manual_seed(seed)
+                if is_cuda:
+                    with torch.cuda.device(self._device):
+                        torch.cuda.manual_seed(seed)
+                elif self._device == 'mps':
+                    torch.mps.manual_seed(seed)
+                yield
+        finally:
+            if mps_state is not None:
+                torch.mps.set_rng_state(mps_state)
 
     def _ensure_initialized(self) -> None:
         if self._initialized:
@@ -91,10 +132,15 @@ class VoxCPM2Engine:
                 import torch
                 from voxcpm import VoxCPM
 
+                model_source = self._settings.model_id
+                if self._settings.model_revision:
+                    from huggingface_hub import snapshot_download
+                    model_source = snapshot_download(repo_id=model_source, revision=self._settings.model_revision)
+
                 requested_device, backend = self._resolve_device(torch)
                 try:
                     model = VoxCPM.from_pretrained(
-                        self._settings.model_id,
+                        model_source,
                         load_denoiser=self._settings.load_denoiser,
                         optimize=self._settings.optimize,
                         device=requested_device,
@@ -104,7 +150,7 @@ class VoxCPM2Engine:
                         raise
                     requested_device, backend = 'cpu', 'cpu-fallback'
                     model = VoxCPM.from_pretrained(
-                        self._settings.model_id,
+                        model_source,
                         load_denoiser=self._settings.load_denoiser,
                         optimize=False,
                         device='cpu',
@@ -112,6 +158,7 @@ class VoxCPM2Engine:
 
                 self._model = model
                 self._soundfile = sf
+                self._torch = torch
                 self._device = requested_device
                 self._device_backend = backend
                 self._initialized = True

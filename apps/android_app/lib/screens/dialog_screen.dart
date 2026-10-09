@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_ui/shared_ui.dart';
 
 import '../state/app_state.dart';
+import '../services/audio_service.dart';
 import '../widgets/app_navigation_drawer.dart';
 import 'about_screen.dart';
 import 'home_screen.dart';
@@ -40,12 +41,32 @@ class DialogScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               child: DialogModePanel(
                 lines: state.dialogLines,
+                workspace: state.dialog,
+                masterIsPlaying:
+                    state.generatedWavPath == state.dialog.masterPath &&
+                    state.playbackState == PlaybackState.playing,
+                masterPosition:
+                    state.generatedWavPath == state.dialog.masterPath
+                    ? state.playbackPosition
+                    : Duration.zero,
+                masterDuration:
+                    state.generatedWavPath == state.dialog.masterPath
+                    ? state.playbackDuration
+                    : null,
+                onSeekMaster: state.generatedWavPath == state.dialog.masterPath
+                    ? state.seekPlayback
+                    : null,
+                onRetryLine: state.retryDialogLine,
+                onRenderConversation: state.renderDialogConversation,
+                onPreviewConversation: state.previewDialogConversation,
+                onExportConversation: state.exportDialogConversation,
                 readyModels: state.readyModels,
                 speakerSettings: state.dialogSpeakerSettings,
                 isGenerating: state.isDialogGenerating,
                 isSequencePlaying: state.isDialogPlaying,
                 activeLineId: state.activeDialogLineId,
                 errorMessage: state.dialogErrorMessage,
+                importIssues: state.dialogImportIssues,
                 onPasteFromClipboard: state.pasteDialogFromClipboard,
                 onGenerate: state.generateDialog,
                 onPlayPauseSequence: state.playPauseDialog,
@@ -53,11 +74,7 @@ class DialogScreen extends StatelessWidget {
                 onPlayLine: state.playDialogLine,
                 onRemoveLine: state.removeDialogLine,
                 onModelSelected: state.setDialogSpeakerModel,
-                onSpeakerSelected: state.setDialogSpeakerVoice,
-                onLanguageSelected: state.setDialogSpeakerLanguage,
-                onVolumeChanged: state.setDialogSpeakerVolume,
-                speed: state.speed,
-                onSpeedChanged: state.setSpeed,
+                onSettingsChanged: state.setDialogSpeakerSettings,
               ),
             );
           },

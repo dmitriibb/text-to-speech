@@ -17,7 +17,9 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 9. Live mode exposes play or pause for the current chunk and a separate stop action that halts playback, cancels further generation, and clears temporary chunk buffers.
 10. Live-mode chunk `.wav` files are temporary playback buffers only; they are not restored into the persistent generated-audio task list.
 11. Dialog mode plays generated line `.wav` files one at a time in transcript order, pauses and resumes the current line in place, and stop resets the next sequence play to the beginning.
-12. Dialog line `.wav` files are written with the speaker's current volume setting already applied, so playback and export do not need separate per-speaker gain state.
+12. Dialog line `.wav` files are written with the actor's effective gain already
+    applied once, so playback and export do not multiply legacy volume or apply
+    another per-speaker gain.
 13. The shared player pauses and resumes the currently loaded generated audio without resetting progress.
 14. Before cancelling a task or removing generated audio from the task list, the app pauses active playback and asks for confirmation.
 15. Desktop can export a copy through the task-row save action and Android can share the `.wav` through the system share sheet.
@@ -67,3 +69,15 @@ Let the user hear or keep the generated audio after synthesis succeeds.
 - clearing all tasks leaves a generated audio file or persistent task record behind
 - live-mode chunk buffers survive after the live session stops
 - dialog sequence playback overlaps lines or fails to reset to the first line after stop
+
+## Conversation masters
+
+DialogWorkspace renders complete included turns into one authoritative timeline.
+It requires current clip fingerprints/hashes, inserts exact pauses, resamples and
+attenuates globally if needed. Both apps expose render/cancel, master preview/seek,
+and Save/share controls; desktop saves a copy and Android shares the finished WAV.
+See [Dialog projects and rendering](dialog-project-and-render.md). Task-list copies
+and project sources have independent ownership; clearing tasks retains project
+sources. Rendering carries no TTS input-character stats. Corrupt/stale/missing
+inputs fail without replacing a previous master. Phone effects apply separately
+to an Audacity copy, never the clean project references or master.

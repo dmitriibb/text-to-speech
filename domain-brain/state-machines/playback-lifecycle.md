@@ -31,3 +31,5 @@
 - Pause, seek, and destructive task actions must take effect during active playback rather than waiting for the clip to finish.
 - On Windows desktop, replaying or seeking the active clip must keep control of the same loaded audio session rather than starting a second overlapping playback.
 - Both desktop and Android now use in-app player state with seekable position updates.
+
+- Dialog master playback/seek uses the single rendered WAV with exact pauses; preview pauses/resumes the same file. Per-line/sequence audition remains separate.

@@ -53,6 +53,15 @@ class ModelSynthesisSettings {
   /// Model-family integrations can store additional JSON-safe values here.
   final Map<String, Object?> extensionValues;
 
+  /// Detaches nested extension values from defaults and freezes queued choices.
+  ModelSynthesisSettings snapshot() => ModelSynthesisSettings(
+    volume: clampModelVolume(volume),
+    speed: clampSpeechSpeed(speed),
+    speakerId: speakerId,
+    generationLanguage: generationLanguage,
+    extensionValues: _freezeJsonMap(extensionValues),
+  );
+
   ModelSynthesisSettings copyWith({
     double? volume,
     double? speed,
@@ -89,4 +98,19 @@ class ModelSynthesisSettings {
     }
     return voice.speakers.first.id;
   }
+}
+
+Map<String, Object?> _freezeJsonMap(Map<String, Object?> values) =>
+    Map.unmodifiable(
+      values.map((key, value) => MapEntry(key, _freezeJson(value))),
+    );
+
+Object? _freezeJson(Object? value) {
+  if (value == null || value is String || value is bool || value is int) {
+    return value;
+  }
+  if (value is double && value.isFinite) return value;
+  if (value is List) return List.unmodifiable(value.map(_freezeJson));
+  if (value is Map<String, Object?>) return _freezeJsonMap(value);
+  throw ArgumentError('Model extensions must contain finite JSON-safe values.');
 }

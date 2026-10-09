@@ -40,10 +40,23 @@
   Expected handling: the screen shows only the `Paste from buffer` action.
 
 - Scenario: Dialog clipboard content contains blank lines or rows without a `Speaker: text` separator.
-  Expected handling: invalid rows are skipped; if no valid rows remain, import fails with a clear message.
+  Expected handling: blank rows are ignored; invalid non-blank rows are listed
+  with source line numbers, original text, and reasons before generation. If no
+  valid rows remain, the shared panel shows the import error and diagnostics,
+  and any previously imported transcript is retained.
 
 - Scenario: The user changes a Dialog speaker's model or voice after generating line audio.
   Expected handling: generated audio for that speaker's lines is invalidated so playback cannot use stale output with the wrong voice.
+
+- Scenario: Two Dialog actors share a model and one changes speed, gain, style or reference.
+  Expected handling: each owns its settings snapshot; only the edited actor's
+  clips are invalidated. Switching away and back restores that actor's target
+  history. Home/Live defaults and the second actor remain unchanged.
+
+- Scenario: A saved actor reference is missing or has different bytes.
+  Expected handling: managed-reference reads fail before upload instead of
+  silently substituting a voice. JSON stores only relative identity/hash/text;
+  source deletion after a successful import does not remove the managed copy.
 
 - Scenario: The user stops Dialog sequence playback and presses play again.
   Expected handling: playback restarts from the first generated non-empty line.
@@ -96,5 +109,22 @@
 - Scenario: A backend job receives malformed or non-object JSON in the `settings` field.
   Expected handling: the backend rejects the request with HTTP 400 before creating a job.
 
+- Scenario: Several VoxCPM2 jobs share one loaded model, possibly with different seeds.
+  Expected handling: inference executes one job at a time and seeded CPU/CUDA/ROCm
+  RNG state is scoped to that generation. The adapter uses the pinned runtime API,
+  which has no native seed argument.
+
 - Scenario: A model is approved for local validation but redistribution evidence is still missing.
   Expected handling: development may continue, but shipping decisions remain blocked.
+
+- **Dialog source edited/removed during generation:** discard the old snapshot's
+  output; retries leave other valid clips intact. Timing-only edits survive clip
+  attachment and need no regeneration.
+- **Project references/clip/master changed on disk:** reload verifies hashes and
+  marks stale/missing data unavailable. Corrupt project JSON retains current work.
+- **Render cancelled or revision changed:** kill the render isolate, wait for exit
+  before cleaning its unique files, and retain older masters as historical.
+- **Backend cancel without kernel interruption:** stop polling/attachment and
+  queued dispatch, request server cleanup, and explain in-flight compute may finish.
+- **Task library cleared:** project-owned copies remain available; cancelled local
+  tasks cannot attach to the project later.

@@ -13,7 +13,16 @@
 - Synthesized output is written to a local `.wav` file before playback, export, or sharing.
 - After a model is installed, local synthesis must work without network access.
 - Speed input is bounded to the app-supported range of `0.5x` to `2.0x`.
-- Per-model output volume is bounded to `0.5x` to `1.5x` and defaults to `1.0x`.
-- Model synthesis settings are keyed by model ID and shared across Home, Live TTS, and Dialog rather than owned by an individual screen.
+- Output gain is bounded to `0.5x` to `1.5x` and defaults to `1.0x`; Dialog applies its effective actor gain exactly once.
+- Home/Live synthesis settings are keyed by model ID. Dialog copies model defaults into independent actor/target profiles; actor edits never overwrite other actors or Home/Live defaults.
 - Models with Unknown redistribution status may be used for local validation and development, but must not be treated as ship-ready bundled assets.
 - Repair or reinstall must never silently leave a broken model marked as `ready`.
+
+- Complete conversation export requires every included non-empty turn to have a
+  current verified clip; sequence audition is not proof of a complete master.
+- Dialogue requests/results match stable project/run/turn identities and actor
+  revisions; cancellation or edits prevent late attachment.
+- Project clips/masters remain independent of removable task-list copies.
+- Timing edits require rendering only; actor/text edits invalidate affected TTS.
+- A backend health check identifies its selected model/revision and distinguishes
+  reachable, loadable and loaded. A ready ONNX installation is not fabricated.

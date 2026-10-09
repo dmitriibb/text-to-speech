@@ -80,6 +80,17 @@ def test_job_rejects_non_object_settings(tmp_path: Path) -> None:
     assert response.json()['detail'] == 'settings must be a JSON object.'
 
 
+def test_job_rejects_unsupported_speed_before_dispatch(tmp_path: Path) -> None:
+    settings = _settings(tmp_path)
+    jobs = FakeJobStore()
+    client = TestClient(create_app(settings=settings, storage=StorageManager(settings), engine=FakeEngine(), job_store=jobs))
+    for speed in ('0.5', '1.2', '2.0', 'nan', 'inf'):
+        response = client.post('/jobs', data={'text': 'Привет!', 'language': 'ru', 'speed': speed})
+        assert response.status_code == 400
+        assert 'speed=1.0 only' in response.json()['detail']
+    assert not hasattr(jobs, 'kwargs')
+
+
 def test_auto_device_recognizes_rocm_as_gpu(tmp_path: Path) -> None:
     class FakeCuda:
         @staticmethod

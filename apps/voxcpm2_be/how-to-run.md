@@ -1,6 +1,9 @@
 # How to Run the VoxCPM2 Backend
 
-VoxCPM2 requires Python 3.10, 3.11, or 3.12. Python 3.10 is recommended. Commands below are run from `apps/voxcpm2_be`.
+VoxCPM2 requires Python 3.10, 3.11, or 3.12. Use a current patch release;
+Python 3.10.0 is incompatible with the currently resolved Pydantic dependency
+(`ForwardRef` does not accept `is_class`). Python 3.10.22 passes the backend tests.
+Commands below are run from `apps/voxcpm2_be`.
 
 ## Windows: CPU fallback
 
@@ -10,10 +13,15 @@ py -3.10 -m venv .venv
 python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
 $env:VOXCPM_DEVICE='auto'
+$env:VOXCPM_OPTIMIZE='false'
+$env:VOXCPM_LOAD_DENOISER='false'
 python -m src.main
 ```
 
-Standard PyTorch on Windows does not normally expose Radeon GPUs through ROCm. With `VOXCPM_DEVICE=auto`, the backend therefore uses CPU automatically when no supported GPU runtime is detected.
+The CPU PyTorch build does not expose Radeon GPUs. `VOXCPM_DEVICE=auto` uses
+CPU when no supported GPU runtime is detected. A separate official AMD runtime
+must be installed and tested for native Windows or WSL acceleration; the passing
+CPU evaluation below establishes no AMD inference compatibility.
 
 ## Ubuntu/Linux: AMD Radeon with ROCm
 
@@ -40,9 +48,10 @@ Install the PyTorch CUDA build recommended for the installed driver, install `re
 VOXCPM_HOST=127.0.0.1
 VOXCPM_PORT=8011
 VOXCPM_MODEL_ID=openbmb/VoxCPM2
+VOXCPM_MODEL_REVISION=32279effe8c19989596f05d353d1447f51d9e915
 VOXCPM_DEVICE=auto
 VOXCPM_LOAD_DENOISER=false
-VOXCPM_OPTIMIZE=true
+VOXCPM_OPTIMIZE=false
 ```
 
 Use `VOXCPM_HOST=0.0.0.0` only when serving another trusted machine on the LAN, and restrict port `8011` with the firewall. This API has no authentication and must not be exposed directly to the public internet.
@@ -51,3 +60,5 @@ Health check: `http://127.0.0.1:8011/health`.
 
 The first job downloads approximately 5 GB of model assets from Hugging Face and initializes the model. CPU generation is supported but can be substantially slower than GPU generation.
 
+
+For the completed desktop Dialog workflow, references, export and Audacity preset, see [Russian phone calls](../../docs/russian-phone-call-workflow.md). First generation loads the pinned checkpoint.

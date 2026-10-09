@@ -20,9 +20,18 @@ Generate understandable speech locally from user-provided text with no cloud dep
 12. Live mode also highlights generating, next-ready, and currently playing text chunks directly inside the shared editor.
 13. Live TTS uses a dedicated screen with chunk size, play or pause, and stop controls above a large internally scrollable editor.
 14. In live mode, the main control toggles between play and pause for the current chunk, while stop cancels remaining generation and clears temporary generated chunk buffers.
-15. In Dialog mode, clipboard text is parsed as `Speaker: line`; each valid non-empty line is queued as its own local synthesis task using the model, optional speaker voice, language, and volume assigned to that person.
-16. Dialog speaker settings are per parsed speaker name; changing a person's model, voice, language, or volume clears generated output for that person's existing lines.
-17. Desktop Dialog generation uses the `dialogGenerationConcurrency` value from `apps/desktop_app/settings.json` to choose how many background synthesis workers may process queued lines at the same time; the default is `4`.
+15. In Dialog mode, clipboard text is parsed as `Speaker: line`; each valid included non-empty line is generated from an immutable actor/text snapshot, through local synthesis or the explicitly injected desktop VoxCPM2 target.
+    Import diagnostics list skipped non-blank rows with source line numbers,
+    original text, and reasons in the shared panel. Parsing splits only at the
+    first colon and preserves Cyrillic/`ё` in speech. Both apps allow a fresh
+    paste while idle; import is disabled while line generation is active.
+16. Dialog speaker settings use independent actor profiles; model defaults are
+    copied once per actor/target. Changing a person's model, voice, language,
+    speed, gain, or extensions clears generated output for that person's lines.
+    Other actors and Home/Live settings retain their values. Local generation
+    captures an immutable actor snapshot before asynchronous submission and
+    discards attachment if that actor's revision changed during submission.
+17. DialogWorkspace dispatches turns sequentially on both apps. Desktop executor pool configuration remains available for other local background tasks; it does not imply concurrent backend inference.
 
 ## Invariants
 
@@ -38,8 +47,14 @@ Generate understandable speech locally from user-provided text with no cloud dep
 - Live mode uses the same persisted per-model volume, speed, speaker, and language settings as normal synthesis.
 - Live mode stop must release already generated chunk buffers instead of keeping them in memory or on disk for later reuse.
 - Dialog mode requires every non-empty line to have a ready model assignment before generation starts.
-- Dialog line generation writes one `.wav` per line and keeps the speaker name and line text immutable in the compact line row; removing a row is the destructive line-level action.
-- Dialog speaker volume is clamped from `1` to `10`, defaults to `7`, and `7` preserves baseline generated loudness.
+- Dialog line generation writes one owned `.wav` per turn. The shared edit dialog supports text/explicit pronunciation overrides, pause overrides and inclusion; removal advances the project revision.
+- Dialog uses one actor gain (`0.5`–`1.5`, default `1.0`) already baked into line
+  files. Legacy volume `7` migrates to `1.0`; legacy integer volume is never
+  applied in addition to effective gain.
+- Shared synthesis targets distinguish local installed model IDs from backend
+  model/runtime IDs. Backend readiness tracks unavailable/reachable/loadable/
+  loaded at an endpoint and does not fabricate an ONNX installation path.
+  Desktop registers a single explicit backend target with no fabricated ONNX path.
 - Desktop Dialog generation concurrency must be at least `1`; missing or unreadable desktop settings fall back to `4`.
 - Android inference provider selection is persisted across app launches and applies to model preload, normal synthesis, and live TTS.
 - Android NNAPI acceleration is best-effort: supported work may use device acceleration and unsupported work must fall back to CPU.
@@ -63,3 +78,5 @@ Generate understandable speech locally from user-provided text with no cloud dep
 - dialog generation starts with a missing or non-ready speaker model
 - Pocket TTS bundled reference clip missing from an installed model directory
 - `.wav` file write failure
+
+See [Dialog projects and rendering](dialog-project-and-render.md) for generation, persistence and complete-output rules.

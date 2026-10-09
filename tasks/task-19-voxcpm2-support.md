@@ -6,7 +6,7 @@ Implement support for `openbmb/VoxCPM2`, add the model, and document how to run 
 
 ## Current Status
 
-Backend service and desktop backend registration complete. Full model-settings UI and Dialog generation routing remain pending.
+Backend service and desktop backend registration complete. Dialog model settings, managed reference uploads, pinned checkpoint checks and generation routing are complete. Home/German/GPU validation remains separate.
 
 ## Scope
 
@@ -54,6 +54,14 @@ The user's second machine with a 16 GB GPU is a good fit for this. LM Studio its
 
 ## Remaining
 
-- Add the model-specific settings controls to the shared model settings modal.
-- Route Home/Dialog generation through the VoxCPM2 backend and register returned WAV files in the generated-audio flow.
+The 2026-10-09 [Russian evaluation](phone-call-audio/evaluation.md) downloaded the
+pinned checkpoint and generated real CPU two/three-actor samples. Corrected the
+unsupported native seed argument, serialized inference, defaulted normalization
+off, and rejected unimplemented speed control. German/app/GPU validation below
+remains open; Russian listening has not selected the engine yet.
+
+Russian phone-call work now has a linked [macro plan](phone-call-audio/plan.macro.md) and [Dialog/export feature plan](phone-call-audio/plan.russian-dialogue.md). Reuse this task's backend/settings work for that goal if VoxCPM2 passes Russian voice evaluation; do not create a parallel backend implementation. This task's existing Home/German validation scope remains distinct.
+
+- Dialog model-specific settings controls are complete; add Home integration if required.
+- Dialog routing and independent generated-audio copies are complete; Home routing remains open.
 - Perform a real model download and German synthesis smoke test on the target CPU/AMD/remote GPU environments.

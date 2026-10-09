@@ -1,0 +1,4 @@
+SelectAll:
+FilterCurve: FilterLength="8191" InterpolateLin="0" InterpolationMethod="B-spline" f0="20" v0="-36" f1="100" v1="-24" f2="200" v2="-12" f3="300" v3="-3" f4="500" v4="0" f5="2400" v5="0" f6="3400" v6="-3" f7="4500" v7="-18" f8="8000" v8="-36" f9="20000" v9="-48"
+Compressor: thresholdDb="-18" makeupGainDb="0" kneeWidthDb="6" compressionRatio="2.5" lookaheadMs="1" attackMs="10" releaseMs="150"
+Normalize: ApplyVolume="1" PeakLevel="-1" RemoveDcOffset="1" StereoIndependent="0"

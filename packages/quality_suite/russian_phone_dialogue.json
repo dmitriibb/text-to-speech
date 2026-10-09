@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "language": "ru",
+  "actors": [
+    {"id": "anna", "name": "Анна", "design": "An adult woman with a clear medium-pitched voice, relaxed conversational delivery, native Russian pronunciation."},
+    {"id": "sergey", "name": "Сергей", "design": "An adult man with a warm low-pitched voice, calm conversational delivery, native Russian pronunciation."},
+    {"id": "irina", "name": "Ирина", "design": "An adult woman with a lower husky voice, brisk conversational delivery, native Russian pronunciation."}
+  ],
+  "reference_text": "Привет! Хорошо, что ты позвонил. Я сейчас дома и могу спокойно поговорить. Расскажи, как прошёл твой день.",
+  "scripts": [
+    {
+      "id": "two_actor",
+      "turns": [
+        {"id": "ru-01", "actor_id": "anna", "text": "Алло, Сергей? Ты меня слышишь?", "cases": ["question", "name"]},
+        {"id": "ru-02", "actor_id": "sergey", "text": "Да, слышу. Привет! Что случилось?", "cases": ["informal_reply"]},
+        {"id": "ru-03", "actor_id": "anna", "text": "Встречу перенесли на пятницу, на половину шестого.", "cases": ["time"]},
+        {"id": "ru-04", "actor_id": "sergey", "text": "Подожди, на эту пятницу или на следующую?", "cases": ["question"]},
+        {"id": "ru-05", "actor_id": "anna", "text": "На эту. Я ещё отправлю тебе адрес сообщением.", "cases": ["yo"]},
+        {"id": "ru-06", "actor_id": "sergey", "text": "Угу.", "cases": ["very_short"]},
+        {"id": "ru-07", "actor_id": "anna", "text": "Нас ждёт Пётр Семёнов, а Елена Воробьёва подъедет чуть позже.", "cases": ["yo", "surname"]},
+        {"id": "ru-08", "actor_id": "sergey", "text": "Э-э... а встреча точно 23 октября 2026 года?", "cases": ["hesitation", "date", "numbers"]},
+        {"id": "ru-09", "actor_id": "anna", "text": "Да. Билет стоит 1 250 рублей, а кофе — 180 рублей 50 копеек.", "cases": ["price", "numbers"]},
+        {"id": "ru-10", "actor_id": "sergey", "text": "Это возле МГУ? До метро оттуда примерно два километра?", "cases": ["abbreviation", "question"]},
+        {"id": "ru-11", "actor_id": "anna", "text": "Нет, в письме написано: вход со двора, второй этаж.", "cases": ["spoken_colon", "punctuation"]},
+        {"id": "ru-12", "actor_id": "sergey", "text": "Записываю. Продиктуй, пожалуйста, номер телефона.", "cases": ["request"]},
+        {"id": "ru-13", "actor_id": "anna", "text": "Это вымышленный номер для проверки: +7 (000) 123-45-67.", "cases": ["telephone", "numbers", "spoken_colon"]},
+        {"id": "ru-14", "actor_id": "sergey", "text": "Понял: плюс семь, три нуля, сто двадцать три, сорок пять, шестьдесят семь.", "cases": ["spoken_numbers", "spoken_colon"]},
+        {"id": "ru-15", "actor_id": "anna", "text": "Только не забудь зонт — обещают дождь!", "cases": ["exclamation", "punctuation"]},
+        {"id": "ru-16", "actor_id": "sergey", "text": "Слушай, я сначала заеду за документами, потом заберу посылку и только после этого поеду к вам. Если автобус задержится, я сразу напишу. Давай лучше встретимся у входа, чтобы не искать друг друга внутри.", "cases": ["long_turn"]},
+        {"id": "ru-17", "actor_id": "anna", "text": "Договорились. Ну... тогда я пока забронирую столик.", "cases": ["hesitation"]},
+        {"id": "ru-18", "actor_id": "sergey", "text": "Спасибо! И ещё: передай привет Алёше.", "cases": ["yo", "spoken_colon"]},
+        {"id": "ru-19", "actor_id": "anna", "text": "Обязательно. До встречи!", "cases": ["closing"]},
+        {"id": "ru-20", "actor_id": "sergey", "text": "Пока!", "cases": ["closing", "very_short"]}
+      ]
+    },
+    {
+      "id": "three_actor",
+      "turns": [
+        {"id": "ru-three-01", "actor_id": "anna", "text": "Ирина, привет! Сергей тоже на линии.", "cases": ["name"]},
+        {"id": "ru-three-02", "actor_id": "irina", "text": "Здравствуйте! Вы уже договорились о времени?", "cases": ["question"]},
+        {"id": "ru-three-03", "actor_id": "sergey", "text": "Да, в пятницу в половине шестого, у входа.", "cases": ["time"]},
+        {"id": "ru-three-04", "actor_id": "anna", "text": "Отлично. Значит, встречаемся втроём.", "cases": ["yo"]},
+        {"id": "ru-three-05", "actor_id": "irina", "text": "Хорошо, до пятницы!", "cases": ["closing"]},
+        {"id": "ru-three-06", "actor_id": "sergey", "text": "До встречи!", "cases": ["closing"]}
+      ]
+    }
+  ],
+  "rubric": {
+    "scale": {"1": "unusable", "2": "major defects", "3": "usable with repairs", "4": "good, minor defects", "5": "convincing and clear"},
+    "dimensions": ["pronunciation", "conversational_delivery", "actor_identity", "phone_intelligibility"],
+    "minimum_score": 4,
+    "hard_failures": ["missing_words", "repeated_words", "spoken_actor_labels", "voice_swaps"],
+    "note": "Human listening is required. Null scores mean unevaluated, never passed. Phone intelligibility is scored only after processing a copy of the clean audio."
+  }
+}

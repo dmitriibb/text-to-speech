@@ -128,3 +128,6 @@ flutter run -d <device-id>
 - `Android license status unknown`: run `flutter doctor --android-licenses`
 - Emulator is slow on Ubuntu: verify KVM and group membership, then log out and back in
 - If a phone cancels install, retry with the emulator first to separate device policy issues from app issues
+## Dialog projects
+
+The shared [Russian dialogue workflow](../../docs/russian-phone-call-workflow.md) supports local installed models, independent actors, edit/retry/cancel, project save/reload, timing, render/master preview and system sharing. VoxCPM2/Python reference controls are desktop Extended functionality. Use JDK 17 for the current Gradle/Android setup; a newer Android Studio bundled JBR may require a compatible JDK override.
