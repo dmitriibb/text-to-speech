@@ -1309,6 +1309,51 @@ Omar: Der Termin ist am Montag.
     },
   );
 
+  test(
+    'live tts session waits for the earliest chunk when generation finishes out of order',
+    () async {
+      final tempDir = await Directory.systemTemp.createTemp('live-tts-test');
+      addTearDown(() => tempDir.delete(recursive: true));
+
+      final factory = _RecordingExecutorFactory();
+      final session = LiveTtsSession(
+        executorFactory: factory.create,
+        modelDir: '/tmp/demo-model',
+        voice: _demoVoiceModel,
+        text: 'One two. Three four.',
+        speed: 1,
+        speakerId: 0,
+        chunkSizeWords: 2,
+        outputDirectoryPath: tempDir.path,
+      );
+      addTearDown(session.dispose);
+
+      await session.start();
+
+      final secondExecutor = factory.createdExecutors[1];
+      secondExecutor.completeTask(
+        secondExecutor.submittedRequests.single.taskId,
+        LongRunningTaskType.synthesizeSpeech,
+        outputPath: '${tempDir.path}/chunk-2.wav',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.chunks[0].status, LiveTtsChunkStatus.generating);
+      expect(session.chunks[1].status, LiveTtsChunkStatus.ready);
+      expect(session.nextReadyChunk, isNull);
+
+      final firstExecutor = factory.createdExecutors[0];
+      firstExecutor.completeTask(
+        firstExecutor.submittedRequests.single.taskId,
+        LongRunningTaskType.synthesizeSpeech,
+        outputPath: '${tempDir.path}/chunk-1.wav',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(session.nextReadyChunk?.index, 0);
+    },
+  );
+
   test('live tts session submits only text after the caret offset', () async {
     final tempDir = await Directory.systemTemp.createTemp('live-tts-test');
     addTearDown(() => tempDir.delete(recursive: true));

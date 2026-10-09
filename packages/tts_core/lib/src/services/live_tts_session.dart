@@ -81,9 +81,13 @@ class LiveTtsSession extends ChangeNotifier {
     final startIndex = (_playingChunkIndex ?? -1) + 1;
     for (var index = startIndex; index < _chunks.length; index++) {
       final chunk = _chunks[index];
-      if (chunk.status == LiveTtsChunkStatus.ready) {
-        return chunk;
+      if (chunk.status == LiveTtsChunkStatus.completed) {
+        continue;
       }
+
+      // Generation is concurrent, but playback must remain sequential. Wait for
+      // the earliest unplayed chunk instead of skipping to a later ready one.
+      return chunk.status == LiveTtsChunkStatus.ready ? chunk : null;
     }
     return null;
   }

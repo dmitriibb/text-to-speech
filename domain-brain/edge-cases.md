@@ -33,6 +33,9 @@
 - Scenario: The user stops live mode while future chunks are already generated or still generating.
   Expected handling: active playback stops, background chunk work is cancelled, and temporary chunk `.wav` buffers are deleted.
 
+- Scenario: A later live-mode chunk finishes generating before an earlier chunk.
+  Expected handling: playback waits for the earliest unplayed chunk to become ready and never plays generated chunks out of text order.
+
 - Scenario: The user opens Dialog mode before importing any transcript.
   Expected handling: the screen shows only the `Paste from buffer` action.
 

@@ -7,9 +7,9 @@
         <compositeConfiguration>
           <compositeBuild compositeDefinitionSource="SCRIPT">
             <builds>
-              <build path="$USER_HOME$/snap/flutter/common/flutter/packages/flutter_tools/gradle" name="gradle">
+              <build path="$PROJECT_DIR$/../../programms/flutter/flutter/packages/flutter_tools/gradle" name="gradle">
                 <projects>
-                  <project path="$USER_HOME$/snap/flutter/common/flutter/packages/flutter_tools/gradle" />
+                  <project path="$PROJECT_DIR$/../../programms/flutter/flutter/packages/flutter_tools/gradle" />
                 </projects>
               </build>
             </builds>
@@ -20,14 +20,18 @@
         <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
         <option name="modules">
           <set>
-            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/audio_session-0.2.3/android" />
-            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/just_audio-0.10.5/android" />
-            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/path_provider_android-2.2.23/android" />
-            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/share_plus-11.1.0/android" />
-            <option value="$USER_HOME$/.pub-cache/hosted/pub.dev/sherpa_onnx_android-1.12.35/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/audio_session-0.2.4/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/jni-1.0.0/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/jni_flutter-1.0.1/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/just_audio-0.10.6/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/share_plus-11.1.0/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/sherpa_onnx_android_arm64-1.13.4/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/sherpa_onnx_android_armeabi-1.13.4/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/sherpa_onnx_android_x86-1.13.4/android" />
+            <option value="$USER_HOME$/AppData/Local/Pub/Cache/hosted/pub.dev/sherpa_onnx_android_x86_64-1.13.4/android" />
+            <option value="$PROJECT_DIR$/../../programms/flutter/flutter/packages/flutter_tools/gradle" />
             <option value="$PROJECT_DIR$/apps/android_app/android" />
             <option value="$PROJECT_DIR$/apps/android_app/android/app" />
-            <option value="$USER_HOME$/snap/flutter/common/flutter/packages/flutter_tools/gradle" />
           </set>
         </option>
       </GradleProjectSettings>

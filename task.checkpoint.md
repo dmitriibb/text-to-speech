@@ -46,3 +46,11 @@ Status: implemented and verified on desktop and Android.
 - `apps/desktop_app`: all tests passed.
 - `apps/android_app`: all tests passed.
 - Analyzer passed across both apps and both shared packages with no findings.
+
+## Checkpoint 2
+
+- Fixed Live-mode playback ordering in the shared `LiveTtsSession`.
+- Later chunks that synthesize first now wait for the earliest unplayed chunk.
+- Added a regression test covering out-of-order concurrent generation.
+- Updated the domain edge case to require strict text-order playback.
+- Formatting and `git diff --check` passed; Flutter tests hung before execution in this environment.
